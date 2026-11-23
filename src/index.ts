@@ -40,3 +40,5 @@ export type {
   Prompt,
   Scope,
 } from '@council/core/types.js';
+export { buildPrompt, type PromptInput } from '@council/context/prompt.js';
+export { parseTurnOutput, type TurnOutput } from '@council/context/output.js';
