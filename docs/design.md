@@ -237,7 +237,7 @@ produce mention grants.
   Built-in read tools default to `auto` and MCP tools default to `ask`. An
   `ask` call posts the member, tool and the full arguments with Approve and
   Deny buttons; arguments too long to show in full are refused, never cut. The opaque request id binds the decision to the arguments,
-  council, chain, turn and expiry. The owner or a user in `slack.allowedUsers`
+  council, chain, turn and expiry. Any user in `slack.allowedUsers`
   can decide once. The app acknowledges clicks immediately and updates the
   message with the outcome and removes its buttons. Pending requests expire
   on restart. The approval timeout defaults to five minutes. The turn timer
@@ -337,6 +337,24 @@ and `stateDir`.
 5. Channel councils.
 
 All five are implemented.
+
+## Known limitations
+
+Accepted for the prototype. Each was raised in review and left as is.
+
+- A message addressed to `@council` in the instant between a channel council's
+  "convened" post and its save opens a separate thread council.
+- `@council end` sent to a dormant council while a replacement in the same
+  scope is still saving can remove the replacement.
+- A restart while a picker submission is waiting on Slack loses that
+  submission. Pending approvals are also dropped on restart.
+- If the triggering message is deleted before a turn reads history, members
+  answer without it.
+- A Slack write that times out is never resent, so the post may still appear
+  beside a failure notice.
+- A thread longer than 50 pages of replies cannot be read; turns in it fail
+  with a notice.
+- A post over Slack's 12,000-character limit is cut, not split.
 
 ## Out of scope for the prototype
 
