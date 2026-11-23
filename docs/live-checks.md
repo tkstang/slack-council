@@ -1,10 +1,8 @@
 # Live checks
 
-The unit tests stop at the ports. These checks are the proof that the app works
-in Slack: `src/slack/bolt.ts`, `src/app/start.ts` and `src/tools/member-tools.ts`
-have no other coverage. Run them in a private test channel after a change that
-touches the Slack adapter, the turn runner, tools or approvals, and add a line
-to the log.
+The automated checks use fakes for Slack and handoff calls. Run this checklist
+in a private test channel after a change that touches the Slack adapter, the
+turn runner, tools or approvals. Add the results to the log.
 
 ## Setup
 
@@ -40,9 +38,16 @@ the Slack client: messages injected below the adapter do not prove it.
 | 19  | Ask the same member two questions that need no tool, in quick succession in one council. Repeat for both model families. | The first turn logs no `model_cache_read`. The second logs it with positive `cached_input_tokens`.                                                                                |
 | 20  | In a new thread, mention `@council` with `preset:<non-default name>` and a question.                                     | The convening notice names the selected preset and lists its panel. Members from that panel answer in the thread.                                                                 |
 | 21  | In a thread with no council, mention `@council` with `preset:<unknown name>` and a question.                             | One notice says the preset is unknown and lists the configured names as inline code. No council convenes and no member answers.                                                   |
+| 22  | Ask a member with `handoff` to write a test note and launch a session in a test project. Click **Approve**.              | The card shows the exact path, full note, target and prompt. The note exists at that path and a session starts with the shown prompt pointing to it.                              |
+| 23  | Request another handoff. Click **Change**, submit a specific revision, then approve the revised card.                    | The first card says "Changes requested" and runs nothing. The new card shows the revision. Approval writes the revised note and launches one session.                             |
+| 24  | Request another handoff and click **Reject**.                                                                            | The card says "Request rejected" and loses its buttons. No note or session is created.                                                                                            |
 
 For row 19, use `gpt-6-luna` and `claude-haiku-5-5`. Use stable guidance long
 enough to reach each model's cache minimum and keep the tool definitions fixed.
+
+For rows 22 to 24, configure `tools.handoff` with a test notes folder and
+working MCP tools. Grant `handoff` to a test member. Verify note and session
+creation directly in the destination systems.
 
 With `council.memberMentions: "people"`, also ask a member to notify you by
 name and expect a real mention.

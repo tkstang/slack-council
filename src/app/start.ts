@@ -12,6 +12,7 @@ import { createInboundHandler } from '@council/slack/inbound.js';
 import { createPicker } from '@council/slack/picker.js';
 import { createSlackPort } from '@council/slack/port.js';
 import { createApprovalGate } from '@council/tools/approval.js';
+import { createHandoff } from '@council/tools/handoff.js';
 import { createMcpManager } from '@council/tools/mcp.js';
 import { createMemberTools } from '@council/tools/member-tools.js';
 import { App } from '@slack/bolt';
@@ -101,12 +102,22 @@ export async function startCouncilApp({
     (server) =>
       log({ level: 'warn', event: 'mcp_orientation_missing', server }),
   );
+  await mcp.start();
+  const handoffConfig = config.tools.handoff;
+  const handoff = handoffConfig && createHandoff(handoffConfig, mcp);
+  if (handoffConfig && !handoff)
+    log({
+      level: 'warn',
+      event: 'handoff_unavailable',
+      code: 'E_MCP_UNAVAILABLE',
+    });
   const toolsFor = createMemberTools({
     config: config.tools,
     slack,
     members,
     mcp,
     approvals,
+    handoff,
   });
   const service = await openCouncilService(config, {
     slack,
@@ -142,6 +153,9 @@ export async function startCouncilApp({
         code,
         channel: scope.channel,
       }),
+  }).catch(async (error: unknown) => {
+    await mcp.close();
+    throw error;
   });
 
   const app = new App({
@@ -155,7 +169,8 @@ export async function startCouncilApp({
   });
   registerCouncilHandlers(app, {
     onEvent: createInboundHandler({ service, appUserId: botUserId, log }),
-    onApproval: approvals.decide,
+    approvals,
+    writer,
     picker: createPicker({
       config,
       service,
@@ -168,7 +183,6 @@ export async function startCouncilApp({
     log,
   });
   try {
-    await mcp.start();
     await app.start();
   } catch {
     await shutdown();

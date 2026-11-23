@@ -208,6 +208,7 @@ gives the member no tools.
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `files`            | `read_file`, `list_dir`, `search_files`                                                                                                                  |
 | `slack_history`    | Earlier messages from this council's thread or channel. It starts before the prompt transcript and accepts the returned `oldestTs` as a `before` cursor. |
+| `handoff`          | Proposes a Markdown note and a coding session for one approval.                                                                                          |
 | `<server>`         | Every compatible tool from the named MCP server.                                                                                                         |
 | `<server>__<tool>` | One tool from the named MCP server.                                                                                                                      |
 
@@ -267,6 +268,37 @@ or cancellation returns a tool error. Two denials or expiries suppress
 further requests during that turn. Tool results over 64 KiB are refused. `council.approvalTimeoutMs` defaults to 300,000 ms.
 The turn timer pauses while waiting for approval. `stop` and `end` cancel
 the wait immediately. Pending requests expire on restart.
+
+### Handoff to a coding session
+
+In your private config, set `tools.handoff.folder` to a vault-relative folder
+and set `tools.handoff.write` and `tools.handoff.launch` to objects with
+`server` and `tool` keys. Declare both servers in `tools.mcpServers`. The
+example uses placeholders for a Stoa `vault_write` and a Switchboard
+`launch`. The Switchboard credential must allow launches without a source
+thread ID. For a setup without handoff, remove the block, its member grants
+and any unused placeholder servers.
+
+Add `handoff` to each member that should propose handoffs. It requires
+`tools.handoff`. If either tool is missing from the connected catalogs, the
+app logs `handoff_unavailable` once at startup and skips the grant. Handoff
+uses the two tools internally. Granting either tool directly, including via
+a whole-server grant, bypasses the single-approval flow for direct calls.
+
+Ask a member to hand off work and specify the target machine and project.
+The card shows the resolved note path, the full Markdown source, the
+target and the final prompt. It always asks, even under an `auto` rule.
+**Approve** writes the note and then launches the session with a pointer
+to the note. **Reject** ends the request. **Change** opens a form for your
+instructions and returns them to the member, who can propose a revised
+handoff for approval. The preview fits up to 8,000 UTF-16 code units
+including escaped characters and labels. Longer proposals return a request
+for a shorter note.
+
+The launch runs only after a confirmed write. If a written note is followed
+by a failed or unconfirmed launch, the member receives the note path and
+launch status. The app leaves the note in place and does not replay either
+call.
 
 ## Adapter entry points
 

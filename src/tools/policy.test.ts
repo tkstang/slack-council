@@ -22,6 +22,8 @@ it.each([
     'auto',
   ],
   [[{ tool: '*', action: 'ask' }], 'read_file', 'builtin', 'ask'],
+  [[{ tool: '*', action: 'auto' }], 'handoff', 'builtin', 'ask'],
+  [[{ tool: 'handoff', action: 'auto' }], 'handoff', 'builtin', 'ask'],
   [[{ tool: 'list_dir', action: 'ask' }], 'read_file', 'builtin', 'auto'],
   [[], 'notes__list', 'mcp', 'ask'],
 ] as const)('resolves %j for %s (%s) to %s', (rules, name, kind, action) => {

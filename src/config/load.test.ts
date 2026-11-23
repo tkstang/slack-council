@@ -207,6 +207,7 @@ describe('configuration', () => {
 
   it.each([
     [['files', 'slack_history', 'notes', 'notes__append_note'], true],
+    [['handoff'], false],
     [['unknown'], false],
     [['other__append_note'], false],
     [['notes__'], false],
@@ -224,6 +225,32 @@ describe('configuration', () => {
     );
     expect(parsed).toMatchObject(
       ok ? { ok: true } : { ok: false, code: 'E_UNKNOWN_TOOL_GRANT' },
+    );
+  });
+
+  it.each([
+    ['Handoffs/Review', true],
+    ['Handoffs/../Review', false],
+  ] as const)('validates a handoff using folder %s', (folder, ok) => {
+    const input = config();
+    const parsed = parseConfig(
+      JSON.stringify({
+        ...input,
+        members: {
+          reviewer: { ...input.members.reviewer, tools: ['handoff'] },
+        },
+        tools: {
+          mcpServers: { notes: { transport: 'stdio', command: 'mcp' } },
+          handoff: {
+            folder,
+            write: { server: 'notes', tool: 'vault_write' },
+            launch: { server: 'sessions', tool: 'launch' },
+          },
+        },
+      }),
+    );
+    expect(parsed).toMatchObject(
+      ok ? { ok: true } : { ok: false, code: 'E_INVALID_INPUT' },
     );
   });
 

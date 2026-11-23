@@ -1,3 +1,4 @@
+import { HANDOFF_GRANT } from '@council/config/schema.js';
 import {
   DEFAULT_REPLY_WORDS,
   type Author,
@@ -214,6 +215,11 @@ export function buildTurnContext(input: PromptInput) {
     "Writing a colleague's plain @handle gives them the floor and obliges them to answer. Do it only when you need their answer. To refer or reply to a colleague without handing over the floor, use their name with no @.",
     'Posts tagged [new] appeared since you last spoke. Raise any disagreement with them before answering the current request.',
     'Transcript numbers such as [#3] are internal and mean nothing in Slack. Never write them in replies; refer to a post by its author and what it said.',
+    ...(input.member.tools.includes(HANDOFF_GRANT)
+      ? [
+          'Treat the handoff tool’s changes_requested field as the user’s instruction to revise the handoff and ask again.',
+        ]
+      : []),
     `Keep your reply within ${normal} words by default, ${detailed} words when the user asks for more detail, further explanation or examples, and ${max} words when the user asks you to go in depth. If you have more to say than the chosen limit allows, end with one short sentence saying you stopped at the limit and can go further.`,
     ...(input.mentionPeople
       ? [

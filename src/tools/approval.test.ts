@@ -1,3 +1,4 @@
+import type { CallToolResult } from '@ai-sdk/mcp';
 import { ConfigSchema } from '@council/config/schema.js';
 import type {
   ApprovalPort,
@@ -10,7 +11,24 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { createApprovalGate } from './approval.js';
+import { createHandoff } from './handoff.js';
 import { createMemberTools } from './member-tools.js';
+
+const proposedHandoff = {
+  title: '../Send/Review\\draft.md',
+  content: '# Summary\n\nInspect the proposed patch.',
+  machine: 'machine',
+  project: 'project',
+  prompt: 'Review the patch.',
+};
+const reply = (structuredContent: Record<string, unknown>): CallToolResult => ({
+  content: [],
+  structuredContent,
+});
+type McpCall = (
+  args: Record<string, unknown>,
+  signal: AbortSignal,
+) => Promise<CallToolResult>;
 
 function fixture(allowedUsers = ['U1', 'U2']) {
   const postApproval = vi.fn<ApprovalPort['postApproval']>(async () =>
@@ -35,7 +53,7 @@ function fixture(allowedUsers = ['U1', 'U2']) {
       avatar: { emoji: ':owl:' },
       provider: 'test',
       model: 'test',
-      tools: ['notes__write'],
+      tools: ['notes__write', 'handoff'],
     },
     maxSteps: 4,
     signal: controller.signal,
@@ -52,16 +70,42 @@ function fixture(allowedUsers = ['U1', 'U2']) {
     inputSchema: z.object({ text: z.string() }),
     execute: perform,
   });
+  const writeHandoff = vi.fn<McpCall>(async () => reply({ ok: true }));
+  const launch = vi.fn<McpCall>(async () =>
+    reply({
+      key: 't3code:machine/session',
+      operation: { id: 'operation', status: 'confirmed' },
+    }),
+  );
+  const config = ConfigSchema.shape.tools.parse({
+    policy: [
+      { tool: 'notes__write', action: 'ask' },
+      { tool: '*', action: 'auto' },
+    ],
+    handoff: {
+      folder: 'Handoffs/Drafts',
+      write: { server: 'vault', tool: 'vault_write' },
+      launch: { server: 'sessions', tool: 'launch' },
+    },
+  });
+  if (!config.handoff) throw new Error('Missing handoff config');
+  const handoff = createHandoff(config.handoff, {
+    bindTool: ({ tool: name }) =>
+      name === 'vault_write' ? writeHandoff : launch,
+  });
   const toolsFor = createMemberTools({
-    config: ConfigSchema.shape.tools.parse({}),
+    config,
     slack: { fetchMessages: async () => success([]) },
     members: [input.member],
     mcp: { toolsFor: () => ({ notes__write: write }) },
     approvals: gate,
+    handoff,
   });
   const options = { toolCallId: 'approval-test', messages: [], context: {} };
-  const execute = toolsFor(input)?.notes__write?.execute;
-  if (!execute) throw new Error('Missing test tool');
+  const tools = toolsFor(input);
+  const execute = tools?.notes__write?.execute;
+  const executeHandoff = tools?.handoff?.execute;
+  if (!execute || !executeHandoff) throw new Error('Missing test tool');
   return {
     ...gate,
     controller,
@@ -69,8 +113,13 @@ function fixture(allowedUsers = ['U1', 'U2']) {
     postApproval,
     updateApproval,
     perform,
+    writeHandoff,
+    launch,
     call(args = { text: 'a note' }) {
       return execute(args as never, options);
+    },
+    handoff(args = proposedHandoff) {
+      return executeHandoff(args as never, options);
     },
     async posted(index = 0): Promise<ApprovalRequest> {
       await vi.advanceTimersByTimeAsync(0);
@@ -211,3 +260,171 @@ it.each([false, true])(
     );
   },
 );
+
+it('asks once under an auto policy, then writes under the folder and launches with the approved prompt', async () => {
+  vi.useFakeTimers();
+  const f = fixture();
+  const content = `# Summary\n\n${'x'.repeat(5_000)}`;
+  const call = f.handoff({ ...proposedHandoff, content });
+  const post = await f.posted();
+  const path = /^path: (.+)$/mu.exec(post.preview)?.[1];
+  expect(path).toMatch(
+    /^Handoffs\/Drafts\/\d{4}-\d{2}-\d{2}-send-review-draft-md-[0-9a-f-]{36}\.md$/u,
+  );
+  const prompt = `Review the patch.\n\nRead the handoff note at: ${path}`;
+  expect(post.preview).toContain(`content: ${JSON.stringify(content)}`);
+  expect(post.preview).toContain(`prompt: ${JSON.stringify(prompt)}`);
+  expect(f.writeHandoff).not.toHaveBeenCalled();
+  expect(f.launch).not.toHaveBeenCalled();
+  expect(f.decide(post.id, 'U1', 'approve')).toBe('accepted');
+  expect(await call).toMatchObject({
+    ok: true,
+    value: {
+      note_path: path,
+      launch_status: 'confirmed',
+      session_key: 't3code:machine/session',
+    },
+  });
+  expect(f.writeHandoff).toHaveBeenCalledExactlyOnceWith(
+    { path, content },
+    f.input.signal,
+  );
+  expect(f.launch).toHaveBeenCalledExactlyOnceWith(
+    { machine: 'machine', project: 'project', prompt },
+    f.input.signal,
+  );
+  expect(f.writeHandoff).toHaveBeenCalledBefore(f.launch);
+  expect(f.postApproval).toHaveBeenCalledTimes(1);
+});
+
+it.each(['error result', 'unconfirmed write', 'transport failure'] as const)(
+  'does not launch after a %s',
+  async (kind) => {
+    vi.useFakeTimers();
+    const f = fixture();
+    if (kind === 'error result')
+      f.writeHandoff.mockResolvedValueOnce({
+        ...reply({ ok: true }),
+        isError: true,
+      });
+    else if (kind === 'unconfirmed write')
+      f.writeHandoff.mockResolvedValueOnce(reply({}));
+    else f.writeHandoff.mockRejectedValueOnce(new Error('connection lost'));
+    const call = f.handoff();
+    f.decide((await f.posted()).id, 'U1', 'approve');
+    expect(await call).toMatchObject({
+      ok: false,
+      code: 'E_TOOL_FAILED',
+      write_status: kind === 'error result' ? 'failed' : 'unknown',
+      launch_status: 'not_started',
+    });
+    expect(f.launch).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['failed', 'unknown', 'cancelled'] as const)(
+  'reports the written path when the launch is %s',
+  async (launchStatus) => {
+    vi.useFakeTimers();
+    const f = fixture();
+    if (launchStatus === 'failed')
+      f.launch.mockResolvedValueOnce(
+        reply({
+          key: 't3code:machine/session',
+          operation: { id: 'operation', status: 'failed' },
+        }),
+      );
+    else if (launchStatus === 'unknown')
+      f.launch.mockRejectedValueOnce(new Error('connection lost'));
+    else
+      f.writeHandoff.mockImplementationOnce(async () => {
+        f.controller.abort();
+        return reply({ ok: true });
+      });
+    const call = f.handoff();
+    const post = await f.posted();
+    f.decide(post.id, 'U1', 'approve');
+    expect(await call).toMatchObject({
+      ok: false,
+      code: launchStatus === 'cancelled' ? 'E_TURN_ABORTED' : 'E_TOOL_FAILED',
+      note_path: /^path: (.+)$/mu.exec(post.preview)?.[1],
+      write_status: 'written',
+      launch_status:
+        launchStatus === 'cancelled' ? 'not_started' : launchStatus,
+    });
+    expect(f.writeHandoff).toHaveBeenCalledTimes(1);
+    expect(f.launch).toHaveBeenCalledTimes(
+      launchStatus === 'cancelled' ? 0 : 1,
+    );
+  },
+);
+
+it('returns only the allowed user’s changes and requires a new decision for the revised handoff', async () => {
+  vi.useFakeTimers();
+  const f = fixture();
+  const original = f.handoff();
+  const first = await f.posted();
+  expect(f.checkChange(first.id, 'U1')).toBe('accepted');
+  expect(f.decide(first.id, 'U3', { changesRequested: 'Not allowed' })).toBe(
+    'forbidden',
+  );
+  expect(
+    f.decide(first.id, 'U1', { changesRequested: 'Shorten the note.' }),
+  ).toBe('accepted');
+  expect(await original).toEqual({ changes_requested: 'Shorten the note.' });
+  await f.drain();
+  expect(f.updateApproval).toHaveBeenCalledWith(f.input.scope, '2.000', first, {
+    kind: 'changes_requested',
+    userId: 'U1',
+    text: 'Shorten the note.',
+  });
+
+  const revised = f.handoff({ ...proposedHandoff, content: '# Shorter' });
+  const second = await f.posted(1);
+  expect(second.id).not.toEqual(first.id);
+  expect(f.decide(first.id, 'U1', { changesRequested: 'Stale edit' })).toBe(
+    'expired',
+  );
+  expect(f.writeHandoff).not.toHaveBeenCalled();
+  expect(f.launch).not.toHaveBeenCalled();
+  expect(f.decide(second.id, 'U1', 'approve')).toBe('accepted');
+  expect(await revised).toMatchObject({ ok: true });
+});
+
+it.each([
+  ['expired', 'E_APPROVAL_EXPIRED'],
+  ['stopped', 'E_TURN_ABORTED'],
+  ['rejected', 'E_APPROVAL_DENIED'],
+] as const)(
+  'refuses a Change submission after the card was %s',
+  async (ended, code) => {
+    vi.useFakeTimers();
+    const f = fixture();
+    const call = f.handoff();
+    const post = await f.posted();
+    expect(f.checkChange(post.id, 'U1')).toBe('accepted');
+    if (ended === 'expired') await vi.advanceTimersByTimeAsync(20);
+    else if (ended === 'stopped') f.controller.abort();
+    else f.decide(post.id, 'U1', 'deny');
+    expect(f.decide(post.id, 'U1', { changesRequested: 'Too late' })).toBe(
+      'expired',
+    );
+    expect(await call).toMatchObject({ ok: false, code });
+    expect(f.writeHandoff).not.toHaveBeenCalled();
+    expect(f.launch).not.toHaveBeenCalled();
+  },
+);
+
+it('refuses to post or run a handoff that cannot fit in full', async () => {
+  const f = fixture();
+  expect(
+    await f.handoff({ ...proposedHandoff, content: 'x'.repeat(8_000) }),
+  ).toMatchObject({
+    ok: false,
+    code: 'E_TOOL_FAILED',
+    message: expect.stringContaining('shorter note'),
+  });
+  expect(f.postApproval).not.toHaveBeenCalled();
+  expect(f.writeHandoff).not.toHaveBeenCalled();
+  expect(f.launch).not.toHaveBeenCalled();
+});

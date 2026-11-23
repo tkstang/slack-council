@@ -1,3 +1,4 @@
+import { HANDOFF_GRANT } from '@council/config/schema.js';
 import type {
   ApprovalOutcome,
   ApprovalPort,
@@ -27,6 +28,7 @@ export const MEMBER_POST_EVENT = 'council_member_post';
 export const NOTICE_EVENT = 'council_notice';
 export const APPROVE_ACTION = 'council_approve_tool';
 export const DENY_ACTION = 'council_deny_tool';
+export const CHANGE_ACTION = 'council_change_handoff';
 const APPROVAL_EVENT = 'council_tool_approval';
 
 export interface SlackPortOptions extends WriteQueueOptions {
@@ -181,18 +183,29 @@ function approvalMessage(
   decidedBy?: string,
 ) {
   const member = request.memberName.replace(/\s+/gu, ' ').slice(0, 100);
-  // One part per block: a many-line preview must not become many blocks.
-  const parts = [
+  const handoff = request.tool === HANDOFF_GRANT;
+  // Slack sections allow 3,000 UTF-16 units. Split the longer handoff preview
+  // on code point boundaries so neither its content nor an emoji is cut off.
+  const previews = handoff
+    ? (request.preview.match(/[\s\S]{1,1500}/gu) ?? [])
+    : [request.preview];
+  const heading =
     outcome === undefined
       ? `${member} requests approval for ${request.tool}.`
-      : `${member} requested ${request.tool}.`,
-    request.preview,
-    outcome &&
-      ('userId' in outcome
-        ? `Request ${outcome.kind} by ${decidedBy ?? outcome.userId}.`
-        : `Request ${outcome.kind}.`),
-  ].filter((part): part is string => Boolean(part));
-  const text = parts.join('\n');
+      : `${member} requested ${request.tool}.`;
+  const footer: string[] = [];
+  if (outcome) {
+    const state =
+      outcome.kind === 'changes_requested'
+        ? 'Changes requested'
+        : `Request ${outcome.kind === 'denied' && handoff ? 'rejected' : outcome.kind}`;
+    footer.push(
+      'userId' in outcome
+        ? `${state} by ${decidedBy ?? outcome.userId}.`
+        : `${state}.`,
+    );
+  }
+  const text = [heading, request.preview, ...footer].join('\n');
 
   return {
     text: text
@@ -202,7 +215,7 @@ function approvalMessage(
     mrkdwn: false,
     // Each section holds at most 3,000 characters, so the arguments get their own.
     blocks: [
-      ...parts.map((part) => ({
+      ...[heading, ...previews, ...footer].map((part) => ({
         type: 'section',
         text: { type: 'plain_text', text: part.slice(0, 3_000), emoji: false },
       })),
@@ -220,11 +233,24 @@ function approvalMessage(
                 },
                 {
                   type: 'button',
-                  text: { type: 'plain_text', text: 'Deny' },
+                  text: {
+                    type: 'plain_text',
+                    text: handoff ? 'Reject' : 'Deny',
+                  },
                   action_id: DENY_ACTION,
                   style: 'danger',
                   value: request.id,
                 },
+                ...(handoff
+                  ? [
+                      {
+                        type: 'button',
+                        text: { type: 'plain_text', text: 'Change' },
+                        action_id: CHANGE_ACTION,
+                        value: request.id,
+                      },
+                    ]
+                  : []),
               ],
             },
           ]

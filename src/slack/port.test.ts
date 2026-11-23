@@ -289,75 +289,103 @@ const plain = (text: unknown) => ({
   text: { type: 'plain_text', text },
 });
 
-it('posts plain-text approval buttons in scope and clears them on the outcome update', async () => {
-  const calls: [string, Record<string, unknown>][] = [];
-  const api = {
-    async apiCall(method: string, args: Record<string, unknown> = {}) {
-      if (method === 'users.info')
-        return { ok: true, user: { real_name: 'Thomas <S>' } };
-      calls.push([method, args]);
-      return { ok: true, ts: '2.000000' };
-    },
-  };
-  const slack = createSlackPort({
-    api,
-    writeApi: api,
-    botId: 'BAPP',
-    botUserId: 'UAPP',
-    members: [],
-    intervalMs: 0,
-  });
-  const scope = { channel: 'C1', threadTs: '1.000000' };
-  const request = {
-    id: 'opaque',
-    memberName: 'Ada',
+it.each([
+  {
     tool: 'read_file',
-    preview: '{"path":"<!here>"}',
-  };
-  expect(await slack.postApproval(scope, request)).toEqual({
-    ok: true,
-    value: { ts: '2.000000' },
-  });
-  expect(
-    await slack.updateApproval(scope, '2.000000', request, {
-      kind: 'denied',
-      userId: 'U1',
-    }),
-  ).toMatchObject({ ok: true });
-  const section = plain(request.preview);
-  expect(calls).toMatchObject([
-    [
-      'chat.postMessage',
-      {
-        channel: 'C1',
-        thread_ts: '1.000000',
-        mrkdwn: false,
-        text: expect.stringContaining('&lt;!here&gt;'),
-        blocks: [
-          plain(expect.stringContaining('read_file')),
-          section,
-          {
-            type: 'actions',
-            elements: [
-              { action_id: 'council_approve_tool', value: 'opaque' },
-              { action_id: 'council_deny_tool', value: 'opaque' },
-            ],
-          },
-        ],
+    outcome: { kind: 'denied', userId: 'U1' },
+    footer: 'Request denied',
+    actions: ['Approve', 'Deny'],
+  },
+  {
+    tool: 'handoff',
+    outcome: { kind: 'changes_requested', userId: 'U1', text: 'Revise it' },
+    footer: 'Changes requested',
+    actions: ['Approve', 'Reject', 'Change'],
+  },
+] as const)(
+  'posts the full $tool approval in scope and clears its buttons after a decision',
+  async ({ tool, outcome, footer, actions }) => {
+    const calls: [string, Record<string, unknown>][] = [];
+    const api = {
+      async apiCall(method: string, args: Record<string, unknown> = {}) {
+        if (method === 'users.info')
+          return { ok: true, user: { real_name: 'Thomas <S>' } };
+        calls.push([method, args]);
+        return { ok: true, ts: '2.000000' };
       },
-    ],
-    [
-      'chat.update',
-      {
-        channel: 'C1',
-        ts: '2.000000',
-        text: expect.stringContaining('Request denied by Thomas &lt;S&gt;.'),
-        blocks: [
-          plain(expect.stringContaining('read_file')),
-          section,
-          plain('Request denied by Thomas <S>.'),
-        ],
-      },
-    ],
-  ]);
-});
+    };
+    const slack = createSlackPort({
+      api,
+      writeApi: api,
+      botId: 'BAPP',
+      botUserId: 'UAPP',
+      members: [],
+      intervalMs: 0,
+    });
+    const scope = { channel: 'C1', threadTs: '1.000000' };
+    const request = {
+      id: 'opaque',
+      memberName: 'Ada',
+      tool,
+      preview: `{"path":"<!here>"}${tool === 'handoff' ? '📄'.repeat(3_500) : ''}`,
+    };
+    expect(await slack.postApproval(scope, request)).toEqual({
+      ok: true,
+      value: { ts: '2.000000' },
+    });
+    expect(
+      await slack.updateApproval(scope, '2.000000', request, outcome),
+    ).toMatchObject({ ok: true });
+    const postedBlocks = calls[0]?.[1]['blocks'] as {
+      text: { text: string };
+    }[];
+    const sections = postedBlocks.slice(1, -1);
+    expect(sections.every((block) => block.text.text.length <= 3_000)).toBe(
+      true,
+    );
+    expect(sections.map((block) => block.text.text).join('')).toBe(
+      request.preview,
+    );
+    const literalSections = sections.map(({ text }) => plain(text.text));
+    expect(calls).toMatchObject([
+      [
+        'chat.postMessage',
+        {
+          channel: 'C1',
+          thread_ts: '1.000000',
+          mrkdwn: false,
+          text: expect.stringContaining('&lt;!here&gt;'),
+          blocks: [
+            plain(expect.stringContaining(tool)),
+            ...literalSections,
+            {
+              type: 'actions',
+              elements: actions.map((text, index) => ({
+                action_id: [
+                  'council_approve_tool',
+                  'council_deny_tool',
+                  'council_change_handoff',
+                ][index],
+                text: { text },
+                value: 'opaque',
+              })),
+            },
+          ],
+        },
+      ],
+      [
+        'chat.update',
+        {
+          channel: 'C1',
+          ts: '2.000000',
+          text: expect.stringContaining(`${footer} by Thomas &lt;S&gt;.`),
+          blocks: [
+            plain(expect.stringContaining(tool)),
+            ...literalSections,
+            plain(`${footer} by Thomas <S>.`),
+          ],
+        },
+      ],
+    ]);
+  },
+);

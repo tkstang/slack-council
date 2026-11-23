@@ -1,4 +1,4 @@
-import type { ToolsConfig } from '@council/config/schema.js';
+import { HANDOFF_GRANT, type ToolsConfig } from '@council/config/schema.js';
 
 /**
  * First matching rule wins. A rule ending in `*` is a raw name prefix, so write
@@ -10,6 +10,7 @@ export function resolveToolPolicy(
   name: string,
   kind: 'builtin' | 'mcp',
 ): 'auto' | 'ask' {
+  if (name === HANDOFF_GRANT) return 'ask';
   const rule = rules.find(({ tool }) =>
     tool.endsWith('*') ? name.startsWith(tool.slice(0, -1)) : name === tool,
   );

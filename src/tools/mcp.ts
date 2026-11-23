@@ -148,6 +148,23 @@ export function createMcpManager(
       return granted;
     },
 
+    bindTool({
+      server,
+      tool,
+    }: {
+      readonly server: string;
+      readonly tool: string;
+    }) {
+      const entry = connected.get(server);
+      if (!entry || !Object.hasOwn(entry.tools, tool)) return undefined;
+      return (args: Record<string, unknown>, signal: AbortSignal) =>
+        entry.client.callTool({
+          name: tool,
+          arguments: args,
+          options: { signal },
+        });
+    },
+
     orientationFor(
       memberGrants: readonly string[],
     ): ReadonlyMap<string, string> {

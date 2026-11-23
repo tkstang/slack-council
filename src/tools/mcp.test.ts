@@ -58,16 +58,19 @@ it('scopes tools and orientation to grants, round-trips notes over stdio, and is
     expect(
       Object.keys(mcp.toolsFor(new Set(['notes__list_notes', 'unavailable']))),
     ).toEqual(['notes__list_notes']);
+    expect(Object.keys(mcp.toolsFor(new Set(['handoff'])))).toEqual([]);
+    expect(mcp.bindTool({ server: 'notes', tool: 'missing' })).toBeUndefined();
+    expect(
+      mcp.bindTool({ server: 'unavailable', tool: 'append_note' }),
+    ).toBeUndefined();
     const tools = mcp.toolsFor(new Set(['notes']));
     expect(Object.keys(tools).toSorted()).toEqual([
       'notes__append_note',
       'notes__list_notes',
     ]);
+    const append = mcp.bindTool({ server: 'notes', tool: 'append_note' });
     expect(
-      await tools.notes__append_note?.execute?.(
-        { text: 'Round trip' } as never,
-        options,
-      ),
+      await append?.({ text: 'Round trip' }, new AbortController().signal),
     ).toMatchObject({ isError: false });
     expect(
       await tools.notes__list_notes?.execute?.({} as never, options),
