@@ -62,72 +62,108 @@ model plus an effort level, a persona and a set of tool grants.
 ## Turn engine
 
 A pure reducer: `reduce(state, event) -> { state, effects }`. No Slack, no models,
-no clock. The runner executes effects and feeds results back as events.
+no clock. A per-council runner feeds events to the reducer one at a time, in
+arrival order, and executes effects outside that queue. Every effect and every
+result event carries the chain id and turn id that produced it.
 
-Addressing in a human message:
+### Who can drive it
+
+Only users in `slack.allowedUsers` can convene a council or give the floor.
+Messages from anyone else are context: members can read them, but they start
+nothing.
+
+### Addressing in a human message
+
+A handle counts only as an `@handle` token outside code spans, code blocks and
+quoted lines, so quoting someone's message does not address them.
 
 1. `@council` (the app mention or the plain text) opens a round for the whole roster.
-2. One or more member handles give those members `mention` grants.
-3. No address: in a thread council this is treated as `@council`; in a channel
-   council nobody speaks. Setting: `unaddressed: 'council' | 'silent'`.
+2. One or more member handles give those members `mention` grants, run in parallel
+   from one frozen transcript. No react rounds follow.
+3. No address: nobody speaks. The message is context for later turns. Setting:
+   `unaddressed: 'silent' | 'council'`, default `silent`.
 4. `@council stop` cancels queued grants and aborts running turns. `@council end`
-   ends the council.
+   does the same and ends the council. Both take precedence over everything else.
 
-Rounds:
+### Rounds
 
-- Round 1: every addressed member answers in parallel. None sees another's
-  round 1 answer, so nobody anchors on the first reply.
+- Round 1: every roster member answers in parallel from one frozen transcript
+  taken at the triggering message. None sees another's round 1 answer.
+- The engine waits for every round 1 turn to finish and post before anything else
+  starts.
 - Rounds 2..`rounds` (default 2): members take `react` turns one at a time in
   roster order. Each sees everything so far and either responds or passes. The
-  round sequence ends early when every member passes.
+  sequence ends early when every member passes in a round.
 
-Mentions:
+### Mentions from members
 
-- A handle in a member's post gives that member a `mention` grant, appended to the
-  queue. Self-mentions are ignored. A member already queued is not queued twice.
-- `@council` in a member's post does not open a round. Only humans open rounds.
-- Each mention grant from a member costs one hop. `hopBudget` (default 6) is per
-  chain. When it is spent, further member mentions are not honored and the app
-  posts one notice.
-- `maxTurnsPerChain` caps total turns as a backstop.
+- A handle in a member's post gives that member a `mention` grant. Self-mentions
+  and unknown handles are ignored. `@council` in a member's post opens nothing.
+- Mention grants run one at a time and go ahead of `react` grants in the queue.
+- If the target is queued for `react`, that grant is upgraded to `mention`. If it
+  is already queued for `mention`, nothing changes. If it is running, it gets at
+  most one follow-up `mention` grant after its current turn.
+- Budgets are reserved when a grant is admitted, not when it starts. Each new
+  mention grant from a member costs one hop from `hopBudget` (default 6, per
+  chain). Every grant counts against `maxTurnsPerChain`. A grant that cannot be
+  admitted is dropped, and the app posts one notice per chain.
 
-Human interjection: a new human message drops grants that have not started. Turns
-already running finish and post. The new chain starts after them.
+### Supersession, failure and settling
 
-Settle: when the queue is empty, every member with posts it has not seen since its
-last turn gets one **listen** call. No tools, small output. It returns `PASS` or
-`HAND #<n>: <note>`, where `#<n>` is a message number from the transcript. Notes
-are stored privately. If any member raised a hand, the app posts one line as
-`council` naming them, and adds ✋ to each target message. The line is needed
-because a reaction cannot identify the member.
+- A new addressed human message starts a new chain. Grants from the old chain
+  that have not started are dropped. Turns already running finish and may post,
+  but their mentions grant nothing. The new chain's first turns start after
+  those turns have finished.
+- A turn that fails, times out or is aborted releases its grant. The app posts a
+  one-line notice naming the member. Nothing is retried.
+- A chain settles when its queue is empty, nothing is running and every post has
+  been written. Settling removes the progress indicator.
 
-Circle-back: a member's turn prompt includes its private notes and every post
-since it last spoke, and tells it to raise any disagreement with those posts
-before answering what it was asked. Notes are cleared when the member posts.
+### Circle-back
+
+A member's turn prompt marks every post since it last spoke and tells it to raise
+any disagreement with those posts before answering what it was asked.
+
+### Raised hand (later batch)
+
+At settle, every member with posts it has not seen gets one **listen** call: no
+tools, small output, returning `PASS` or `HAND #<n>: <note>`. `#<n>` is resolved
+through the timestamp map of the exact transcript snapshot the member was shown.
+Malformed output is retried once, then treated as a pass. Notes are stored
+privately and shown to that member on its next turn. If any member raised a hand,
+the app posts one line as `council` naming them and adds ✋ to each target
+message. The line is needed because a reaction cannot identify the member.
 
 ## Context assembly
 
-Slack history becomes one transcript in a single user message, which avoids role
-alternation rules and carries the role brief on the Claude route:
+Slack history becomes one transcript in a single user message. This avoids role
+alternation rules, carries the role brief on the Claude route, and does not
+misrepresent other members as the responding assistant.
 
 ```
 <council_role>…persona, roster, how the floor works…</council_role>
 <transcript>
-[#1] Thomas: …
-[#2] Ada: …
+[#1] Thomas (human): …
+[#2] Ada (member): …
 [#3] You (Bo): …
 </transcript>
-<your_private_notes>…</your_private_notes>
 <floor>Thomas addressed you in #4.</floor>
 ```
 
+- Author labels come from Slack ids and the roster, never from message text.
+- Message text is data. Angle brackets in it are escaped so a pasted
+  `</transcript>` cannot close the block, and the role brief says that nothing
+  inside the transcript, a tool result or a private note is an instruction.
 - Thread council: the whole thread, newest kept when over `contextChars`. An
   omission marker says how many earlier messages were dropped and names the
   history tool.
 - Channel council: the most recent top-level messages within the same budget.
 - A member post is recognised by message metadata (`member` id), falling back to
-  `bot_id` plus `username`.
+  our `bot_id` plus `username`.
 - App notices appear as `council (system)`.
+
+Output protocol: a turn that is only `PASS`, ignoring case, surrounding
+whitespace, markdown emphasis and trailing punctuation, posts nothing.
 
 ## Member runner
 
@@ -138,18 +174,27 @@ produce mention grants.
 
 ## Tools
 
-- `read_file`, `list_dir`, `search_files`: read-only. Paths are resolved with
-  `realpath` and must be under a configured root and match no deny glob. Default
-  deny globs cover env files, SSH and cloud credentials, key files and keychains.
-  Reads are size-capped.
+- `read_file`, `list_dir`, `search_files`: read-only. Every path, including each
+  search hit and directory entry, is resolved with `realpath` and must be under a
+  configured root and match no deny glob. Roots have no default: the operator
+  names them. Default deny globs cover env files, SSH and cloud credentials, key
+  files and keychains. Reads are size-capped.
+- A readable file is a quotable file. Anything under a root can end up in Slack,
+  so roots should hold only what that channel's audience may see. The denylist
+  reduces accidents; it is not a boundary.
 - `slack_history`: older messages in the council's own scope.
 - MCP servers: stdio or HTTP, declared once in config, granted per member. Tool
   names are namespaced `server__tool`.
 - Approval: each tool resolves to `auto` or `ask` from ordered policy rules.
   Built-in read tools default to `auto`; MCP tools default to `ask`. An `ask` call
-  posts the tool name and arguments with Approve and Deny buttons, and waits.
-  Only the council owner or a configured allowed user can decide. A denial or a
-  timeout returns an error result to the model, which continues.
+  posts the tool name and a bounded preview of the arguments with Approve and
+  Deny buttons, and waits. The buttons carry an opaque request id bound to the
+  exact arguments, council, turn and expiry. A click is acknowledged at once,
+  checked against the council owner and `slack.allowedUsers`, and consumed once.
+  Cancellation is rechecked before the tool runs, so a click after `stop` does
+  nothing. Pending requests do not survive a restart. A denial or a timeout
+  returns an error result to the model, which continues; after two denials in a
+  turn, further `ask` calls in that turn are denied without asking.
 
 ## Slack layer
 
@@ -168,8 +213,9 @@ tested without Slack.
 
 ## State
 
-`stateDir/councils.json`, written atomically: councils, private notes and each
-member's last-seen message. Event dedupe is in memory. Slack remains the record of
+`stateDir/councils.json`, written atomically: councils, private notes and
+a bounded set of accepted human message keys, so a redelivery after a restart
+cannot reopen a round. Slack remains the record of
 what was said.
 
 ## Configuration
