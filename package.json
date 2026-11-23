@@ -36,6 +36,10 @@
     "worktree:validate": "bash scripts/worktree/validate.sh"
   },
   "dependencies": {
+    "@ai-sdk/mcp": "2.0.102",
+    "@ai-sdk/openai-compatible": "3.0.94",
+    "@slack/bolt": "5.1.0",
+    "ai": "7.0.179",
     "zod": "^4.4.3"
   },
   "devDependencies": {
