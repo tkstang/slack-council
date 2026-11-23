@@ -51,13 +51,10 @@ oauth_config:
     bot:
       - app_mentions:read
       - channels:history
-      - channels:read
       - groups:history
-      - groups:read
       - chat:write
       - chat:write.customize
       - commands
-      - reactions:read
       - reactions:write
       - users:read
 settings:
@@ -242,14 +239,12 @@ archived project docs from S3 where configured.
 For later provider updates, preview `oat sync --scope project --dry-run` before
 applying `oat sync --scope project`. Change canonical sources, never generated
 views. Track required installable/provider derivatives only with an explicit
-source, generator and nonmutating freshness check. Product skills may have a
-separate source such as `src/skills/`.
+source, generator and nonmutating freshness check.
 
 ## Verification policy
 
 This MVP is verified locally and has no remote. Development uses Node 26.
-The library and CLI support Node 24 and use Node 24 type declarations. Before
-publishing, verify the packed package on Node 24.
+The app runs on Node 24 and later and uses Node 24 type declarations.
 
 Run focused tests while editing. Before handoff, run `pnpm run worktree:validate`
 from a clean checkout with dependencies installed using `pnpm install --frozen-lockfile`.

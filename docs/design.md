@@ -58,7 +58,7 @@ model plus an effort level, a persona and a set of tool grants.
 
 ## Concepts
 
-- **Member**: `{ id, name, avatar, model, effort, persona, tools[] }`. `id` is the
+- **Member**: `{ id, name, avatar, provider, model, effort?, persona, tools[] }`. `id` is the
   handle: lowercase, `[a-z][a-z0-9-]*`.
 - **Council**: a roster bound to a **scope**, plus an owner and settings.
 - **Scope**: `{ channel, threadTs? }`. With `threadTs` it is a thread council and
@@ -177,11 +177,11 @@ misrepresent other members as the responding assistant.
 ```
 <council_role>…persona, roster, how the floor works…</council_role>
 <transcript>
-[#1] Thomas (human): …
+[#1] Sam (human): …
 [#2] Ada (member): …
 [#3] You (Bo): …
 </transcript>
-<floor>Thomas addressed you in #4.</floor>
+<floor>Sam addressed you in #4.</floor>
 <private_notes>…earlier hand notes for this member, when present…</private_notes>
 ```
 
@@ -323,7 +323,7 @@ Slack remains the record of what was said.
 ## Configuration
 
 One JSON file validated with Zod. Secrets are referenced by environment variable
-name, never inlined. Sections: `providers`, `members`, `presets`, `tools`
+name, never inlined. Sections: `providers`, `members`, `presets`, `defaultPreset`, `tools`
 (`files`, `mcpServers`, `policy`), `slack` (`allowedUsers`), `council`,
 and `stateDir`.
 

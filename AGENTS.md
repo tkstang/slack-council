@@ -1,14 +1,15 @@
 # AGENTS.md
 
-Single-package TypeScript library + agent-first CLI. ESM-only, Node 26 for
-development, Node 24 minimum for consumers, pnpm 12, extra-strict TypeScript,
+A Slack app that hosts a council of AI members, with an agent-first CLI
+(`validate`, `start`). ESM-only, Node 26 for development, Node 24 minimum to
+run, pnpm 12, extra-strict TypeScript,
 Oxc (oxlint + oxfmt), Vitest, and Zod at boundaries. The domain layer returns a
 result envelope (`Success | Failure` with closed `E_*` codes). Boundaries throw
 a typed `CliError` caught by one central handler.
 
 ## Headline defaults
 
-Oxc toolchain, TypeScript 7, ESM-only, Node 26 development, Node 24 consumer
+Oxc toolchain, TypeScript 7, ESM-only, Node 26 development, Node 24 runtime
 floor, pnpm 12.x (double-pinned), Vitest 4 with co-located `*.test.ts` siblings (globals off) - Zod 4 at
 boundaries - Conventional Commits - custom git hooks in `tools/git-hooks/` (no
 husky/lefthook) - `private: true` + MIT LICENSE.
@@ -41,7 +42,7 @@ README verification policy for the full local checks.
 
 ## Agent setup
 
-This scaffold ships only this `AGENTS.md` and a starter
+This repo ships only this `AGENTS.md` and a starter
 `.claude/settings.json`. It does not pre-generate `.agents/`, provider mirrors
 or `.oat/`. `AGENTS.md` is the house instruction source; add scoped files only
 for distinct package or subtree rules. No `CLAUDE.md` is shipped.
