@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { Config } from '@council/config/schema.js';
 import { isCliError } from '@council/core/errors.js';
 import type { Scope } from '@council/core/types.js';
@@ -8,21 +10,25 @@ import { z } from 'zod';
 import { callSlack, type SlackApi } from './api.js';
 import type { LogEntry } from './inbound.js';
 import type { SlackAdapterPort } from './port.js';
-import { neutraliseBroadcasts } from './text.js';
+import { neutraliseBroadcasts, truncateMarkdown } from './text.js';
 
 export const PICKER_CALLBACK = 'council_picker';
 export const PRESET_BLOCK = 'council_preset';
 export const MEMBERS_BLOCK = 'council_members';
 export const QUESTION_BLOCK = 'council_question';
+export const WHERE_BLOCK = 'council_where';
 const PRESET_ACTION = 'preset';
 const MEMBERS_ACTION = 'members';
 const QUESTION_ACTION = 'question';
+const WHERE_ACTION = 'where';
 
 /** Slack's limit for `private_metadata`. */
 export const METADATA_LIMIT = 3_000;
 export const QUESTION_LIMIT = 3_000;
 const OPTION_LIMIT = 100;
 const OPTION_TEXT_LIMIT = 75;
+/** How much of a selected message a blank shortcut quotes in its notice. */
+export const EXCERPT_LIMIT = 1_000;
 
 export const REFUSED = 'You are not allowed to start a council.';
 
@@ -61,6 +67,15 @@ const Source = z.discriminatedUnion('kind', [
 ]);
 export type PickerSource = z.infer<typeof Source>;
 
+/** The modal carries the source and the roster fingerprint it was built from. */
+const Metadata = z.strictObject({
+  source: Source,
+  fingerprint: z.string().regex(/^[0-9a-f]{16}$/u),
+});
+export type PickerMetadata = z.infer<typeof Metadata>;
+
+export type PickerWhere = 'thread' | 'channel';
+
 export type PickerConfig = Pick<
   Config,
   'members' | 'presets' | 'defaultPreset'
@@ -85,7 +100,7 @@ export function shortcutSource(payload: {
 }
 
 /** Untrusted on the way back: bounded, parsed and shape-checked. */
-export function decodeMetadata(raw: unknown): PickerSource | undefined {
+export function decodeMetadata(raw: unknown): PickerMetadata | undefined {
   if (typeof raw !== 'string' || raw.length > METADATA_LIMIT) return undefined;
   let json: unknown;
   try {
@@ -93,7 +108,7 @@ export function decodeMetadata(raw: unknown): PickerSource | undefined {
   } catch {
     return undefined;
   }
-  const parsed = Source.safeParse(json);
+  const parsed = Metadata.safeParse(json);
   return parsed.success ? parsed.data : undefined;
 }
 
@@ -105,6 +120,14 @@ export function plainMarkdown(text: string): string {
   return neutraliseBroadcasts(text)
     .replace(/[\\`*_~[\]<>#|!]/gu, '\\$&')
     .replace(/^(\s*(?:\d+)?)([-+=.)])/gmu, '$1\\$2');
+}
+
+/** A bounded, escaped blockquote of a selected message for the convening notice. */
+export function quoteExcerpt(text: string): string {
+  return plainMarkdown(truncateMarkdown(text.trim(), EXCERPT_LIMIT))
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n');
 }
 
 function option(text: string, value: string) {
@@ -123,6 +146,17 @@ const presetKeys = (config: PickerConfig) =>
   Object.keys(config.presets).slice(0, OPTION_LIMIT);
 const memberKeys = (config: PickerConfig) =>
   Object.keys(config.members).slice(0, OPTION_LIMIT);
+
+/**
+ * Option ids are indexes, so a form must map back through the same keys in the
+ * same order it was built from.
+ */
+export function rosterFingerprint(config: PickerConfig): string {
+  return createHash('sha256')
+    .update(JSON.stringify([presetKeys(config), memberKeys(config)]))
+    .digest('hex')
+    .slice(0, 16);
+}
 
 /** The configured key behind an option id, or undefined for an unknown id. */
 function fromOption(
@@ -152,7 +186,10 @@ function buildPickerView(
   return {
     type: 'modal',
     callback_id: PICKER_CALLBACK,
-    private_metadata: JSON.stringify(source),
+    private_metadata: JSON.stringify({
+      source,
+      fingerprint: rosterFingerprint(config),
+    }),
     title: { type: 'plain_text', text: 'Start a council' },
     submit: { type: 'plain_text', text: 'Convene' },
     close: { type: 'plain_text', text: 'Cancel' },
@@ -204,8 +241,35 @@ function buildPickerView(
           ...(initialQuestion === '' ? {} : { initial_value: initialQuestion }),
         },
       },
+      // The shortcut always convenes in the message's thread.
+      ...(source.kind === 'command' ? [whereBlock()] : []),
     ],
   };
+}
+
+const WHERE_OPTIONS = [
+  option('New thread', 'thread'),
+  option('This whole channel', 'channel'),
+];
+
+function whereBlock() {
+  return {
+    type: 'input' as const,
+    block_id: WHERE_BLOCK,
+    label: { type: 'plain_text' as const, text: 'Where' },
+    element: {
+      type: 'radio_buttons' as const,
+      action_id: WHERE_ACTION,
+      options: WHERE_OPTIONS,
+      initial_option: WHERE_OPTIONS[0],
+    },
+  };
+}
+
+function exists(where: PickerWhere): string {
+  return where === 'channel'
+    ? 'This channel already has a council.'
+    : 'This thread already has a council.';
 }
 
 export type PickerOpen =
@@ -247,6 +311,13 @@ const State = z.looseObject({
       }),
     })
     .optional(),
+  [WHERE_BLOCK]: z
+    .looseObject({
+      [WHERE_ACTION]: z.looseObject({
+        selected_option: z.looseObject({ value: z.string() }).nullish(),
+      }),
+    })
+    .optional(),
 });
 
 export type PickerSubmission =
@@ -254,6 +325,8 @@ export type PickerSubmission =
       readonly ok: true;
       readonly source: PickerSource;
       readonly roster: readonly string[];
+      /** A new thread, or the whole channel (the command only). */
+      readonly where: PickerWhere;
       /** Trimmed, or undefined when empty. */
       readonly question?: string;
     }
@@ -264,13 +337,23 @@ export function parsePickerSubmission(
   config: PickerConfig,
   view: { readonly private_metadata: unknown; readonly state: unknown },
 ): PickerSubmission {
-  const source = decodeMetadata(view.private_metadata);
-  if (!source) {
+  const metadata = decodeMetadata(view.private_metadata);
+  if (!metadata) {
     return {
       ok: false,
       errors: { [QUESTION_BLOCK]: 'This form expired. Start again.' },
     };
   }
+  if (metadata.fingerprint !== rosterFingerprint(config)) {
+    return {
+      ok: false,
+      errors: {
+        [QUESTION_BLOCK]:
+          'The council configuration changed since this form opened. Close it and start again.',
+      },
+    };
+  }
+  const { source } = metadata;
   const values = State.safeParse(
     (view.state as { values?: unknown } | null)?.values,
   );
@@ -314,10 +397,20 @@ export function parsePickerSubmission(
     errors[QUESTION_BLOCK] = 'Enter a question.';
   }
 
-  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  const whereValue =
+    source.kind === 'command'
+      ? (state[WHERE_BLOCK]?.[WHERE_ACTION].selected_option?.value ?? 'thread')
+      : 'thread';
+  const where =
+    whereValue === 'thread' || whereValue === 'channel'
+      ? whereValue
+      : undefined;
+  if (!where) errors[WHERE_BLOCK] = 'Choose where the council meets.';
+
+  if (Object.keys(errors).length > 0 || !where) return { ok: false, errors };
   return question === ''
-    ? { ok: true, source, roster }
-    : { ok: true, source, roster, question };
+    ? { ok: true, source, roster, where }
+    : { ok: true, source, roster, where, question };
 }
 
 const UserInfo = z.looseObject({
@@ -342,7 +435,10 @@ export interface PickerOptions {
     'getCouncil' | 'convene' | 'handleHumanMessage'
   >;
   /** Posts and deletes through the port's per-channel write queue. */
-  readonly slack: Pick<SlackAdapterPort, 'postNotice' | 'deleteMessage'>;
+  readonly slack: Pick<
+    SlackAdapterPort,
+    'fetchMessages' | 'postNotice' | 'deleteMessage'
+  >;
   readonly reader: SlackApi;
   /** Opens views. Must not retry: a trigger id is one-shot. */
   readonly writer: SlackApi;
@@ -421,26 +517,52 @@ export function createPicker({
     );
   }
 
+  /** The selected message as an escaped quote, or undefined when it cannot be read. */
+  async function selectedExcerpt(
+    source: Extract<PickerSource, { kind: 'shortcut' }>,
+  ): Promise<string | undefined> {
+    const read = await slack.fetchMessages(
+      { channel: source.channel, threadTs: source.threadTs },
+      source.messageTs,
+    );
+    const text = read.ok
+      ? read.value.find(({ ts }) => ts === source.messageTs)?.text.trim()
+      : undefined;
+    if (!read.ok) fail('excerpt', read.code, source.channel);
+    return text ? quoteExcerpt(text) : undefined;
+  }
+
   /**
    * Post first, then convene, then open the round from the post. The post is
    * the app's own, so its ts is a fresh dedupe key even when the selected
-   * message was accepted before; the selected message stays in the history.
+   * message was accepted before. The round's trigger is the post, so a blank
+   * shortcut quotes the selected message in it.
    */
   async function start(
     source: PickerSource,
     roster: readonly string[],
+    where: PickerWhere,
     question: string | undefined,
   ): Promise<void> {
     const name = await displayName(source.user);
     const by = plainMarkdown(name.replace(/\s+/gu, ' ').slice(0, 100));
+    let text: string;
+    if (question !== undefined) {
+      text = `Council convened by ${by}: ${plainMarkdown(question)}`;
+    } else if (source.kind === 'shortcut') {
+      const excerpt = await selectedExcerpt(source);
+      text = excerpt
+        ? `Council convened by ${by} on this message:\n${excerpt}`
+        : `Council convened by ${by} on the message above.`;
+    } else {
+      text = `Council convened by ${by}.`;
+    }
     // postNotice bounds the post to the markdown_text limit.
     const posted = await slack.postNotice(
       source.kind === 'command'
         ? { channel: source.channel }
         : { channel: source.channel, threadTs: source.threadTs },
-      question === undefined
-        ? `Council convened by ${by}.`
-        : `Council convened by ${by}: ${plainMarkdown(question)}`,
+      text,
     );
     if (!posted.ok) {
       fail('post', posted.code, source.channel);
@@ -450,10 +572,13 @@ export function createPicker({
       );
     }
     const { ts } = posted.value;
-    const scope: Scope = {
-      channel: source.channel,
-      threadTs: source.kind === 'command' ? ts : source.threadTs,
-    };
+    const scope: Scope =
+      where === 'channel'
+        ? { channel: source.channel }
+        : {
+            channel: source.channel,
+            threadTs: source.kind === 'command' ? ts : source.threadTs,
+          };
 
     try {
       await service.convene({ scope, owner: source.user, roster });
@@ -462,13 +587,17 @@ export function createPicker({
       fail('convene', code, source.channel);
       const removed = await slack.deleteMessage(source.channel, ts);
       if (!removed.ok) fail('delete', removed.code, source.channel);
-      return tell(
-        source,
+      const reason =
         code === 'E_COUNCIL_EXISTS'
-          ? 'This thread already has a council.'
+          ? exists(where)
           : code === 'E_FORBIDDEN'
             ? REFUSED
-            : 'The council could not be convened.',
+            : 'The council could not be convened.';
+      return tell(
+        source,
+        removed.ok
+          ? reason
+          : `${reason} Its "Council convened" message could not be removed; delete it by hand.`,
       );
     }
 
@@ -490,7 +619,7 @@ export function createPicker({
       fail('round', opened, source.channel);
       await tell(
         source,
-        'The council was convened, but its first round did not start. Mention @council in the thread.',
+        `The council was convened, but its first round did not start. Mention @council in the ${where === 'channel' ? 'channel' : 'thread'}.`,
       );
     }
   }
@@ -520,7 +649,7 @@ export function createPicker({
         return {
           response: { response_action: 'errors', errors: parsed.errors },
         };
-      const { source, roster, question } = parsed;
+      const { source, roster, where, question } = parsed;
       if (
         source.user !== userId ||
         !config.slack.allowedUsers.includes(userId)
@@ -532,21 +661,25 @@ export function createPicker({
           },
         };
       }
-      if (
-        source.kind === 'shortcut' &&
-        service.getCouncil({
-          channel: source.channel,
-          threadTs: source.threadTs,
-        })
-      ) {
+      const taken =
+        where === 'channel'
+          ? service.getCouncil({ channel: source.channel })
+          : source.kind === 'shortcut' &&
+            service.getCouncil({
+              channel: source.channel,
+              threadTs: source.threadTs,
+            });
+      if (taken) {
         return {
           response: {
             response_action: 'errors',
-            errors: { [QUESTION_BLOCK]: 'This thread already has a council.' },
+            errors: {
+              [where === 'channel' ? WHERE_BLOCK : QUESTION_BLOCK]:
+                exists(where),
+            },
           },
         };
       }
-      // A redelivered submission is acknowledged and dropped.
       const viewId = (view as { id?: unknown }).id;
       if (typeof viewId !== 'string') {
         return {
@@ -556,11 +689,13 @@ export function createPicker({
           },
         };
       }
-      if (!claim(viewId)) return {};
       return {
+        // Claimed only after a successful ack, so a failed ack's redelivery
+        // still runs; a redelivery after a successful one is dropped.
         run: async () => {
+          if (!claim(viewId)) return;
           try {
-            await start(source, roster, question);
+            await start(source, roster, where, question);
           } catch {
             fail('start', 'E_UNEXPECTED', source.channel);
           }

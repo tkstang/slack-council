@@ -1,5 +1,5 @@
 import { CliError } from '@council/core/errors.js';
-import { success } from '@council/core/result.js';
+import { failure, success, type Result } from '@council/core/result.js';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -13,7 +13,9 @@ import {
   PRESET_BLOCK,
   QUESTION_BLOCK,
   REFUSED,
+  rosterFingerprint,
   shortcutSource,
+  WHERE_BLOCK,
 } from './picker.js';
 
 const member = { name: 'M' } as PickerConfig['members'][string];
@@ -39,27 +41,44 @@ const shortcut: PickerSource = {
   messageTs: '1.000001',
 };
 
+const metadata = (
+  source: PickerSource,
+  fingerprint = rosterFingerprint(config),
+) => JSON.stringify({ source, fingerprint });
+
+function values({
+  preset,
+  members = [],
+  question = null,
+  where,
+}: {
+  preset?: string;
+  members?: string[];
+  question?: string | null;
+  where?: string;
+}) {
+  return {
+    [PRESET_BLOCK]: {
+      preset: { selected_option: preset ? { value: preset } : null },
+    },
+    [MEMBERS_BLOCK]: {
+      members: { selected_options: members.map((value) => ({ value })) },
+    },
+    [QUESTION_BLOCK]: { question: { value: question } },
+    ...(where
+      ? { [WHERE_BLOCK]: { where: { selected_option: { value: where } } } }
+      : {}),
+  };
+}
+
 function submit(
   source: PickerSource,
-  {
-    preset,
-    members = [],
-    question = null,
-  }: { preset?: string; members?: string[]; question?: string | null },
+  state: Parameters<typeof values>[0],
+  fingerprint?: string,
 ) {
   return parsePickerSubmission(config, {
-    private_metadata: JSON.stringify(source),
-    state: {
-      values: {
-        [PRESET_BLOCK]: {
-          preset: { selected_option: preset ? { value: preset } : null },
-        },
-        [MEMBERS_BLOCK]: {
-          members: { selected_options: members.map((value) => ({ value })) },
-        },
-        [QUESTION_BLOCK]: { question: { value: question } },
-      },
-    },
+    private_metadata: metadata(source, fingerprint),
+    state: { values: values(state) },
   });
 }
 
@@ -68,22 +87,27 @@ describe('parsePickerSubmission', () => {
     [
       'members override the preset',
       submit(command, { preset: 'p1', members: ['m1'], question: 'Q' }),
-      { roster: ['critic'], question: 'Q' },
+      { roster: ['critic'], where: 'thread', question: 'Q' },
     ],
     [
       'the chosen preset fills an empty member list',
       submit(command, { preset: 'p1', question: ' Q ' }),
-      { roster: ['scout'], question: 'Q' },
+      { roster: ['scout'], where: 'thread', question: 'Q' },
+    ],
+    [
+      'the command can convene the whole channel',
+      submit(command, { question: 'Q', where: 'channel' }),
+      { roster: ['guide', 'critic'], where: 'channel', question: 'Q' },
     ],
     [
       'the default preset applies when none is chosen',
       submit(shortcut, {}),
-      { roster: ['guide', 'critic'] },
+      { roster: ['guide', 'critic'], where: 'thread' },
     ],
     [
       'a blank shortcut question means the message is the prompt',
       submit(shortcut, { question: '  \n ' }),
-      { roster: ['guide', 'critic'] },
+      { roster: ['guide', 'critic'], where: 'thread' },
     ],
   ])('%s', (_, result, expected) => {
     expect(result).toEqual({
@@ -109,6 +133,11 @@ describe('parsePickerSubmission', () => {
       submit(shortcut, { preset: 'toString' }),
       PRESET_BLOCK,
     ],
+    [
+      'a form built from a different roster order',
+      submit(command, { question: 'Q' }, '0123456789abcdef'),
+      QUESTION_BLOCK,
+    ],
   ])('rejects %s', (_, result, block) => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(Object.keys(result.errors)).toEqual([block]);
@@ -117,23 +146,27 @@ describe('parsePickerSubmission', () => {
 
 describe('decodeMetadata', () => {
   it('round-trips what the view carries', () => {
-    expect(decodeMetadata(JSON.stringify(shortcut))).toEqual(shortcut);
+    expect(decodeMetadata(metadata(shortcut))).toEqual({
+      source: shortcut,
+      fingerprint: rosterFingerprint(config),
+    });
   });
 
   it.each([
     ['not JSON', '{'],
     ['not a string', 42],
-    ['oversized', JSON.stringify(command).padEnd(3_001)],
-    ['an extra field', JSON.stringify({ ...command, roster: ['guide'] })],
+    ['oversized', metadata(command).padEnd(3_001)],
+    ['an extra field', metadata({ ...command, roster: ['guide'] } as never)],
     [
       'a foreign response url',
-      JSON.stringify({ ...command, responseUrl: 'https://evil.example/x' }),
+      metadata({ ...command, responseUrl: 'https://evil.example/x' }),
     ],
-    ['a malformed ts', JSON.stringify({ ...shortcut, threadTs: '../1' })],
+    ['a malformed ts', metadata({ ...shortcut, threadTs: '../1' })],
     [
       'a missing message ts',
-      JSON.stringify({ ...shortcut, messageTs: undefined }),
+      metadata({ ...shortcut, messageTs: undefined } as never),
     ],
+    ['no fingerprint', JSON.stringify({ source: command })],
   ])('rejects %s', (_, raw) => {
     expect(decodeMetadata(raw)).toBeUndefined();
   });
@@ -172,11 +205,33 @@ describe('planPickerOpen', () => {
 });
 
 describe('createPicker', () => {
-  function setup(convene: () => Promise<unknown>) {
+  function setup(
+    convene: () => Promise<unknown>,
+    {
+      source = shortcut,
+      state = {},
+      deleted = success(undefined),
+    }: {
+      source?: PickerSource;
+      state?: Parameters<typeof values>[0];
+      deleted?: Result<void>;
+    } = {},
+  ) {
     const accepted = new Set(['C1:1.000001']);
     const slack = {
-      postNotice: vi.fn(async () => success({ ts: '9.000001' })),
-      deleteMessage: vi.fn(async () => success(undefined)),
+      fetchMessages: vi.fn(async () =>
+        success([
+          {
+            ts: '1.000001',
+            author: { kind: 'notice' as const },
+            text: `Ship *it* to <@U9> @here\n> quoted${'x'.repeat(2_000)}`,
+          },
+        ]),
+      ),
+      postNotice: vi.fn(async (_scope: unknown, _text: string) =>
+        success({ ts: '9.000001' }),
+      ),
+      deleteMessage: vi.fn(async () => deleted),
     };
     const service = {
       getCouncil: () => undefined,
@@ -211,29 +266,65 @@ describe('createPicker', () => {
     });
     const run = picker.submit('U1', {
       id: 'V1',
-      private_metadata: JSON.stringify(shortcut),
-      state: { values: {} },
+      private_metadata: metadata(source),
+      state: { values: values(state) },
     }).run;
     return { run, slack, service, fetch };
   }
 
-  it('opens a round from its own post when the selected message was accepted before', async () => {
-    const { run, service, fetch } = setup(async () => ({}));
+  it("opens a round from its own post, which quotes a blank shortcut's message", async () => {
+    const { run, slack, service, fetch } = setup(async () => ({}));
     await run?.();
+    expect(service.handleHumanMessage).toHaveBeenCalledWith({
+      scope: { channel: 'C1', threadTs: '1.000001' },
+      message: expect.objectContaining({ ts: '9.000001' }),
+    });
     await expect(
       service.handleHumanMessage.mock.results[0]?.value,
     ).resolves.toBe('accepted');
     expect(fetch).not.toHaveBeenCalled();
+    const text = slack.postNotice.mock.calls[0]?.[1] ?? '';
+    expect(text).toMatch(
+      /^Council convened by U1 on this message:\n> Ship \\\*it\\\* to @⁠U9 @⁠here\n> \\> quotedx+\n> … \(truncated\)$/u,
+    );
+    expect(text.length).toBeLessThan(1_200);
   });
 
-  it('deletes its post and tells the user when convening fails', async () => {
-    const { run, slack, fetch } = setup(async () => {
-      throw new CliError('E_COUNCIL_EXISTS', 'exists');
+  it('convenes the whole channel from a top-level post', async () => {
+    const { run, slack, service } = setup(async () => ({}), {
+      source: command,
+      state: { question: 'Q', where: 'channel' },
     });
     await run?.();
-    expect(slack.deleteMessage).toHaveBeenCalledWith('C1', '9.000001');
-    expect(String(fetch.mock.calls[0]?.[1]?.body)).toContain(
-      'This thread already has a council.',
+    expect(slack.postNotice).toHaveBeenCalledWith(
+      { channel: 'C1' },
+      'Council convened by U1: Q',
+    );
+    expect(service.convene).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: { channel: 'C1' } }),
+    );
+    expect(service.handleHumanMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ scope: { channel: 'C1' } }),
     );
   });
+
+  it.each([
+    ['deleted', success(undefined), false],
+    ['left behind', failure('E_SLACK', 'x'), true],
+  ])(
+    'deletes its post and tells the user when convening fails (post %s)',
+    async (_, deleted, leftBehind) => {
+      const { run, slack, fetch } = setup(
+        async () => {
+          throw new CliError('E_COUNCIL_EXISTS', 'exists');
+        },
+        { deleted },
+      );
+      await run?.();
+      expect(slack.deleteMessage).toHaveBeenCalledWith('C1', '9.000001');
+      const body = String(fetch.mock.calls[0]?.[1]?.body);
+      expect(body).toContain('This thread already has a council.');
+      expect(body.includes('could not be removed')).toBe(leftBehind);
+    },
+  );
 });
