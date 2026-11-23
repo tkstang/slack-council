@@ -86,7 +86,8 @@ checks name.
 
 <!-- When reviews happen, then who and how. Record each as intent (when, required independence, effort) and mechanism (tool or skill, host, source, date verified). When a review comes due, re-check its mechanism first; if it is unavailable, keep the intent, tell the user and log it. Freestyle adds no review gate; a review an adopted plan requires must still pass (its agreed mechanism or an equivalent check) before the work it guards moves on. -->
 
-**Per PR, before merge.**
+**Every PR, before merge. No PR is waived, however small** (in effect from
+2026-11-23, including PRs already open).
 
 - Intent: an independent correctness review by a different model family from
   the implementer, high effort, one round plus one confirmation round. The
@@ -124,19 +125,23 @@ approvals.**
 - **Records.** The orchestrator publishes project records with
   `oat project push` after each change. They go to a public remote, so nothing
   private goes in them.
-- **Merges.** The user merges, or the orchestrator merges when the user says
-  "land it". Squash merges.
+- **Merges.** The orchestrator merges, without waiting for the user, once a
+  PR's review is clean (findings fixed or dispositioned) and its required
+  checks are green. Squash merges. This holds for work inside the high-level
+  plan the user has agreed, until the user says otherwise. In effect from
+  2026-11-23, including PRs already open.
 
 ## User involvement
 
 <!-- What the user approves, and what they are only told. -->
 
-**Approves before it happens:** merges; open design decisions; Slack app
+**Approves before it happens:** the high-level plan (the features to ship);
+open design decisions; Slack app
 manifest or scope changes; tokens and secrets; desktop control of the
 development machine; writes to the user's vault; filing feedback against OAT.
 
 **Is told:** commits, pushes, opened PRs, lane dispatches, review findings and
-their dispositions.
+their dispositions, and merges.
 
 ## Reshape checkpoints
 
