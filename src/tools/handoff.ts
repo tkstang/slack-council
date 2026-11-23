@@ -69,7 +69,9 @@ export function createHandoff(
           project,
           prompt: `${prompt}\n\nRead the handoff note at: ${path}`,
         };
-        const decision = await ask(HANDOFF_GRANT, { ...note, ...target });
+        // The target comes first: the prompt is what the session acts on, and a
+        // long note must not push it out of view on the card.
+        const decision = await ask(HANDOFF_GRANT, { ...target, ...note });
         if (!decision.ok) return decision;
         if (decision.value) return decision.value;
         if (signal.aborted)

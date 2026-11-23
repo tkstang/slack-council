@@ -97,6 +97,15 @@ export function parseConfig(input: string): Result<Config> {
       }
     }
   }
+  for (const { server } of config.tools.handoff
+    ? [config.tools.handoff.write, config.tools.handoff.launch]
+    : []) {
+    if (!Object.hasOwn(config.tools.mcpServers, server))
+      return failure(
+        'E_UNKNOWN_TOOL_GRANT',
+        `tools.handoff names an unknown MCP server: ${server}`,
+      );
+  }
   for (const [preset, roster] of Object.entries(config.presets)) {
     for (const id of roster) {
       if (!Object.hasOwn(config.members, id)) {

@@ -124,14 +124,16 @@ const ToolsSchema = z.strictObject({
     .strictObject({
       write: McpToolRefSchema,
       launch: McpToolRefSchema,
-      folder: nonempty.refine(
-        (folder) =>
-          !/[\\:\p{Cc}]/u.test(folder) &&
-          folder
-            .split('/')
-            .every((part) => part && part !== '.' && part !== '..'),
-        'Use a vault-relative folder with no empty or dot segments',
-      ),
+      folder: nonempty
+        .transform((folder) => folder.replace(/\/$/u, ''))
+        .refine(
+          (folder) =>
+            !/[\\:\p{Cc}]/u.test(folder) &&
+            folder
+              .split('/')
+              .every((part) => part && part !== '.' && part !== '..'),
+          'Use a vault-relative folder with no leading slash, empty or dot segments',
+        ),
     })
     .optional(),
   policy: z

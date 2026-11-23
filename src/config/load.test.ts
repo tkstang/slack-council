@@ -229,30 +229,36 @@ describe('configuration', () => {
   });
 
   it.each([
-    ['Handoffs/Review', true],
-    ['Handoffs/../Review', false],
-  ] as const)('validates a handoff using folder %s', (folder, ok) => {
-    const input = config();
-    const parsed = parseConfig(
-      JSON.stringify({
-        ...input,
-        members: {
-          reviewer: { ...input.members.reviewer, tools: ['handoff'] },
-        },
-        tools: {
-          mcpServers: { notes: { transport: 'stdio', command: 'mcp' } },
-          handoff: {
-            folder,
-            write: { server: 'notes', tool: 'vault_write' },
-            launch: { server: 'sessions', tool: 'launch' },
+    ['Handoffs/Review', 'notes', undefined],
+    ['Agent Workspaces/Handoffs/', 'notes', undefined],
+    ['Handoffs/../Review', 'notes', 'E_INVALID_INPUT'],
+    ['/Handoffs', 'notes', 'E_INVALID_INPUT'],
+    ['Handoffs', 'sessions', 'E_UNKNOWN_TOOL_GRANT'],
+  ] as const)(
+    'validates a handoff using folder %s and launch server %s',
+    (folder, server, code) => {
+      const input = config();
+      const parsed = parseConfig(
+        JSON.stringify({
+          ...input,
+          members: {
+            reviewer: { ...input.members.reviewer, tools: ['handoff'] },
           },
-        },
-      }),
-    );
-    expect(parsed).toMatchObject(
-      ok ? { ok: true } : { ok: false, code: 'E_INVALID_INPUT' },
-    );
-  });
+          tools: {
+            mcpServers: { notes: { transport: 'stdio', command: 'mcp' } },
+            handoff: {
+              folder,
+              write: { server: 'notes', tool: 'vault_write' },
+              launch: { server, tool: 'launch' },
+            },
+          },
+        }),
+      );
+      expect(parsed).toMatchObject(
+        code === undefined ? { ok: true } : { ok: false, code },
+      );
+    },
+  );
 
   it('reports a coded read failure from the filesystem boundary', async () => {
     expect(
