@@ -62,8 +62,10 @@ model plus an effort level, a persona and a set of tool grants.
   handle: lowercase, `[a-z][a-z0-9-]*`.
 - **Council**: a roster bound to a **scope**, plus an owner and settings.
 - **Scope**: `{ channel, threadTs? }`. With `threadTs` it is a thread council and
-  posts go to that thread. Without it, it is a channel council and posts are
-  top-level.
+  posts go to that thread. Without it, it is a channel council: it reads recent
+  top-level messages and every post (members, notices, approvals, reactions) is
+  top-level. A channel holds at most one channel council; thread councils can
+  coexist in it, and a reply inside a thread never reaches the channel council.
 - **Chain**: everything that follows one human message until the floor queue is
   empty. A new human message starts a new chain.
 - **Floor grant**: permission for one member to take one turn. Kinds: `round`
@@ -80,7 +82,9 @@ result event carries the chain id and turn id that produced it.
 
 Only users in `slack.allowedUsers` can convene a council or give the floor.
 Messages from anyone else are context: members can read them, but they start
-nothing.
+nothing. This matters most in a channel council, where anyone in the channel
+posts into the transcript. Posts from any bot, including this app, are dropped
+before routing, so the app never responds to its own or another bot's post.
 
 ### Addressing in a human message
 
@@ -188,7 +192,12 @@ misrepresent other members as the responding assistant.
 - Thread council: the whole thread, newest kept when over `contextChars`. An
   omission marker says how many earlier messages were dropped and names the
   history tool.
-- Channel council: the most recent top-level messages within the same budget.
+- Channel council: the most recent top-level messages (and thread broadcasts)
+  within the same budget, oldest first. Thread replies are left out. A round or
+  human mention reads through its triggering message (`latest` with
+  `inclusive`, then filtered client-side), so the trigger is always the newest
+  row and later posts from other people stay out of that snapshot. React turns
+  and member mentions read the newest window.
 - A member post is recognised by message metadata (`member` id), falling back to
   our `bot_id` plus `username`.
 - App notices appear as `council (system)` in real turns. The listen transcript
@@ -244,33 +253,48 @@ tested without Slack.
 
 - Inbound: accept `message` events with no subtype or `file_share`; drop our own
   `bot_id`; dedupe on `channel:ts` before any await.
+- Routing: a thread reply belongs to its thread. A top-level message belongs to
+  the channel council when the channel has one; a top-level `@council end` also
+  goes to a dormant channel council (one whose roster names a removed member) so
+  it can be removed. Otherwise a top-level `@council` opens a thread council.
 - Kickoff: (a) `@council` on a message outside any council convenes the default
-  preset in that message's thread; (b) the `/council` command or the "Start a
-  council" message shortcut opens the roster modal (`views.open` straight after
-  `ack()`, as a trigger id lasts three seconds). Only `slack.allowedUsers` get
-  the modal; the service checks again on convene. The modal has a preset select,
-  a member multi-select that overrides the preset, and a question.
+  preset in that message's thread (there is no mention kickoff for a channel
+  council); (b) the `/council` command or the "Start a council" message
+  shortcut opens the roster modal (`views.open` straight after `ack()`, as a
+  trigger id lasts three seconds). Only `slack.allowedUsers` get the modal; the
+  service checks again on convene. The modal has a preset select, a member
+  multi-select that overrides the preset, a question and, for the command
+  only, a "Where" choice: "New thread" (default) or "This whole channel".
   `private_metadata` carries only the source, channel, thread and message ts,
-  user and response URL, and is size-checked and Zod-validated on return. The
-  response URL must be `https://hooks.slack.com` with no credentials and is
-  fetched with redirects refused. Select options carry index ids that map back
-  to configured keys; an unknown id is invalid input. The display name and
-  question appear in the notice as escaped plain text with mentions neutralised.
+  user and response URL, plus a fingerprint of the preset and member keys in
+  order. It is size-checked and Zod-validated on return. The response URL must
+  be `https://hooks.slack.com` with no credentials and is fetched with
+  redirects refused. Select options carry index ids that map back to configured
+  keys; an unknown id is invalid input, and a form whose fingerprint no longer
+  matches the config is refused with a request to reopen it. The display name
+  and question appear in the notice as escaped plain text with mentions
+  neutralised.
   - `/council [question]` posts "Council convened by <name>: <question>" in the
-    channel as a notice and convenes in its thread.
+    channel as a notice and convenes in its thread, or, with "This whole
+    channel", convenes the channel itself.
   - The shortcut posts the same notice, with the question when one was typed,
     in the message's thread (`thread_ts`, else `ts`) and convenes there. Left
-    empty, the selected message stays in the history above the notice.
+    empty, the notice reads "Council convened by <name> on this message:" and
+    quotes up to 1,000 characters of the selected message, escaped the same
+    way, so the round's trigger carries the prompt.
   - Both post first, then convene, then open the round, all writes through the
     port's queue. If convening fails the notice is deleted and the user told; a
     council is never saved before its notice exists, and a failure never ends
-    whatever council holds the scope. A submission's view id is claimed once,
-    so a redelivery cannot post or convene twice.
+    whatever council holds the scope. If the delete fails too, the user is told
+    the notice was left behind. A submission's view id is claimed once, after
+    a successful `ack()`, so a redelivery cannot post or convene twice and a
+    failed acknowledgement does not lose the submission.
   - The first round opens through `handleHumanMessage` with the notice's ts, the
     invoking user as author and the text `<@APPUSER>`, so dedupe, the allow-list
     and addressing run unchanged; the prompt itself is read from history. The
     notice's ts is always fresh, so a message accepted before still starts one.
-  - An existing council in the scope is a modal error. Later failures, including
+  - An existing council in the scope (the thread, or the channel for "This
+    whole channel") is a modal error. Later failures, including
     `not_in_channel`, reach the user through the response URL and are logged
     with fixed fields only.
 - Posting: per-channel serial queue, at least one second apart, no automatic
@@ -311,6 +335,8 @@ and `stateDir`.
 3. Roster modal and presets.
 4. Raised hand.
 5. Channel councils.
+
+All five are implemented.
 
 ## Out of scope for the prototype
 

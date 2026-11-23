@@ -110,16 +110,26 @@ to start one:
 - **Slash command.** `/council [question]` in a channel opens the roster modal,
   with any typed text as the question. On submit the app posts
   "Council convened by <name>: <question>" in the channel and convenes in that
-  message's thread. Slack does not run slash commands inside threads.
+  message's thread, or, if you choose **This whole channel** under **Where**,
+  in the channel itself. Slack does not run slash commands inside threads.
 - **Message shortcut.** Choose **Start a council** from a message's menu. The
   council convenes in that message's thread, or the thread it replies in. The
   app posts "Council convened by <name>" in the thread, with any question typed
-  in the modal; left empty, members answer the selected message above it.
+  in the modal; left empty, the post quotes up to 1,000 characters of the
+  selected message and members answer that.
 
 The modal offers a preset (the default preset is preselected) and a member
-list. Choosing members overrides the preset. A thread that already has a
-council is refused, and failures after the modal closes, such as the app not
-being in the channel, are reported to you ephemerally.
+list. Choosing members overrides the preset. A thread or channel that already
+has a council is refused. A form left open while the configured presets or
+members changed is refused; reopen it. Failures after the modal closes, such
+as the app not being in the channel, are reported to you ephemerally.
+
+A **channel council** lives in the channel: members read recent top-level
+messages and post top-level, and top-level `@<handle>`, `@council stop` and
+`@council end` drive it. A channel has at most one; thread councils can still
+start in its threads, and thread replies never reach the channel council.
+Messages from people outside `slack.allowedUsers` are context only, and the
+app ignores posts from bots, itself included.
 
 Once convened, address a member with `@<handle>`, and use `@council stop` or
 `@council end`.
@@ -192,6 +202,8 @@ the wait immediately. Pending requests expire on restart.
 Open the service with `openCouncilService(config, { slack, turns, appUserId })`.
 Pass human messages with raw Slack-encoded text to `handleHumanMessage`. For
 mention-based kickoff, pass the resolved thread scope with `kickoff: true`.
+`isDormant` reports a stored council that cannot run under the current config;
+`end` and a `@council end` message in its scope remove it.
 Convene a chosen roster or preset through `convene`. `createPicker` builds
 the roster modal that `registerCouncilHandlers` serves for `/council` and the
 `council_start` shortcut. The service retains the newest 4,096
