@@ -106,26 +106,33 @@ describe('createTurnRunner', () => {
   it('blocks a tool call containing a private note before execution', async () => {
     const privateNote = 'Check the assumption.';
     const model = new MockLanguageModelV4({
-      doGenerate: {
-        content: [
-          { type: 'text', text: 'Here is the answer.' },
-          {
-            type: 'tool-call',
-            toolCallId: 'private',
-            toolName: 'use_text',
-            input: JSON.stringify({ text: privateNote }),
-          },
-          {
-            type: 'tool-call',
-            toolCallId: 'public',
-            toolName: 'use_text',
-            input: JSON.stringify({ text: 'Public follow-up.' }),
-          },
-        ],
-        finishReason: finish,
-        usage,
-        warnings: [],
-      },
+      doGenerate: [
+        {
+          content: [
+            {
+              type: 'tool-call',
+              toolCallId: 'private',
+              toolName: 'use_text',
+              input: JSON.stringify({ text: privateNote }),
+            },
+            {
+              type: 'tool-call',
+              toolCallId: 'public',
+              toolName: 'use_text',
+              input: JSON.stringify({ text: 'Public follow-up.' }),
+            },
+          ],
+          finishReason: { unified: 'tool-calls', raw: 'tool_calls' },
+          usage,
+          warnings: [],
+        },
+        {
+          content: [{ type: 'text', text: 'Here is the answer.' }],
+          finishReason: finish,
+          usage,
+          warnings: [],
+        },
+      ],
     });
     const execute = vi.fn(async (_args: { text: string }) => 'Done');
     const runner = createTurnRunner({
@@ -138,11 +145,24 @@ describe('createTurnRunner', () => {
       }),
     });
     const result = await runner.runTurn(
-      input({ maxSteps: 1, privateNoteText: [privateNote] }),
+      input({ maxSteps: 2, privateNoteText: [privateNote] }),
     );
-    expect(result.ok).toBe(true);
+    expect(result).toEqual({ ok: true, value: 'Here is the answer.' });
     expect(execute).toHaveBeenCalledTimes(1);
     expect(execute.mock.calls[0]?.[0]).toEqual({ text: 'Public follow-up.' });
+
+    // A one-step turn could not reply after a tool call, so it gets no tools.
+    const single = textModel('Only a reply');
+    await createTurnRunner({
+      models: () => single,
+      toolsFor: () => ({
+        use_text: tool({
+          inputSchema: z.object({ text: z.string() }),
+          execute,
+        }),
+      }),
+    }).runTurn(input({ maxSteps: 1 }));
+    expect(single.doGenerateCalls[0]?.tools ?? []).toEqual([]);
   });
 
   it('sends effort in the request body for a dotted provider name, once', async () => {

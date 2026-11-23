@@ -160,8 +160,8 @@ behavior. The default is `"settle"`.
 Members cannot notify people by default: every mention in a member's post is
 written so that Slack does not deliver it. Set `council.memberMentions` to
 `"people"` to let a member write `@Name` for someone who has posted or been
-mentioned in that channel's councils; it becomes a real mention, as does a raw
-Slack mention of the same person. `@here`,
+mentioned in that channel's councils; it becomes a real mention. The name must be
+unique among those people and must not be, or begin with, a member handle. `@here`,
 `@channel`, `@everyone` and user groups never notify, whatever the setting.
 
 ## Member tools

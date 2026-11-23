@@ -23,9 +23,13 @@ interface Pending {
   finish(outcome: ApprovalOutcome | undefined): void;
 }
 
+// Invisible characters: controls, format characters and anything Unicode
+// marks as ignorable when displayed.
+const HIDDEN = String.raw`\u007f-\u009f  \p{Cf}\p{Default_Ignorable_Code_Point}`;
+
 const escapeHidden = (text: string) =>
   text.replace(
-    /[\u007f-\u009f\u2028\u2029\p{Cf}]/gu,
+    new RegExp(`[${HIDDEN}]`, 'gu'),
     // Standard JSON escapes, one per UTF-16 unit.
     (char) =>
       char
@@ -34,20 +38,37 @@ const escapeHidden = (text: string) =>
         .join(''),
   );
 
-// A string is shown bare only when it cannot be misread: one line, no edge
-// spaces, no backslash or invisible character, and not something that reads
-// as a number, boolean or null.
-
-const BARE_VALUE =
-  /^(?!(?:true|false|null|-?\d)\b)[^\s\p{C}\\](?:[^\p{C}\\\u2028\u2029]*[^\s\p{C}\\])?$/u;
 const BARE_KEY = /^[\w.-]+$/u;
+// One line, no edge spaces, no backslash and nothing invisible.
+const PLAIN_LINE = new RegExp(
+  String.raw`^[^\s\p{C}\\${HIDDEN}](?:[^\p{C}\\${HIDDEN}]*[^\s\p{C}\\${HIDDEN}])?$`,
+  'u',
+);
+
+function isJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A string is shown without quotes only when it cannot be misread: a plain
+ * line that is not itself JSON. So `[]` the string is quoted and `[]` the
+ * empty list is not, and the two never look alike.
+ */
+const showValue = (value: unknown) =>
+  typeof value === 'string' && PLAIN_LINE.test(value) && !isJson(value)
+    ? value
+    : (JSON.stringify(value) ?? 'null');
 
 /**
  * The exact arguments as the approver will see them: one `name: value` line
- * per top-level field, with anything that is not a plain one-line string shown
- * as JSON. Control and invisible format characters are escaped. Arguments too
- * long to show in full yield nothing: approving a cut-off preview would run
- * fields nobody saw.
+ * per top-level field. Invisible characters are escaped. Arguments too long to
+ * show in full yield nothing: approving a cut-off preview would run fields
+ * nobody saw.
  */
 function preview(args: unknown): string | undefined {
   const fields =
@@ -60,14 +81,10 @@ function preview(args: unknown): string | undefined {
       : fields.length === 0
         ? '(no arguments)'
         : fields
-            .map(([key, value]) => {
-              const name = BARE_KEY.test(key) ? key : JSON.stringify(key);
-              const shown =
-                typeof value === 'string' && BARE_VALUE.test(value)
-                  ? value
-                  : (JSON.stringify(value) ?? 'null');
-              return `${name}: ${shown}`;
-            })
+            .map(
+              ([key, value]) =>
+                `${BARE_KEY.test(key) ? key : JSON.stringify(key)}: ${showValue(value)}`,
+            )
             .join('\n');
   const safe = escapeHidden(text);
   return safe.length <= MAX_PREVIEW ? safe : undefined;

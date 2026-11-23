@@ -137,8 +137,8 @@ reactions are best effort and never fail the message.
   one failed model request (429, 5xx or a network error) is retried once; tool
   calls are never repeated. A reply cut off at the model's output limit fails
   the turn. When a turn has more than one step, the model may not call tools on
-  the last one, so a turn that used tools still ends with a reply. With
-  `maxSteps: 1` a tool call ends the turn with no reply.
+  the last one, so a turn that used tools still ends with a reply. A turn
+  with `maxSteps: 1` gets no tools.
 - A chain settles when its queue is empty, nothing is running and every post has
   been written. Settling removes the progress indicator.
 
@@ -312,7 +312,8 @@ tested without Slack.
     with fixed fields only.
 - Posting: per-channel serial queue, at least one second apart, no automatic
   retry of a write whose outcome is unknown. A write Slack refuses as rate
-  limited is sent once more after the wait Slack names, up to 30 s. Every Slack call has a finite
+  limited is sent once more after the wait Slack names, up to 30 s; reactions
+  are never resent. Every Slack call has a finite
   timeout: a write attempt lasts at most 15 s, so with one rate-limit resend a
   write can hold its channel's queue for about a minute before the queue moves
   on; reads retry at most twice. A member turn is one message: text over Slack's
@@ -320,8 +321,10 @@ tested without Slack.
   `… (truncated)` line. Every mention in member output is
   neutralised, code included. With `council.memberMentions: 'people'`, `@Name`
   of a person seen in that channel (an author or someone mentioned) becomes a
-  real mention, and a raw `<@U…>` for such a person is kept; names that equal a
-  member handle are left alone. Group and
+  real mention. The post's own mentions are neutralised first, so a mention
+  exists only where a name matched: whole, at the start of a word, outside
+  `<…>` markup. A name shared by two people, or one that is or begins with a
+  member handle, is left alone. Group and
   channel-wide mentions are neutralised in both modes.
 - Reading: a channel council reads the newest 200 messages; a thread council
   reads up to 50 pages of replies through the trigger and fails with `E_SLACK`

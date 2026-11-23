@@ -161,7 +161,8 @@ function approvalMessage(
   decidedBy?: string,
 ) {
   const member = request.memberName.replace(/\s+/gu, ' ').slice(0, 100);
-  const text = [
+  // One part per block: a many-line preview must not become many blocks.
+  const parts = [
     outcome === undefined
       ? `${member} requests approval for ${request.tool}.`
       : `${member} requested ${request.tool}.`,
@@ -170,9 +171,8 @@ function approvalMessage(
       ('userId' in outcome
         ? `Request ${outcome.kind} by ${decidedBy ?? outcome.userId}.`
         : `Request ${outcome.kind}.`),
-  ]
-    .filter(Boolean)
-    .join('\n');
+  ].filter((part): part is string => Boolean(part));
+  const text = parts.join('\n');
 
   return {
     text: text
@@ -182,7 +182,7 @@ function approvalMessage(
     mrkdwn: false,
     // Each section holds at most 3,000 characters, so the arguments get their own.
     blocks: [
-      ...text.split('\n').map((part) => ({
+      ...parts.map((part) => ({
         type: 'section',
         text: { type: 'plain_text', text: part.slice(0, 3_000), emoji: false },
       })),
@@ -288,8 +288,10 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
     method: string,
     args: Record<string, unknown>,
   ): Promise<SlackCall> {
+    // A reaction is best effort: it never waits out a rate limit in the queue.
+    const retryRateLimited = !method.startsWith('reactions.');
     return queue.run(channel, () =>
-      callSlack(writeApi, method, args, { retryRateLimited: true }),
+      callSlack(writeApi, method, args, { retryRateLimited }),
     );
   }
 
@@ -388,11 +390,10 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
         }
       }
       // One message per turn: text over the limit is truncated, never split.
+      // Break every mention the model wrote, then add back only those that
+      // match a known person's name.
       const posting = truncateMarkdown(
-        neutraliseBroadcasts(
-          linkPeopleMentions(text, people, handles),
-          new Set(people.keys()),
-        ),
+        linkPeopleMentions(neutraliseBroadcasts(text), people, handles),
       );
       const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),

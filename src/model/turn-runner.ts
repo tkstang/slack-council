@@ -129,9 +129,13 @@ export function createTurnRunner({
     const onAbort = () => aborted.resolve(abortFailure(signal));
     signal.addEventListener('abort', onAbort, { once: true });
     try {
-      const tools =
-        turn && protectToolArguments(toolsFor?.(turn), turn.privateNoteText);
       const lastStep = (turn?.maxSteps ?? 1) - 1;
+      // A one-step turn gets no tools: a call there would run the tool and
+      // leave nothing to post.
+      const tools =
+        turn && lastStep > 0
+          ? protectToolArguments(toolsFor?.(turn), turn.privateNoteText)
+          : undefined;
       const generation = generateText({
         model: models(member.provider, member.model),
         system: prompt.system,
@@ -152,7 +156,7 @@ export function createTurnRunner({
               // Forbidding tools is not enough: some routes then answer with
               // nothing, so the step also says why.
               prepareStep: ({ stepNumber, messages }) =>
-                stepNumber >= lastStep && lastStep > 0
+                stepNumber >= lastStep
                   ? {
                       toolChoice: 'none' as const,
                       messages: [

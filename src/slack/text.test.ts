@@ -37,24 +37,29 @@ describe('linkPeopleMentions', () => {
     ['U1', 'Ann'],
     ['U2', 'Ann Lee'],
     ['U3', 'bo'],
+    ['U4', 'Sam'],
+    ['U5', 'sam'],
+    ['U6', 'Bo Diaz'],
   ]);
+  const handles = new Set(['bo', 'ann-lee']);
+  const post = (text: string) =>
+    linkPeopleMentions(neutraliseBroadcasts(text), people, handles);
 
-  it('links known people by whole name and leaves handles and strangers alone', () => {
-    const linked = linkPeopleMentions(
-      'Ask @ann lee, then @Ann. Not @Annabel, @bo or @Zed. mail a@ann.io',
-      people,
-      new Set(['bo']),
-    );
-    expect(linked).toBe(
-      'Ask <@U2>, then <@U1>. Not @Annabel, @bo or @Zed. mail a@ann.io',
-    );
-    // Only the linked people survive; any other mention is still broken.
-    const posted = neutraliseBroadcasts(
-      `${linked} <@U9> @here`,
-      new Set(['U1', 'U2']),
-    );
-    expect(posted).toContain('<@U2>, then <@U1>');
-    expect(posted).not.toMatch(/<@U9>|(?<!\w)@here/u);
+  it('links only whole, unique names that are not handles', () => {
+    expect(
+      post('Ask @ann lee, then (@Ann). Not @Annabel or @Zed. mail a@ann.io'),
+    ).toBe('Ask <@U2>, then (<@U1>). Not @Annabel or @Zed. mail a@ann.io');
+    // A handle, a handle that starts with a name, a name that starts with a
+    // handle, and a name two people share are all left alone.
+    const untouched = '@bo @ann-lee @Bo Diaz @Sam';
+    expect(post(untouched)).toBe(untouched);
+  });
+
+  it('never keeps a mention the model wrote itself, and skips markup', () => {
+    const posted = post('<@U1> <@U9> @here <https://x.io/@Ann|see @Ann> @Ann');
+    expect(posted.match(/<@U[0-9]+>/gu)).toEqual(['<@U1>']);
+    expect(posted.endsWith('<https://x.io/@Ann|see @Ann> <@U1>')).toBe(true);
+    expect(posted).not.toMatch(/(?<!\w)@here/u);
   });
 });
 

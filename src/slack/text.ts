@@ -3,10 +3,7 @@ export const MARKDOWN_TEXT_LIMIT = 12_000;
 
 const WORD_JOINER = '⁠';
 
-function neutraliseProse(
-  text: string,
-  allowedUserIds?: ReadonlySet<string>,
-): string {
+function neutraliseProse(text: string): string {
   return text
     .replace(
       /<!(here|channel|everyone)(?:\|[^<>]*)?>/giu,
@@ -19,7 +16,7 @@ function neutraliseProse(
     .replace(
       /<@([UW][A-Z0-9]+)(?:\|@?([^<>]*))?>/gu,
       (_, id: string, label: string | undefined) =>
-        allowedUserIds?.has(id) ? `<@${id}>` : `@${WORD_JOINER}${label || id}`,
+        `@${WORD_JOINER}${label || id}`,
     )
     .replace(
       /(?<![\p{L}\p{N}_])@(here|channel|everyone)(?![\p{L}\p{N}_-])/giu,
@@ -32,49 +29,66 @@ function neutraliseProse(
  * user-group mentions, plain `@here`, `@channel` and `@everyone`, and `<@U…>`
  * user mentions, so model output cannot ping people. Code is not exempt: an
  * unclosed fence or an escaped backtick would otherwise smuggle a mention out.
- * A mention of a user in `allowedUserIds` is kept.
  */
-export function neutraliseBroadcasts(
-  text: string,
-  allowedUserIds?: ReadonlySet<string>,
-): string {
-  return neutraliseProse(text, allowedUserIds);
+export function neutraliseBroadcasts(text: string): string {
+  return neutraliseProse(text);
 }
 
 const RESERVED_NAMES = new Set(['council', 'here', 'channel', 'everyone']);
 
 /**
- * Turn `@Name` into `<@U…>` for the given people. A name is matched whole,
- * ignoring case, longest first, so "Ann Lee" wins over "Ann". Names equal to a
- * reserved word (a member handle, `council`, `here`) are left alone: those
- * already mean something else.
+ * Turn `@Name` into `<@U…>` for the given people. Run it on text whose own
+ * mentions are already neutralised, so a mention exists only where a name
+ * matched. A name is matched whole, ignoring case, longest first ("Ann Lee"
+ * before "Ann"), at the start of a word and never inside `<…>` markup or
+ * before a hyphen (`@ann-lee` is one token). A name is skipped when it is not
+ * unique among the people given, or when it or its first word is a reserved
+ * word such as a member handle: those already mean something else.
  */
 export function linkPeopleMentions(
   text: string,
   people: ReadonlyMap<string, string>,
   reserved: ReadonlySet<string> = new Set(),
 ): string {
-  const known = [...people]
-    .map(([id, name]) => ({ id, name: name.trim() }))
+  const named = [...people].map(([id, name]) => ({ id, name: name.trim() }));
+  const uses = new Map<string, number>();
+  for (const { name } of named) {
+    const lower = name.toLowerCase();
+    uses.set(lower, (uses.get(lower) ?? 0) + 1);
+  }
+  const taken = (word: string) =>
+    RESERVED_NAMES.has(word) || reserved.has(word);
+  const known = named
     .filter(({ name }) => {
       const lower = name.toLowerCase();
       return (
-        name.length > 1 && !RESERVED_NAMES.has(lower) && !reserved.has(lower)
+        name.length > 1 &&
+        uses.get(lower) === 1 &&
+        !taken(lower) &&
+        !taken(lower.split(/[\s-]/u)[0] ?? '')
       );
     })
     .toSorted((a, b) => b.name.length - a.name.length);
-  let out = text;
-  for (const { id, name } of known) {
-    const escaped = name.replace(/[\\^$.*+?()[\]{}|]/gu, String.raw`\$&`);
-    out = out.replace(
-      new RegExp(
-        String.raw`(?<![\p{L}\p{N}_<])@${escaped}(?![\p{L}\p{N}_])`,
-        'giu',
-      ),
-      `<@${id}>`,
-    );
-  }
-  return out;
+  if (known.length === 0) return text;
+  const link = (plain: string) => {
+    let out = plain;
+    for (const { id, name } of known) {
+      const escaped = name.replace(/[\\^$.*+?()[\]{}|]/gu, String.raw`\$&`);
+      out = out.replace(
+        new RegExp(
+          String.raw`(?<=^|[\s(\[{"'*_~>])@${escaped}(?![\p{L}\p{N}_-])`,
+          'giu',
+        ),
+        `<@${id}>`,
+      );
+    }
+    return out;
+  };
+  // Odd pieces are `<…>` markup (links, channels); leave them as written.
+  return text
+    .split(/(<[^<>\n]*>)/u)
+    .map((piece, index) => (index % 2 === 1 ? piece : link(piece)))
+    .join('');
 }
 
 /** User ids referenced by `<@U…>` markup. */
