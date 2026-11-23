@@ -367,7 +367,8 @@ tested without Slack.
     The key is case-insensitive. The name ends at whitespace and must match a
     configured key exactly. With no token, the app uses the default preset.
     An unknown name records the message as handled and posts the available
-    names in the thread. It opens no council. An existing council ignores
+    names in the thread. It opens no council. If Slack rejects that notice,
+    the app logs the failure and does not retry. An existing council ignores
     the token for roster selection and keeps the original message in the transcript.
   - A mention that starts a council posts the selected panel in the thread
     after the council is saved. The human message starts the round. If Slack

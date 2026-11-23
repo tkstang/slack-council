@@ -474,13 +474,10 @@ export async function openCouncilService(
         });
         if (result !== 'unknown-preset') return result;
 
-        const names = Object.keys(config.presets).map((name) => {
-          // Use a longer Markdown delimiter when a configured name contains backticks.
-          const ticks = name.match(/`/gu)?.length ?? 0;
-          if (ticks === 0) return `\`${name}\``;
-          const delimiter = '`'.repeat(ticks + 1);
-          return `${delimiter} ${name} ${delimiter}`;
-        });
+        // Inline code shows a name as written; a backtick would end it early.
+        const names = Object.keys(config.presets).map(
+          (name) => `\`${name.replaceAll('`', '')}\``,
+        );
         unwrap(
           await slack.postNotice(
             scope,
