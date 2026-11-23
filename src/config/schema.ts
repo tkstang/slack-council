@@ -139,6 +139,7 @@ export const ConfigSchema = z.strictObject({
   // Persisted council settings can still contain older, smaller budgets.
   council: CouncilSettingsSchema.extend({
     contextChars: positive.min(1_000).default(DEFAULT_CONTEXT_CHARS),
+    instructions: nonempty.optional(),
   }).prefault({}),
   tools: ToolsSchema.prefault({}),
   stateDir: nonempty.default('.council'),

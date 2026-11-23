@@ -1,6 +1,9 @@
+import { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { dirname, isAbsolute, resolve } from 'node:path';
 
 import { failure, success, type Result } from '@council/core/result.js';
+import { MAX_GUIDANCE_CHARS } from '@council/core/types.js';
 
 import {
   ConfigSchema,
@@ -10,6 +13,11 @@ import {
   SLACK_HISTORY_GRANT,
   type Config,
 } from './schema.js';
+
+export type LoadedConfig = Config & {
+  /** Runtime text read from council.instructions. */
+  readonly instructionsText?: string;
+};
 
 export function parseConfig(input: string): Result<Config> {
   if (!input.trim()) {
@@ -106,7 +114,7 @@ export function parseConfig(input: string): Result<Config> {
   return success(config);
 }
 
-export async function loadConfig(path: string): Promise<Result<Config>> {
+export async function loadConfig(path: string): Promise<Result<LoadedConfig>> {
   let input: string;
   try {
     input = await readFile(path, 'utf8');
@@ -117,5 +125,36 @@ export async function loadConfig(path: string): Promise<Result<Config>> {
       'Check the --config path and its permissions.',
     );
   }
-  return parseConfig(input);
+  const parsed = parseConfig(input);
+  if (!parsed.ok) return parsed;
+  const { instructions } = parsed.value.council;
+  if (instructions === undefined) return parsed;
+
+  const instructionsPath = isAbsolute(instructions)
+    ? instructions
+    : resolve(dirname(path), instructions);
+  let instructionsText = '';
+  try {
+    const stream = createReadStream(instructionsPath, {
+      encoding: 'utf8',
+      highWaterMark: MAX_GUIDANCE_CHARS,
+    });
+    for await (const chunk of stream) {
+      instructionsText += chunk;
+      if (instructionsText.length > MAX_GUIDANCE_CHARS)
+        return failure(
+          'E_CONFIG_READ',
+          `council.instructions file exceeds ${MAX_GUIDANCE_CHARS} characters`,
+        );
+    }
+  } catch {
+    return failure(
+      'E_CONFIG_READ',
+      'Could not read the council.instructions file',
+      'Check the instructions path relative to the config file and its permissions.',
+    );
+  }
+  if (!instructionsText.trim())
+    return failure('E_CONFIG_READ', 'The council.instructions file is empty');
+  return success({ ...parsed.value, instructionsText });
 }

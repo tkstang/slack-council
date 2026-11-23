@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Config } from '@council/config/schema.js';
+import type { LoadedConfig } from '@council/config/load.js';
 import { CliError } from '@council/core/errors.js';
 import type {
   Clock,
@@ -94,7 +94,7 @@ function unwrap<T>(result: Result<T>): T {
 }
 
 export async function openCouncilService(
-  config: Config,
+  config: LoadedConfig,
   {
     slack,
     turns,
@@ -106,6 +106,7 @@ export async function openCouncilService(
     onSkippedCouncil,
   }: CouncilServiceOptions,
 ): Promise<CouncilService> {
+  const { instructions: _instructionsPath, ...settings } = config.council;
   const allowedUsers = new Set(config.slack.allowedUsers);
   const members = new Map<string, Member>(
     Object.entries(config.members).map(([id, member]) => [
@@ -158,6 +159,7 @@ export async function openCouncilService(
         slack,
         turns,
         clock,
+        instructionsText: config.instructionsText,
         onEffectFailure,
         notes: {
           read: () =>
@@ -249,7 +251,7 @@ export async function openCouncilService(
         convenedAtTs: input.convenedAtTs,
         owner: input.owner,
         roster: [...roster],
-        settings: { ...config.council },
+        settings: { ...settings },
       },
       'E_INVALID_INPUT',
     );

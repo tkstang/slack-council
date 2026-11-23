@@ -1,4 +1,4 @@
-import { parseConfig } from '@council/config/load.js';
+import { parseConfig, type LoadedConfig } from '@council/config/load.js';
 import type {
   ListenInput,
   Store,
@@ -112,9 +112,12 @@ function fixtures(
       result = gate.promise;
       return gate.resolve;
     },
-    open(onSkippedCouncil?: CouncilServiceOptions['onSkippedCouncil']) {
+    open(
+      onSkippedCouncil?: CouncilServiceOptions['onSkippedCouncil'],
+      config?: LoadedConfig,
+    ) {
       if (!CONFIG.ok) throw new Error(CONFIG.message);
-      return openCouncilService(CONFIG.value, {
+      return openCouncilService(config ?? CONFIG.value, {
         appUserId: 'UAPP',
         onSkippedCouncil,
         store,
@@ -202,10 +205,15 @@ it('authorises convening and floor control while allowing other users’ message
   await service.shutdown();
 });
 
-it('uses the saved channel floor in public and listening prompts', async () => {
+it('uses the saved channel floor and current operator guidance in public and listening prompts', async () => {
+  const config = {
+    ...CONFIG.value,
+    council: { ...CONFIG.value.council, instructions: 'instructions.md' },
+    instructionsText: 'Identify the main assumption.',
+  };
   const f = fixtures();
   const scope = { channel: 'C1' };
-  const service = await f.open();
+  const service = await f.open(undefined, config);
   await service.convene({
     scope,
     owner: 'U1',
@@ -213,6 +221,7 @@ it('uses the saved channel floor in public and listening prompts', async () => {
     convenedAtTs: '2.000',
   });
   await service.shutdown();
+  expect(f.record().councils[0]?.settings).toEqual(CONFIG.value.council);
 
   const followup = human('3.000', '@guide Give your view');
   f.history.push(
@@ -220,7 +229,10 @@ it('uses the saved channel floor in public and listening prompts', async () => {
     { ts: '2.000', author: { kind: 'notice' }, text: 'Council convened' },
     followup.message,
   );
-  const reopened = await f.open();
+  const reopened = await f.open(undefined, {
+    ...config,
+    instructionsText: 'Review the evidence <first>.',
+  });
   await reopened.handleHumanMessage({ ...followup, scope });
   await vi.waitFor(() => expect(f.listens).toHaveLength(1), { interval: 1 });
   expect(f.calls[0]?.historyFromTs).toBe('2.000');
@@ -231,6 +243,15 @@ it('uses the saved channel floor in public and listening prompts', async () => {
   expect(f.calls[0]?.prompt.user).not.toContain('Discussion from before');
   expect(f.listens[0]?.prompt.user).toContain('Give your view');
   expect(f.listens[0]?.prompt.user).not.toContain('Discussion from before');
+  for (const input of [f.calls[0], f.listens[0]]) {
+    const guide =
+      '<council_instructions>\nReview the evidence &lt;first&gt;.\n</council_instructions>';
+    expect(input?.prompt.system).toContain(guide);
+    expect(input?.prompt.user).toContain(guide);
+    expect(input?.prompt.user.indexOf(guide)).toBeLessThan(
+      input?.prompt.user.indexOf('<transcript>') ?? -1,
+    );
+  }
   await reopened.shutdown();
 });
 

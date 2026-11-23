@@ -81,6 +81,17 @@ OpenAI-compatible endpoint.
 A member can have a `persona` with a `title` for display and `instructions`
 for the model. Leave `persona` out to give the member a neutral role.
 
+Set `council.instructions` to an optional UTF-8 Markdown file with guidance
+for every member's public replies and private listening. Relative paths start
+at the config file's directory. Absolute paths are used as written. If you
+copy the example config into `.council/`, change the example path to
+`../examples/council-instructions.md` or point it at your own file. You can
+also drop the setting.
+
+Both `validate` and `start` read the file once. A missing, unreadable, blank
+or oversized file produces `E_CONFIG_READ`. The limit is 8,000 UTF-16 code
+units. Restart the app to apply edits to the file.
+
 Create `.env` in the repo root (gitignored):
 
 ```sh

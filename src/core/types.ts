@@ -25,6 +25,8 @@ export const DEFAULT_REPLY_WORDS = {
   max: 1_000,
 } as const;
 
+export const MAX_GUIDANCE_CHARS = 8_000;
+
 export interface CouncilSettings {
   readonly rounds: number;
   readonly hopBudget: number;

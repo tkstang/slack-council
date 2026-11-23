@@ -1,3 +1,4 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -129,6 +130,7 @@ describe('configuration', () => {
       { council: { listen: 'every-post' } },
       { council: { approvalTimeoutMs: 0 } },
       { council: { contextChars: 999 } },
+      { council: { instructions: '   ' } },
       { council: { replyWords: { default: 0, detailed: 250, max: 1_000 } } },
       {
         council: { replyWords: { default: 120, detailed: 250.5, max: 1_000 } },
@@ -214,4 +216,45 @@ describe('configuration', () => {
       await loadConfig(join(tmpdir(), 'missing-parent\0', 'config.json')),
     ).toMatchObject({ ok: false, code: 'E_CONFIG_READ' });
   });
+
+  it.each([
+    ['relative', '# Brief\n', undefined],
+    ['absolute', '# Brief\n', undefined],
+    ['missing', undefined, 'Could not read'],
+    ['directory', undefined, 'Could not read'],
+    ['blank', ' \n', 'empty'],
+    ['oversized', 'x'.repeat(8_001), 'exceeds 8000 characters'],
+  ] as const)(
+    'loads or rejects a %s instructions file',
+    async (kind, contents, error) => {
+      const directory = await mkdtemp(join(tmpdir(), 'council-guidance-'));
+      const path = join(directory, 'config.json');
+      const instructions = join(directory, 'instructions.md');
+      try {
+        if (kind === 'directory') await mkdir(instructions);
+        if (contents !== undefined) await writeFile(instructions, contents);
+        await writeFile(
+          path,
+          JSON.stringify({
+            ...config(),
+            council: {
+              instructions:
+                kind === 'absolute' ? instructions : 'instructions.md',
+            },
+          }),
+        );
+        expect(await loadConfig(path)).toMatchObject(
+          error === undefined
+            ? { ok: true, value: { instructionsText: contents } }
+            : {
+                ok: false,
+                code: 'E_CONFIG_READ',
+                message: expect.stringContaining(error),
+              },
+        );
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    },
+  );
 });
