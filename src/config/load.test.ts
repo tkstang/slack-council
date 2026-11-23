@@ -108,6 +108,7 @@ describe('configuration', () => {
         },
       },
       { council: { hopBudget: -1 } },
+      { council: { contextChars: 999 } },
       { tools: { files: { roots: [false] } } },
       { tools: { files: { deny: 'glob' } } },
       {

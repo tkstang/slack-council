@@ -108,10 +108,12 @@ reply that the roster picker is not built yet.
 ## Adapter entry points
 
 Open the service with `openCouncilService(config, { slack, turns, appUserId })`.
-Pass normalised human messages to `handleHumanMessage`. For mention-based
-kickoff, pass the resolved thread scope with `kickoff: true`. Convene a chosen
-roster or preset through `convene`. The service persists accepted messages before
-dispatching them and retains the newest 4,096 message keys across restarts.
+Pass human messages with raw Slack-encoded text to `handleHumanMessage`. For
+mention-based kickoff, pass the resolved thread scope with `kickoff: true`.
+Convene a chosen roster or preset through `convene`. The service retains the newest 4,096
+accepted message keys across restarts. It dispatches floor grants and `end`
+after saving, and dispatches `stop` before saving so a slow or failed save does
+not delay cancellation of the active turn.
 
 The Slack port reads oldest-to-newest history with an inclusive cutoff, posts
 members with chain and turn metadata, and neutralises broadcast mentions. Call

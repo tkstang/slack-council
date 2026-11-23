@@ -1,10 +1,20 @@
-export type HumanAddress =
-  | { readonly kind: 'stop' | 'end' | 'council' | 'unaddressed' }
+export type FloorAddress =
+  | { readonly kind: 'council' | 'unaddressed' }
   | { readonly kind: 'members'; readonly handles: readonly string[] };
 
+export type HumanAddress =
+  | FloorAddress
+  | { readonly kind: 'stop' }
+  | { readonly kind: 'end' };
+
 function addressableText(text: string, appMention?: string): string {
-  const syntax =
-    /^[ \t]*(?:(?:>|&gt;)|(~{3,}))[^\r\n]*|`+|\\[@`]|<[^<>\r\n]*>|https?:\/\/[^\s<>`]+/gimu;
+  const angle =
+    appMention === undefined
+      ? /<(?:[@#!]|https?:\/\/|mailto:)[^<>\r\n]*>/u
+      : /<[^<>\r\n]*>/u;
+  const reserved =
+    /^[ \t]*(?:(?:>|&gt;)|(~{3,}))[^\r\n]*|`+|\\[@`]|https?:\/\/[^\s<>`]+/u;
+  const syntax = new RegExp(`${reserved.source}|${angle.source}`, 'gimu');
   const backticks = /`+/gu;
   const tildes = /^[ \t]*(~{3,})[ \t]*\r?$/gmu;
   const parts: string[] = [];
@@ -57,7 +67,7 @@ function addressableText(text: string, appMention?: string): string {
 
 function handles(text: string): IterableIterator<RegExpExecArray> {
   return text.matchAll(
-    /<@[^<>]+>|(?<![\p{L}\p{N}_@-])@([a-z][a-z0-9-]*)(?![\p{L}\p{N}_-])/gu,
+    /(?<appWrap>[_*])?(?<app><@[^<>]+>)\k<appWrap>|(?<![\p{L}\p{N}_@-])(?<wrap>[_*])?@(?<handle>[a-zA-Z][a-zA-Z0-9-]*)\k<wrap>(?![\p{L}\p{N}_-])/gu,
   );
 }
 
@@ -73,12 +83,16 @@ export function parseHumanAddress(
   let stop = false;
 
   for (const match of handles(visible)) {
-    const id = match[1];
-    if (id === 'council' || match[0] === appMention) {
+    const id = match.groups?.['handle']?.toLowerCase();
+    if (id === 'council' || match.groups?.['app'] === appMention) {
       council = true;
       const after = visible.slice(match.index + match[0].length);
-      if (/^[ \t]+end(?![\p{L}\p{N}_-])/iu.test(after)) return { kind: 'end' };
-      if (/^[ \t]+stop(?![\p{L}\p{N}_-])/iu.test(after)) stop = true;
+      const command =
+        /^(?:[ \t]*[:,][ \t]*|[ \t]+)(end|stop)(?![\p{L}\p{N}_-])/iu
+          .exec(after)?.[1]
+          ?.toLowerCase();
+      if (command === 'end') return { kind: 'end' };
+      if (command === 'stop') stop = true;
     } else if (id !== undefined && roster.includes(id)) {
       members.add(id);
     }
@@ -96,7 +110,8 @@ export function parseMemberMentions(
   roster: readonly string[],
 ): readonly string[] {
   const members = new Set<string>();
-  for (const [, id] of handles(addressableText(text))) {
+  for (const match of handles(addressableText(text))) {
+    const id = match.groups?.['handle']?.toLowerCase();
     if (
       id !== undefined &&
       id !== 'council' &&

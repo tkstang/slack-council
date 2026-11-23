@@ -31,13 +31,14 @@ export type MemberConfig = z.infer<typeof MemberSchema>;
 
 const nonNegative = z.int().min(0);
 const positive = z.int().min(1);
+const DEFAULT_CONTEXT_CHARS = 24_000;
 
 export const CouncilSettingsSchema = z.strictObject({
   rounds: positive.default(2),
   hopBudget: nonNegative.default(6),
   maxTurnsPerChain: positive.default(24),
   unaddressed: z.enum(['silent', 'council']).default('silent'),
-  contextChars: positive.default(24_000),
+  contextChars: positive.default(DEFAULT_CONTEXT_CHARS),
   turnTimeoutMs: positive.max(2_147_483_647).default(60_000),
   maxSteps: positive.default(8),
 });
@@ -98,7 +99,10 @@ export const ConfigSchema = z.strictObject({
   presets: z.record(nonempty, z.array(nonempty).min(1)),
   defaultPreset: nonempty,
   slack: z.strictObject({ allowedUsers: z.array(nonempty).min(1) }),
-  council: CouncilSettingsSchema.prefault({}),
+  // Persisted council settings can still contain older, smaller budgets.
+  council: CouncilSettingsSchema.extend({
+    contextChars: positive.min(1_000).default(DEFAULT_CONTEXT_CHARS),
+  }).prefault({}),
   tools: ToolsSchema.prefault({}),
   stateDir: nonempty.default('.council'),
 });

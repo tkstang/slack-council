@@ -95,6 +95,14 @@ export async function startCouncilApp({
     slack,
     turns: createTurnRunner({ models }),
     appUserId: botUserId,
+    onSkippedCouncil: (council, missingMembers) =>
+      log({
+        level: 'warn',
+        event: 'council_skipped',
+        council: council.id,
+        channel: council.scope.channel,
+        missing_members: missingMembers.join(','),
+      }),
     onEffectFailure: ({ effect, code, scope }) =>
       log({
         level: 'warn',

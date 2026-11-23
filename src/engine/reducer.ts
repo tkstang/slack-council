@@ -2,7 +2,7 @@ import type { TurnRef } from '@council/core/ports.js';
 import type { ErrorCode } from '@council/core/result.js';
 import type { CouncilSettings, FloorKind } from '@council/core/types.js';
 
-import { parseMemberMentions, type HumanAddress } from './addressing.js';
+import { parseMemberMentions, type FloorAddress } from './addressing.js';
 
 export interface Grant extends TurnRef {
   readonly memberId: string;
@@ -47,7 +47,7 @@ export type EngineEvent =
       readonly type: 'human';
       readonly chainId: string;
       readonly ts: string;
-      readonly address: HumanAddress;
+      readonly address: FloorAddress;
     }
   | { readonly type: 'stop' | 'end' }
   | (TurnRef & {
@@ -151,7 +151,7 @@ function admitMentions(
       hops >= settings.hopBudget ||
       (!queued && admitted >= settings.maxTurnsPerChain)
     ) {
-      chain = noticeLimit(chain, effects, speaker);
+      if (!queued) chain = noticeLimit(chain, effects, speaker);
       continue;
     }
     hops += 1;
@@ -243,12 +243,6 @@ function onHuman(
 ): EngineState {
   const { address, ts, chainId } = event;
   if (state.ended) return state;
-  if (address.kind === 'stop' || address.kind === 'end') {
-    return {
-      ...cancelOrSupersede(state, true, effects),
-      ended: address.kind === 'end',
-    };
-  }
   if (address.kind === 'unaddressed' && state.settings.unaddressed === 'silent')
     return state;
   if (

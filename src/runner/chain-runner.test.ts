@@ -282,3 +282,31 @@ it('times out an unresponsive turn even when the provider has not returned and d
   expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
   expect(h.timers.size).toBe(0);
 });
+
+it('settles a hung Slack post with a notice and ignores its late completion', async () => {
+  const h = harness({ rounds: 1 });
+  const release = h.gateWrite();
+  h.dispatch({
+    type: 'human',
+    chainId: 'first',
+    ts: '1.000',
+    address: { kind: 'members', handles: ['guide'] },
+  });
+  await h.waitForCalls(1);
+  h.call(0).finish(success('For @critic'));
+  await vi.waitFor(() => expect(h.writes).toEqual(['For @critic']), {
+    interval: 1,
+  });
+  expect([...h.timers.values()]).toEqual([500]);
+  h.timers.keys().next().value?.();
+  await h.drain();
+  expect(h.notices).toEqual(['Guide’s turn failed (E_SLACK).']);
+  expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
+
+  release(success(undefined));
+  await vi.waitFor(() => expect(h.history.at(-1)?.text).toBe('For @critic'), {
+    interval: 1,
+  });
+  await h.drain();
+  expect(h.calls).toHaveLength(1);
+});

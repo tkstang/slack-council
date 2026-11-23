@@ -5,7 +5,11 @@ import type { HumanMessage, Message, Scope } from '@council/core/types.js';
 import { MAX_ACCEPTED_MESSAGES } from '@council/store/json-store.js';
 import { expect, it, vi } from 'vitest';
 
-import { openCouncilService, type HumanMessageInput } from './service.js';
+import {
+  openCouncilService,
+  type CouncilServiceOptions,
+  type HumanMessageInput,
+} from './service.js';
 
 const SCOPE: Scope = { channel: 'C1', threadTs: '1.000' };
 const CONFIG = parseConfig(
@@ -75,10 +79,11 @@ function fixtures(
       result = gate.promise;
       return gate.resolve;
     },
-    open() {
+    open(onSkippedCouncil?: CouncilServiceOptions['onSkippedCouncil']) {
       if (!CONFIG.ok) throw new Error(CONFIG.message);
       return openCouncilService(CONFIG.value, {
         appUserId: 'UAPP',
+        onSkippedCouncil,
         store,
         ids: { next: () => `id-${++nextId}` },
         slack: {
@@ -213,6 +218,53 @@ it('bounds dedupe retention and serialises concurrent state writes', async () =>
   expect(f.record().acceptedMessageKeys[0]).toBe('C1:1.000');
   expect(f.record().acceptedMessageKeys.at(-1)).toBe('C1:10001.000');
   expect(f.calls).toEqual([]);
+  await service.shutdown();
+});
+
+it('reports a council with a missing member and omits it on the next save', async () => {
+  const retained = {
+    id: 'retained',
+    scope: SCOPE,
+    owner: 'U1',
+    roster: ['guide'],
+    settings: CONFIG.value.council,
+  };
+  const stale = {
+    ...retained,
+    id: 'stale',
+    scope: { channel: 'C2' },
+    roster: ['guide', 'removed'],
+  };
+  const f = fixtures({ councils: [stale, retained], acceptedMessageKeys: [] });
+  const report = vi.fn();
+  const service = await f.open(report);
+  expect(report).toHaveBeenCalledExactlyOnceWith(stale, ['removed']);
+  expect(service.getCouncil(stale.scope)).toBeUndefined();
+  expect(service.getCouncil(SCOPE)).toEqual(retained);
+  expect(f.record().councils).toEqual([stale, retained]);
+  await service.handleHumanMessage(human('2.000', 'Context only'));
+  expect(f.record().councils).toEqual([retained]);
+  await service.shutdown();
+});
+
+it('stops the active turn even when saving the stop message fails', async () => {
+  const f = fixtures();
+  const service = await f.open();
+  await service.convene({ scope: SCOPE, owner: 'U1' });
+  const finish = f.gateModel();
+  await service.handleHumanMessage(human('2.000', '@guide Explain'));
+  await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
+
+  const release = f.gateSave();
+  const input = human('3.000', '@council stop');
+  const stopping = service.handleHumanMessage(input);
+  const abortedBeforeSave = f.calls[0]?.signal.aborted;
+  release(failure('E_STORE_WRITE', 'Disk full'));
+  await expect(stopping).rejects.toMatchObject({ code: 'E_STORE_WRITE' });
+  expect(abortedBeforeSave).toBe(true);
+  expect(f.record().acceptedMessageKeys).toEqual(['C1:2.000']);
+  expect(await service.handleHumanMessage(input)).toBe('accepted');
+  finish(success('Too late'));
   await service.shutdown();
 });
 

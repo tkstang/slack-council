@@ -9,7 +9,7 @@ import type {
   Store,
   TurnRunner,
 } from '@council/core/ports.js';
-import type { ErrorCode, Result } from '@council/core/result.js';
+import type { Result } from '@council/core/result.js';
 import type {
   Council,
   HumanMessage,
@@ -33,6 +33,11 @@ export interface CouncilServiceOptions {
   readonly clock?: Clock;
   readonly ids?: IdSource;
   readonly onEffectFailure?: (failure: EffectFailure) => void;
+  /** Reports each stored council skipped because a member was removed from config. */
+  readonly onSkippedCouncil?: (
+    council: Council,
+    missingMembers: readonly string[],
+  ) => void;
 }
 
 export type ConveneInput = {
@@ -45,6 +50,7 @@ export type ConveneInput = {
 
 export interface HumanMessageInput {
   readonly scope: Scope;
+  /** Raw Slack event text is used only for addressing. Prompt history is fetched separately. */
   readonly message: HumanMessage;
   /** Allow an explicit council address to convene the supplied thread scope. */
   readonly kickoff?: boolean;
@@ -93,6 +99,7 @@ export async function openCouncilService(
     clock = SYSTEM_CLOCK,
     ids = SYSTEM_IDS,
     onEffectFailure,
+    onSkippedCouncil,
   }: CouncilServiceOptions,
 ): Promise<CouncilService> {
   const allowedUsers = new Set(config.slack.allowedUsers);
@@ -112,7 +119,10 @@ export async function openCouncilService(
     saved.acceptedMessageKeys.slice(-MAX_ACCEPTED_MESSAGES),
   );
 
-  function makeEntry(council: Council, invalidCode: ErrorCode): Entry {
+  function makeEntry(
+    council: Council,
+    invalidCode: 'E_INVALID_STATE' | 'E_INVALID_INPUT',
+  ): Entry {
     if (
       council.roster.length === 0 ||
       new Set(council.roster).size !== council.roster.length
@@ -125,10 +135,7 @@ export async function openCouncilService(
     const roster = council.roster.map((id) => {
       const member = members.get(id);
       if (!member) {
-        throw new CliError(
-          invalidCode === 'E_INVALID_STATE' ? invalidCode : 'E_UNKNOWN_MEMBER',
-          `Unknown council member: ${id}`,
-        );
+        throw new CliError('E_UNKNOWN_MEMBER', `Unknown council member: ${id}`);
       }
       return member;
     });
@@ -145,6 +152,11 @@ export async function openCouncilService(
 
   const seenIds = new Set<string>();
   for (const council of saved.councils) {
+    const missing = council.roster.filter((id) => !members.has(id));
+    if (missing.length > 0) {
+      onSkippedCouncil?.(council, missing);
+      continue;
+    }
     const key = scopeKey(council.scope);
     if (entries.has(key) || seenIds.has(council.id)) {
       throw new CliError(
@@ -247,14 +259,26 @@ export async function openCouncilService(
       // Reserve synchronously so concurrent deliveries cannot both enter the write queue.
       pendingKeys.add(messageKey);
       try {
+        const key = scopeKey(scope);
+        const received = entries.get(key);
+        const receivedAddress = parseHumanAddress(
+          message.text,
+          appUserId,
+          received?.council.roster ?? [],
+        );
+        if (receivedAddress.kind === 'stop')
+          received?.runner.dispatch({ type: 'stop' });
+
         return await writes.run(async () => {
-          const key = scopeKey(scope);
           const current = entries.get(key);
-          const address = parseHumanAddress(
-            message.text,
-            appUserId,
-            current?.council.roster ?? [],
-          );
+          const address =
+            current === received
+              ? receivedAddress
+              : parseHumanAddress(
+                  message.text,
+                  appUserId,
+                  current?.council.roster ?? [],
+                );
           const opening =
             !current &&
             kickoff &&
@@ -265,10 +289,17 @@ export async function openCouncilService(
           const entry = current ?? opening;
           if (!entry) return 'ignored';
 
-          const chainId =
+          // Earlier queued messages may have started another chain while stop waited.
+          if (address.kind === 'stop') entry.runner.dispatch({ type: 'stop' });
+          const event =
             address.kind === 'end' || address.kind === 'stop'
               ? undefined
-              : ids.next();
+              : {
+                  type: 'human' as const,
+                  chainId: ids.next(),
+                  ts: message.ts,
+                  address,
+                };
           const nextKeys = [...accepted, messageKey].slice(
             -MAX_ACCEPTED_MESSAGES,
           );
@@ -282,18 +313,8 @@ export async function openCouncilService(
           accepted = new Set(nextKeys);
           if (opening) entries.set(key, opening);
 
-          if (address.kind === 'end') {
-            retire(key, entry);
-          } else if (address.kind === 'stop') {
-            entry.runner.dispatch({ type: 'stop' });
-          } else if (chainId !== undefined) {
-            entry.runner.dispatch({
-              type: 'human',
-              chainId,
-              ts: message.ts,
-              address,
-            });
-          }
+          if (address.kind === 'end') retire(key, entry);
+          else if (event) entry.runner.dispatch(event);
           return 'accepted';
         });
       } finally {

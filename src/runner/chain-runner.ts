@@ -152,20 +152,32 @@ export function createChainRunner(
     const output = parseTurnOutput(result.value);
     if (output.kind === 'pass') return output;
 
-    // Once a write starts, wait for its real outcome. Cancellation cannot undo it.
-    const posted = await protect(
-      () =>
-        slack.postMember(scope, {
-          member,
-          text: output.text,
-          chainId: grant.chainId,
-          turnId: grant.turnId,
-        }),
-      'E_SLACK',
+    // An in-flight Slack write may still complete after the chain has moved on.
+    const deadline = Promise.withResolvers<Failure>();
+    const cancelPostTimeout = clock.setTimeout(
+      () => deadline.resolve(failure('E_SLACK', 'Slack post timed out')),
+      settings.turnTimeoutMs,
     );
-    return posted.ok
-      ? { kind: 'posted', ts: posted.value.ts, text: output.text }
-      : failed(posted.code);
+    try {
+      const posted = await Promise.race([
+        deadline.promise,
+        protect(
+          () =>
+            slack.postMember(scope, {
+              member,
+              text: output.text,
+              chainId: grant.chainId,
+              turnId: grant.turnId,
+            }),
+          'E_SLACK',
+        ),
+      ]);
+      return posted.ok
+        ? { kind: 'posted', ts: posted.value.ts, text: output.text }
+        : failed(posted.code);
+    } finally {
+      cancelPostTimeout();
+    }
   }
 
   function schedule(task: Promise<void>): void {

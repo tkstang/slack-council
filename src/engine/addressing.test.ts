@@ -5,7 +5,7 @@ import { parseHumanAddress, parseMemberMentions } from './addressing.js';
 const ROSTER = ['first', 'second', 'deep-review'];
 const APP = 'UAPP';
 
-it.each(['@council', '<@UAPP>', 'Please<@UAPP>', '@first @council'])(
+it.each(['Please<@UAPP>', '@first @council'])(
   'opens the whole roster for %s',
   (text) =>
     expect(parseHumanAddress(text, APP, ROSTER)).toEqual({ kind: 'council' }),
@@ -39,29 +39,34 @@ it('ignores fenced code, code spans, escaped handles and quoted lines', () => {
   });
 });
 
-it('recognises control words after the actual app mention and gives end precedence', () => {
-  expect(parseHumanAddress('@first <@UAPP> STOP!', APP, ROSTER)).toEqual({
-    kind: 'stop',
-  });
-  expect(parseHumanAddress('@council stop @council end.', APP, ROSTER)).toEqual(
-    { kind: 'end' },
-  );
-  expect(parseHumanAddress('@council `hidden` stop', APP, ROSTER)).toEqual({
-    kind: 'council',
-  });
-  expect(parseHumanAddress('@council stopper', APP, ROSTER)).toEqual({
-    kind: 'council',
+it.each([
+  ['@first <@UAPP> STOP!', 'stop'],
+  ['@council stop @council end.', 'end'],
+  ['@council `hidden` stop', 'council'],
+  ['@council stopper', 'council'],
+  ['@council: stop', 'stop'],
+  ['@council, end', 'end'],
+  ['<@UAPP>:stop', 'stop'],
+])('recognises %s as %s', (text, kind) => {
+  expect(parseHumanAddress(text, APP, ROSTER)).toEqual({ kind });
+});
+
+it('accepts case-insensitive handles in Slack emphasis', () => {
+  expect(parseHumanAddress('_@First_ *@SECOND*', APP, ROSTER)).toEqual({
+    kind: 'members',
+    handles: ['first', 'second'],
   });
 });
 
-it('keeps only other roster handles in member output', () => {
-  expect(
-    parseMemberMentions(
-      '@council <@UAPP> @first @second @second `@deep-review` @missing',
-      'first',
-      ROSTER,
-    ),
-  ).toEqual(['second']);
+it.each([
+  [
+    '@council <@UAPP> @first @second @second `@deep-review` <mailto:team@example.com|@deep-review> @missing',
+    ['second'],
+  ],
+  ['if a < b ask @second, c > d', ['second']],
+  ['_@Second_ *@DEEP-REVIEW*', ['second', 'deep-review']],
+])('finds other roster handles in %s', (text, expected) => {
+  expect(parseMemberMentions(text, 'first', ROSTER)).toEqual(expected);
 });
 
 it('ignores handles in Markdown tilde fences until a matching closing fence', () => {

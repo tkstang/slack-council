@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { HumanAddress } from './addressing.js';
+import type { FloorAddress } from './addressing.js';
 import {
   createEngineState,
   reduce,
@@ -23,7 +23,7 @@ type Started = Extract<EngineEffect, { type: 'run-turn' }>;
 
 function human(
   chainId: string,
-  address: HumanAddress = { kind: 'council' },
+  address: FloorAddress = { kind: 'council' },
 ): EngineEvent {
   return { type: 'human', chainId, ts: `ts-${chainId}`, address };
 }
@@ -44,7 +44,7 @@ function scenario(settings: Partial<EngineState['settings']> = {}) {
     const { chainId, turnId } = grant;
     return send({ type: 'turn-finished', chainId, turnId, outcome });
   }
-  function start(address?: HumanAddress) {
+  function start(address?: FloorAddress) {
     return started(send(human('one', address)));
   }
   return { send, finish, start, state: () => state };
@@ -141,6 +141,14 @@ describe('member mentions and budgets', () => {
     expect(members(s.finish(started(effects)[0]))).toEqual(['b']);
   });
 
+  it('keeps the queued react turn without a limit notice when no hops remain', () => {
+    const s = scenario({ hopBudget: 0 });
+    const a = reactRound(s);
+    expect(s.finish(a, post('@b'))).toMatchObject([
+      { type: 'run-turn', memberId: 'b', kind: 'react' },
+    ]);
+  });
+
   it('reserves one follow-up for a running target and ignores duplicate queued grants', () => {
     const s = scenario({ rounds: 1 });
     const [a, b, c] = s.start();
@@ -231,7 +239,7 @@ describe('supersession, cancellation and settling', () => {
       const s = scenario();
       const old = reactRound(s);
       s.send(human('two'));
-      const effects = s.send(human('control', { kind }));
+      const effects = s.send({ type: kind });
       expect(effects).toMatchObject([
         { type: 'progress', chainId: 'two', present: false },
         { type: 'abort-turn', chainId: 'one', turnId: old?.turnId },

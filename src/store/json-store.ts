@@ -67,6 +67,7 @@ export function createJsonStore(stateDir: string): Store {
         ownsTemporary = true;
         try {
           await file.writeFile(`${JSON.stringify(state, null, 2)}\n`, 'utf8');
+          await file.sync();
         } finally {
           await file.close();
         }

@@ -49,11 +49,15 @@ export type Author =
 export interface Message {
   readonly ts: string;
   readonly author: Author;
+  /** Plain, decoded text from Slack history. The context builder escapes it once for the prompt. */
   readonly text: string;
 }
 
-export interface HumanMessage extends Message {
+export interface HumanMessage {
+  readonly ts: string;
   readonly author: HumanAuthor;
+  /** Raw Slack-encoded event text, used only for addressing. */
+  readonly text: string;
 }
 
 export type FloorKind = 'round' | 'react' | 'mention';
