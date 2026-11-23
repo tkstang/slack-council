@@ -52,3 +52,27 @@ export {
   type HumanMessageResult,
 } from '@council/runner/service.js';
 export type { EffectFailure } from '@council/runner/chain-runner.js';
+export {
+  createProviderModels,
+  createTurnRunner,
+  type ModelFactory,
+  type TurnRunnerOptions,
+} from '@council/model/turn-runner.js';
+export type { SlackApi } from '@council/slack/api.js';
+export {
+  classifyAuthor,
+  createSlackPort,
+  type SlackPortOptions,
+} from '@council/slack/port.js';
+export {
+  createInboundHandler,
+  prefilterSlackEvent,
+  selectScope,
+  type InboundMessage,
+} from '@council/slack/inbound.js';
+export { registerCouncilHandlers } from '@council/slack/bolt.js';
+export {
+  startCouncilApp,
+  type RunningCouncil,
+  type StartOptions,
+} from '@council/app/start.js';

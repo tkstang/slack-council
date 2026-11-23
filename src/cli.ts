@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { startCouncilApp, type RunningCouncil } from '@council/app/start.js';
 import { loadConfig } from '@council/config/load.js';
 import { CliError, isCliError } from '@council/core/errors.js';
 import type { ErrorCode } from '@council/core/result.js';
@@ -17,17 +18,34 @@ type Envelope =
       readonly hint?: string;
     };
 
-const USAGE = 'Usage: slack-council validate --config <path>';
+const USAGE =
+  'Usage: slack-council validate --config <path> | start --config <path>';
+
+const COMMANDS = new Set(['validate', 'start']);
+
+export interface CliDeps {
+  readonly start?: (configPath: string) => Promise<RunningCouncil>;
+}
 
 export async function run(
   argv: readonly string[],
-): Promise<{ envelope: Envelope; exitCode: number }> {
+  {
+    start = (configPath) => startCouncilApp({ configPath, env: process.env }),
+  }: CliDeps = {},
+): Promise<{
+  envelope: Envelope;
+  exitCode: number;
+  session?: RunningCouncil;
+}> {
   const [subcommand, flag, path] = argv;
-  const command = subcommand === 'validate' ? subcommand : 'slack-council';
+  const command =
+    subcommand !== undefined && COMMANDS.has(subcommand)
+      ? subcommand
+      : 'slack-council';
   try {
     if (
       (argv.length === 1 && (subcommand === '--help' || subcommand === '-h')) ||
-      (subcommand === 'validate' &&
+      (command !== 'slack-council' &&
         argv.length === 2 &&
         (flag === '--help' || flag === '-h'))
     ) {
@@ -37,7 +55,7 @@ export async function run(
       };
     }
     if (
-      subcommand !== 'validate' ||
+      command === 'slack-council' ||
       flag !== '--config' ||
       !path ||
       argv.length !== 3 ||
@@ -45,9 +63,25 @@ export async function run(
     ) {
       throw new CliError(
         'E_INVALID_INPUT',
-        'Expected validate with a config file path',
+        'Expected validate or start with a config file path',
         { hint: USAGE },
       );
+    }
+    if (command === 'start') {
+      const session = await start(path);
+      return {
+        envelope: {
+          ok: true,
+          command,
+          data: {
+            ready: true,
+            botUserId: session.botUserId,
+            botId: session.botId,
+          },
+        },
+        exitCode: 0,
+        session,
+      };
     }
     const result = await loadConfig(path);
     if (!result.ok) {
@@ -60,7 +94,7 @@ export async function run(
   } catch (err) {
     const error = isCliError(err)
       ? err
-      : new CliError('E_UNEXPECTED', 'Unexpected validation failure');
+      : new CliError('E_UNEXPECTED', `Unexpected ${command} failure`);
     return {
       envelope: {
         ok: false,
@@ -74,10 +108,27 @@ export async function run(
   }
 }
 
+const SHUTDOWN_GRACE_MS = 10_000;
+
 async function main(): Promise<void> {
-  const { envelope, exitCode } = await run(process.argv.slice(2));
+  const { envelope, exitCode, session } = await run(process.argv.slice(2));
   process.stdout.write(`${JSON.stringify(envelope)}\n`);
   process.exitCode = exitCode;
+  if (!session) return;
+
+  const stop = (signal: NodeJS.Signals) => {
+    process.stderr.write(
+      `${JSON.stringify({ level: 'info', event: 'shutdown', signal })}\n`,
+    );
+    // Exit even if a connection refuses to close.
+    setTimeout(() => process.exit(2), SHUTDOWN_GRACE_MS).unref();
+    session.stop().then(
+      () => process.exit(0),
+      () => process.exit(2),
+    );
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
 }
 
 function isEntrypoint(): boolean {
