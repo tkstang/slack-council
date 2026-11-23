@@ -9,7 +9,7 @@ change.
 One Slack app, `council`, that hosts a council of AI members in a Slack thread or
 channel. The operator poses a question, members answer and respond to each other
 like colleagues, and the operator can interject at any point. Each member is a
-model plus an effort level, a persona and a set of tool grants.
+model with tool grants, an optional effort level and an optional persona.
 
 ## Decisions carried from the brainstorm (operator)
 
@@ -58,8 +58,9 @@ model plus an effort level, a persona and a set of tool grants.
 
 ## Concepts
 
-- **Member**: `{ id, name, avatar, provider, model, effort?, persona, tools[] }`. `id` is the
-  handle: lowercase, `[a-z][a-z0-9-]*`.
+- **Member**: `{ id, name, avatar, provider, model, effort?, persona?, tools[] }`.
+  `id` is the lowercase handle, matching `[a-z][a-z0-9-]*`. A persona has a
+  `title` for display and `instructions` for the member's role brief.
 - **Council**: a roster bound to a **scope**, plus an owner, settings and
   `convenedAtTs`, the Slack timestamp of the message or notice that started it.
 - **Scope**: `{ channel, threadTs? }`. With `threadTs` it is a thread council and

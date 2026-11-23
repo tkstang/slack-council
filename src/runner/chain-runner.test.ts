@@ -21,7 +21,6 @@ const GUIDE: Member = {
   avatar: { emoji: ':compass:' },
   provider: 'sample',
   model: 'example',
-  persona: 'Guide the reader.',
   tools: [],
 };
 const CRITIC: Member = { ...GUIDE, id: 'critic', name: 'Critic' };

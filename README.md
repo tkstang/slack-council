@@ -78,6 +78,9 @@ Copy `council.config.example.json` to a private path, for example
 Slack user ids that may convene councils, and point each provider at an
 OpenAI-compatible endpoint.
 
+A member can have a `persona` with a `title` for display and `instructions`
+for the model. Leave `persona` out to give the member a neutral role.
+
 Create `.env` in the repo root (gitignored):
 
 ```sh

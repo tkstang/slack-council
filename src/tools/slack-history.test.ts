@@ -34,7 +34,6 @@ it.each([
         avatar: { emoji: ':owl:' },
         provider: 'test',
         model: 'test',
-        persona: 'Explain',
         tools: ['slack_history'],
       },
       maxSteps: 4,

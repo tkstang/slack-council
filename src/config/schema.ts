@@ -35,7 +35,9 @@ const MemberSchema = z.strictObject({
   provider: nonempty,
   model: nonempty,
   effort: z.string().min(1).optional(),
-  persona: z.string().min(1),
+  persona: z
+    .strictObject({ title: nonempty, instructions: nonempty })
+    .optional(),
   tools: z.array(nonempty).default([]),
 });
 export type MemberConfig = z.infer<typeof MemberSchema>;

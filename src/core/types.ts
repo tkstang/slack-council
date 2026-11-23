@@ -12,7 +12,10 @@ export interface Member {
   readonly provider: string;
   readonly model: string;
   readonly effort?: string;
-  readonly persona: string;
+  readonly persona?: {
+    readonly title: string;
+    readonly instructions: string;
+  };
   readonly tools: readonly string[];
 }
 

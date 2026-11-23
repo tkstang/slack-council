@@ -13,7 +13,6 @@
       },
       "provider": "default",
       "model": "claude-haiku-5-5",
-      "persona": "Clarify the question and explain your reasoning succinctly.",
       "tools": ["files", "slack_history", "notes"]
     },
     "critic": {
@@ -24,7 +23,10 @@
       "provider": "default",
       "model": "gpt-6-luna",
       "effort": "medium",
-      "persona": "Surface missing evidence and test assumptions.",
+      "persona": {
+        "title": "Sceptical reviewer",
+        "instructions": "Surface missing evidence and test assumptions."
+      },
       "tools": ["slack_history", "notes__list_notes"]
     }
   },
