@@ -10,55 +10,142 @@ at the first one. A topic is shaped when it holds the agreed answer or says it
 is deferred to the Undecided section. Shaping is complete when every topic is
 shaped. The Project log section is a default, not a question.
 
-**Last shaped:** not yet shaped
+**Last shaped:** 2026-11-23
 
 ## Goal
 
 <!-- The outcome, what done means, and how large the project is. The size sets how much of the rest is worth asking. -->
 
-_Not yet shaped._
+**Outcome.** Ship the follow-ups agreed after the MVP merged:
+
+- the channel-council floor: a channel council never reads messages older than
+  the one it was convened on (inclusive), in the prompt transcript and in
+  `slack_history`;
+- an instruction telling members that `[#N]` message numbers are internal;
+- a live-check step for `@council stop` while a turn waits on a tool approval;
+- prompt caching: the stable part of the prompt first, with a per-council
+  cache key;
+- pluggable guidance: an always-on instructions file and orientation from a
+  designated "council MCP" server;
+- Switchboard handoff by note.
+
+**Done means.** Each item is merged to `main` with CI green and a live-check
+log line for the behaviour it changed, or is recorded as dropped. The open
+design questions are settled in `decisions.md`.
+
+**Size.** A few PRs over several days.
+
+**Out of scope.** The picker simplification, the library exports, renaming
+members to model names, and the dedicated proxy key. They go to the PJM
+backlog.
+
+**Proportion.** This is public code. Keep complexity scoped to what each item
+needs. Tests go where they protect something; no forests of tests (root
+`AGENTS.md`, "Proportionate tests").
 
 ## Brainstorm or discovery
 
 <!-- Whether to brainstorm (oat-brainstorm) or run an informal discovery pass before going on, and where the result lives. Offered only after the goal is written. -->
 
-_Not yet shaped._
+Brainstorm the guidance layers and the Switchboard handoff flow with
+`oat-brainstorm` before the brief is written. Not started; its result will be a
+reference file in this project's `brainstorming/` folder. Prompt caching and
+the three small items (floor, message numbers, stop during approval) are
+already decided and need no brainstorm.
 
 ## Documents
 
 <!-- The documents this project keeps (a brief, a plan, a journal, its own pattern) and the template each started from. -->
 
-_Not yet shaped._
+- `brief.md`: one brief with a phase per PR, started from `plan-brief` and
+  adapted. Written after the brainstorm.
+- No separate journal. Decisions about the work go in `decisions.md`; lane
+  reports record what each dispatch did.
 
 ## Execution
 
 <!-- A single agent, or an orchestrator with lanes. Lane placement is left to the orchestrator. -->
 
-_Not yet shaped._
+An orchestrator dispatching lanes. Independent work runs in parallel, for
+example the three small items while the brainstorm is under way.
+
+Model routing, set by the user on 2026-11-23 (all through T3 delegation; the
+user may swap implementer and reviewer later):
+
+| Role | Model | Effort |
+| --- | --- | --- |
+| Implementer lanes | GPT-6.2 Sol | high |
+| Reviewer | Claude Opus 5.5 | high |
+| Live Slack testing by desktop control | GPT-6.1 Terra, with the `desktop-control` skill | high |
+| Advisor: second opinions, design and plan reviews | GPT-6.2 Astra | xhigh |
+
+Models used by the app under test stay on the cheap tier the repository's live
+checks name.
 
 ## Reviews
 
 <!-- When reviews happen, then who and how. Record each as intent (when, required independence, effort) and mechanism (tool or skill, host, source, date verified). When a review comes due, re-check its mechanism first; if it is unavailable, keep the intent, tell the user and log it. Freestyle adds no review gate; a review an adopted plan requires must still pass (its agreed mechanism or an equivalent check) before the work it guards moves on. -->
 
-_Not yet shaped._
+**Per PR, before merge.**
+
+- Intent: an independent correctness review by a different model family from
+  the implementer, high effort, one round plus one confirmation round. The
+  self-review lenses not covered by it (testing, complexity, docs) are filled
+  by `pr-self-review`.
+- Mechanism: Claude Opus 5.5 high through T3 `delegate_task`, read-only; the
+  `pr-self-review` skill (user scope). Source: the user, and the user's
+  instruction file. Models listed by T3 capabilities on 2026-11-23; the review
+  route itself is unverified until first use.
+
+**Design and plan documents, as they are drafted.**
+
+- Intent: a second opinion on the brainstorm result, the brief and any
+  architectural design, from a different model family, extra-high effort.
+- Mechanism: GPT-6.2 Astra xhigh through T3 `delegate_task`, read-only.
+  Source: the user. Listed by T3 capabilities on 2026-11-23; unverified until
+  first use.
+
+**Live Slack pass, for changes to the Slack adapter, turn runner, tools or
+approvals.**
+
+- Intent: the affected rows of `docs/live-checks.md` run against the real app
+  in the test channel before merge.
+- Mechanism: the orchestrator runs the app; when the pass needs someone to act
+  in Slack, a GPT-6.1 Terra high agent drives the Slack desktop client with the
+  `desktop-control` skill. Source: the user. Listed by T3 capabilities on
+  2026-11-23; unverified until first use.
 
 ## Commits, PRs and merges
 
 <!-- Who commits and when, when PRs open, who merges. Until this is shaped, nothing is committed or pushed. -->
 
-_Not yet shaped._
+- **Code.** Lanes commit on their own branches. The orchestrator commits,
+  pushes code branches and opens PRs against `main` without asking.
+- **Records.** The orchestrator publishes project records with
+  `oat project push` after each change. They go to a public remote, so nothing
+  private goes in them.
+- **Merges.** The user merges, or the orchestrator merges when the user says
+  "land it". Squash merges.
 
 ## User involvement
 
 <!-- What the user approves, and what they are only told. -->
 
-_Not yet shaped._
+**Approves before it happens:** merges; open design decisions; Slack app
+manifest or scope changes; tokens and secrets; desktop control of the
+development machine; writes to the user's vault; filing feedback against OAT.
+
+**Is told:** commits, pushes, opened PRs, lane dispatches, review findings and
+their dispositions.
 
 ## Reshape checkpoints
 
 <!-- The moments to revisit this shape, for example after the first PR merges or when a lane is added. At each one, and when a plan written after shaping is accepted, ask two questions. Does the shape still fit? Is the plan and its process proportionate to its value? Test the second by process time against code time (above about 3x needs a stated reason), by what risk each safeguard covers and whether that risk exists now, and by the lightest process that keeps the real gates (the reviews and approvals the owner or the repository requires). A "no" goes to the owner as a recommendation, even in an unattended run. -->
 
-_Not yet shaped._
+- When the brief is accepted after the brainstorm.
+- After the first PR merges.
+- If a second machine or orchestrator thread joins.
+- If the user swaps the implementer and reviewer models.
 
 ## Project log
 
