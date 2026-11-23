@@ -63,3 +63,11 @@ it('keeps only other roster handles in member output', () => {
     ),
   ).toEqual(['second']);
 });
+
+it('ignores handles in Markdown tilde fences until a matching closing fence', () => {
+  const text = '~~~~md\n@council end\n~~~\n@first\n~~~~\n@second';
+  expect(parseHumanAddress(text, APP, ROSTER)).toEqual({
+    kind: 'members',
+    handles: ['second'],
+  });
+});

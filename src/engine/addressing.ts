@@ -4,8 +4,9 @@ export type HumanAddress =
 
 function addressableText(text: string, appMention?: string): string {
   const syntax =
-    /^[ \t]*(?:>|&gt;)[^\r\n]*|`+|\\[@`]|<[^<>\r\n]*>|https?:\/\/[^\s<>`]+/gimu;
+    /^[ \t]*(?:(?:>|&gt;)|(~{3,}))[^\r\n]*|`+|\\[@`]|<[^<>\r\n]*>|https?:\/\/[^\s<>`]+/gimu;
   const backticks = /`+/gu;
+  const tildes = /^[ \t]*(~{3,})[ \t]*\r?$/gmu;
   const parts: string[] = [];
   let from = 0;
 
@@ -16,7 +17,18 @@ function addressableText(text: string, appMention?: string): string {
       from = text.length;
       break;
     }
-    if (token.startsWith('`')) {
+    const tildeFence = match[1];
+    if (tildeFence) {
+      tildes.lastIndex = syntax.lastIndex;
+      let close = tildes.exec(text);
+      while (close?.[1] && close[1].length < tildeFence.length)
+        close = tildes.exec(text);
+      if (!close) {
+        from = text.length;
+        break;
+      }
+      syntax.lastIndex = tildes.lastIndex;
+    } else if (token.startsWith('`')) {
       backticks.lastIndex = syntax.lastIndex;
       const fenced = token.length >= 3;
       let close = backticks.exec(text);
