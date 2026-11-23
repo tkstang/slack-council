@@ -12,29 +12,34 @@ export function createStderrLog(
   };
 }
 
-const TOKEN = /\bx(?:ox[a-z]|app)-[A-Za-z0-9-]+/gu;
+const ID = /^[\w.-]{1,80}$/u;
 
-function describe(value: unknown): string {
-  if (typeof value === 'string') {
-    return value.replaceAll(TOKEN, '[redacted]').slice(0, 300);
-  }
-  if (value instanceof Error) {
-    const code = (value as { code?: unknown }).code;
-    // Client errors can embed the request and its auth header: keep the name and code only.
-    return typeof code === 'string' ? `${value.name}:${code}` : value.name;
-  }
-  return typeof value;
+/** `Name:code` for each error argument. Free text is dropped: server diagnostics can echo request content. */
+function errorIds(parts: readonly unknown[]): string {
+  return parts
+    .filter((part): part is Error => part instanceof Error)
+    .map((error) => {
+      const name = ID.test(error.name) ? error.name : 'Error';
+      const code = (error as { code?: unknown }).code;
+      return typeof code === 'string' && ID.test(code)
+        ? `${name}:${code}`
+        : name;
+    })
+    .join(',');
 }
 
-/** A Bolt logger that drops debug/info and writes warnings and errors as sanitised JSON. */
+/** A Bolt logger that drops debug/info and logs warnings and errors as fixed identifiers. */
 export function createBoltLogger(log: Log): Logger {
   let level = LogLevel.WARN;
-  const emit = (entryLevel: 'warn' | 'error', parts: unknown[]) =>
+  const emit = (entryLevel: 'warn' | 'error', parts: unknown[]) => {
+    const errors = errorIds(parts);
     log({
       level: entryLevel,
       source: 'bolt',
-      message: parts.map(describe).join(' '),
+      code: `sdk_${entryLevel}`,
+      ...(errors === '' ? {} : { error: errors }),
     });
+  };
   return {
     debug: () => undefined,
     info: () => undefined,

@@ -135,8 +135,11 @@ export async function startCouncilApp({
     botId,
     stop() {
       stopping ??= (async () => {
-        await service.shutdown();
-        await app.stop();
+        try {
+          await service.shutdown();
+        } finally {
+          await app.stop();
+        }
       })();
       return stopping;
     },
