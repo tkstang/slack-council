@@ -42,21 +42,20 @@ README verification policy for the full local checks.
 
 ## Agent setup
 
-This repo ships only this `AGENTS.md` and a starter
-`.claude/settings.json`. It does not pre-generate `.agents/`, provider mirrors
-or `.oat/`. `AGENTS.md` is the house instruction source; add scoped files only
-for distinct package or subtree rules. No `CLAUDE.md` is shipped.
-`pnpm run check:agents` enforces that filename policy in pre-commit and local
-validation.
+This repo has adopted OAT at project scope: `.oat/` holds its config, sync
+manifest and projects, and `.oat/repo/` holds project management and durable
+reference. It installs no project-level tool packs and has no `.agents/` or
+generated provider views yet. `AGENTS.md` is the house instruction source; add
+scoped files only for distinct package or subtree rules. No `CLAUDE.md` is
+shipped. `pnpm run check:agents` enforces that filename policy in pre-commit
+and local validation.
 Provider loading behavior should be checked against the installed provider.
 
-With the latest compatible OAT installed, run `oat init --scope project`, then
-`oat status --scope project`. For explicit guided setup, use
-`oat init --scope project --setup`. Project guidance and provider sync depend
-on the options selected. Bare `oat init` defaults to `all` and can write under
-home. Keep project setup scoped to the project.
+To re-run setup, use `oat init --scope project`, then
+`oat status --scope project`. Bare `oat init` defaults to `all` and can write
+under home. Keep project setup scoped to the project.
 
-After adoption, author internal tooling in `.agents/`; some providers read it
+Author internal tooling in `.agents/`; some providers read it
 natively and others need generated views. Preview changes with
 `oat sync --scope project --dry-run` before applying `oat sync --scope project`.
 Never hand-edit derivatives. Follow the repo's declared generated-file ownership.
@@ -70,3 +69,25 @@ Choose a proportional OAT lane rather than a full lifecycle for every fix.
 - Use `pnpm run worktree:validate` for explicit full clean-checkout verification
   and record that evidence for handoff. It checks cleanliness before and after.
   Do not repeat unchanged proof solely because you are pushing.
+
+<!-- OAT project-management -->
+### Project Management
+
+- Installed project-management tools provide capability; they do not prove that this repository adopted PJM.
+- Run `oat pjm doctor --json` and inspect `adoption.state` before any PJM write.
+- Repository planning and durable context live under `.oat/repo/`.
+- Consult it when prioritizing or planning work, checking the backlog, starting or closing tracked work, or looking for established repository context.
+- Start with `.oat/repo/AGENTS.md`; it routes to `pjm/` for active state and `reference/` for durable records.
+- If adoption is absent or partial, stop and initialize it with `oat pjm init`.
+<!-- END OAT project-management -->
+
+<!-- OAT decisions -->
+### Decision Records
+
+- Durable repository decisions live under `.oat/repo/reference/decisions/`; read `.oat/repo/reference/decisions/AGENTS.md` before working with them.
+- Before finalizing a durable repository decision, review `.oat/repo/reference/decisions/index.md` and any relevant records.
+- When the user asks to record a durable decision or confirms a proposed capture, use `oat-pjm-decision` when that skill is installed; otherwise use `oat decision new`.
+- Do not hand-edit the generated decision index; run `oat decision regenerate-index` after record changes or to resolve index conflicts.
+- Run `oat pjm doctor --json` and inspect `adoption.state` before any decision write.
+- If the decision surface is missing, repository adoption is absent or partial; stop and initialize it with `oat pjm init`.
+<!-- END OAT decisions -->
