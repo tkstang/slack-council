@@ -3,7 +3,8 @@
 Started from the `plan-brief` template and cut down for a freestyle project.
 One phase per PR. How the project runs is in `shape.md`; the user's decisions
 are in `decisions.md` (dr01 to dr09) and are not repeated here. Lanes and their
-reviews are tracked in `lanes.md`.
+reviews are tracked in `lanes.md`. The advisor reviewed this design on
+2026-11-23 (ready with changes); all six findings are folded in below.
 
 ## Goal
 
@@ -54,7 +55,12 @@ PR has merged. A phase's live pass uses the test channel and cheap models only.
   asks for more detail, explanation or examples; the maximum when the user asks
   for depth. A member that had more to say ends with one short line saying it
   stopped at the limit. The member chooses the tier from the request; no code
-  classifies messages.
+  classifies messages. The tiers apply to public replies only; private
+  listening keeps its own short cap.
+- The picker carries the chosen preset name, or "custom panel", through to its
+  notice. A mention that starts a council posts the default preset's notice
+  once, and the user's message stays the round's trigger. Both paths share one
+  formatter.
 
 **Guidance (p03).**
 
@@ -68,30 +74,48 @@ PR has merged. A phase's live pass uses the test channel and cheap models only.
   one tool from that server. Size is bounded. A marked server that returns no
   instructions logs a warning and contributes nothing.
 - The file and the orientation text are operator configuration, so they sit in
-  the trusted part of the prompt. Transcript text and tool results stay data.
+  the trusted part of the prompt: marking a server for orientation is the
+  operator entrusting it to give guidance. Permissions stay in code.
+  Transcript text, private notes and ordinary tool results stay data.
 
 **Caching (p04).**
 
 - The prompt is laid out with everything stable for a council first (role
   brief, persona, instructions, orientation, roster) and everything that
   changes last (transcript, task).
-- Each request carries a per-council cache key through the provider options
-  the proxy understands. Usage logging records cached input tokens when the
-  provider reports them.
+- Each request carries a per-council cache key. The model adapter forwards
+  extra fields only under the provider's own name in provider options, not
+  under the generic namespace used for effort. Private listening needs the
+  council id to carry the key too.
+- A key alone guarantees no hit. A hit needs the same member, model and tool
+  definitions with an identical prefix above the model's minimum, and Claude
+  routes may need an explicit cache boundary. The adapter reports an absent
+  cached-token count as zero, so only a positive count on a second turn is
+  evidence. The role brief stays in both the system and user message, because
+  one tested route ignores `system`; both copies are stable.
 
 **Handoff (p05).**
 
 - A built-in `handoff` tool, granted per member like the others. Its input is a
   note (title and Markdown body), a target (machine and project) and a short
   launch prompt.
-- It always asks. One card shows the note and the target. Approve writes the
-  note through the configured vault MCP tool, under the configured folder only,
-  then calls the configured Switchboard launch tool with a prompt that points at
-  the note, and returns both results to the member. A failed write launches
-  nothing.
-- The card has Approve, Reject and Change. Change collects the user's text in a
-  modal and returns it to the member as the tool result; the member revises and
-  calls the tool again, which posts a fresh card.
+- It always asks, even under a wildcard `auto` policy rule. The underlying
+  write and launch tools are called only by the composite and are not granted
+  to members. The app generates the note's filename under the configured
+  folder. One card shows exactly what will run: the resolved note path, the
+  full note, the machine, the project and the launch prompt. A handoff too
+  long for the card is refused with a request for a shorter one.
+- Approve writes the note, confirms the write succeeded (an MCP call can
+  resolve with an error flag), checks for cancellation, then launches. A
+  failed write launches nothing. If the note exists and the launch fails or
+  its outcome is unknown, the member is told the note path and the launch
+  status, and nothing is replayed automatically.
+- The card has Approve, Reject and Change, on this card only. Change collects
+  the user's text in a modal, rechecked against the ticket, its deadline and
+  the user, and returns it in a distinct `changes_requested` field. The
+  member's prompt says that field, unlike other tool results, is the user's
+  instruction to revise and ask again. Reject, expiry, stop and a stale modal
+  run nothing. The existing per-turn approval and step budgets bound repeats.
 - Config names the vault server and write tool, the Switchboard server and
   launch tool, and the notes folder, so no private path is in the repository.
 - Switchboard reads run without approval through ordinary MCP grants and
@@ -111,11 +135,10 @@ PR has merged. A phase's live pass uses the test channel and cheap models only.
 ## Known Unknowns
 
 - Whether `@ai-sdk/mcp` exposes the initialize response's `instructions` at
-  runtime, not only in its types. Settled by: p03, against a live server.
+  runtime. The advisor verified the getter with an in-memory handshake
+  (2026-11-23); p03 confirms it against a live server.
 - Whether the proxy forwards a cache key and reports cached tokens for both
   model families. Settled by: p04.
-- Whether Change belongs on every approval card or only the handoff card.
-  Settled by: p05, after the advisor's review.
 - The exact vault write and Switchboard launch tool inputs. Settled by: p05.
 
 ## Delivery endpoint and authority
@@ -145,8 +168,8 @@ asks for more detail.
 
 **Intent:** The instructions file and MCP orientation.
 **Exit evidence:** PR merged; a member follows an instruction that exists only
-in the file, and orientation text from a marked server appears in a logged
-prompt.
+in the file, and acts on a harmless marker that exists only in a marked test
+server's orientation text. Prompts are not logged.
 **Provisional:** no
 
 ## Phase p04: Prompt caching
