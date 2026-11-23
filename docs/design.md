@@ -264,6 +264,11 @@ starting with `claude-`, the user message has two text blocks and
 `cache_control: { "type": "ephemeral" }` marks the end of the role brief.
 The transcript, floor and private notes follow that boundary.
 
+Both are sent on every request, whatever the provider. They were measured only
+against the proxy route above. An OpenAI-compatible endpoint that rejects
+unknown request fields, or text-block content for a `claude-` model, would fail
+each turn with `E_TURN_FAILED`; there is no setting to turn them off.
+
 The proxy probe kept the model, tool definitions and long prefix the same on
 both calls and changed the task at the end. `gpt-6-luna` reported 5,760 cached
 input tokens on the second call with a cache key. `claude-haiku-5-5` reported
@@ -273,7 +278,8 @@ length, so a short role brief may yield no hit.
 
 After a generation with positive cached input usage, stderr gets a
 `model_cache_read` JSON entry. `cached_input_tokens` sums the reported cache
-reads across the generation's model steps. The entry also includes the model,
+reads across the generation's model steps, so a turn that calls a tool can
+report a hit from its own earlier step. The entry also includes the model,
 member, council cache key and, for public turns, the turn ID.
 
 ## Tools
