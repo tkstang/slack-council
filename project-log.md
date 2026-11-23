@@ -59,6 +59,10 @@ PR 5 merged: five deferred follow-ups recorded in the repository backlog (picker
 
 l03-d01 delivered council.instructions and MCP orientation on feat/guidance; rebased by the orchestrator onto the panel branch (live-check rows renumbered to 17 and 18) at f120225, gate passed (255 tests, build). PR 6 opened, stacked on PR 4. key:log-fad84fdd26e3
 
+### 2026-11-23 · structural · orchestrator · PR 6
+
+PR 6 (guidance) Opus review was clean with four nits; the orchestrator fixed three in a378909 (distinct error codes for blank and oversized instructions files, unit named in the message, missing-orientation warning after tool listing) and the confirmation round was clean. key:log-8dbe5fa12728
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

@@ -53,23 +53,23 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ### l03
 
-- state: turn-finished
+- state: work-settled
 - dispatch: d01 reported
-- next: Opus review of PR 6 running; then fixes, rebase after PRs 3 and 4 merge, live pass rows 17 and 18
+- next: Rebase after PRs 3 and 4 merge, live pass rows 17 and 18, then merge PR 6
 - owner: orchestrator
 - task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3Ace739897-ad25-4a34-9c9c-58bb103a0d41
 - worktree: /Users/tstang/.t3/worktrees/slack-council/t3-8d9bedcc-307c87066ab44d2e
 - placement: own-worktree
 - branch: feat/guidance
 - base: ad13543647450426d83184349181af0a83ec05bc
-- head: f12022559506bb470f43838f9d39b0ffbcf37f6d
+- head: a3789096e58dfd849c422726b01605321d6d8fea
 - review_round: 1
 - report: lane-reports/l03-d01.md
 - wake: T3 task completion
 - provider: codex_codex_proxy
 - model: gpt-6.2-sol
 - effort: high
-- last_observed: 2026-11-23T22:26:17Z
+- last_observed: 2026-11-23T22:29:02Z
 
 ### l04
 
@@ -107,3 +107,4 @@ _None._
 - u013 · 2026-11-23T22:25:01Z · l03 d01 · d01 reported (lane-reports/l03-d01.md); next: Rebase onto the panel branch head, open the PR stacked on PR 4, Opus review; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-8d9bedcc-307c87066ab44d2e; head: 94b495e3d938bd78d2086519932b424f71ab0a9e; placement: own-worktree; state dispatched → turn-finished
 - u014 · 2026-11-23T22:26:17Z · l03 d01 · next: Opus review of PR 6 running; then fixes, rebase after PRs 3 and 4 merge, live pass rows 17 and 18; base: ad13543647450426d83184349181af0a83ec05bc; head: f12022559506bb470f43838f9d39b0ffbcf37f6d; review_round: 1
 - u015 · 2026-11-23T22:26:57Z · l04 d01 · created; d01 opened; next: Wait for the l04-d01 report; then review, rebase and open the PR; owner: orchestrator; task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A19cfdbb9-2d11-46dc-91da-2b5c98a8f7c3; branch: feat/prompt-cache; base: f12022559506bb470f43838f9d39b0ffbcf37f6d; wake: T3 task completion; provider: codex_codex_proxy; model: gpt-6.2-sol; effort: high; state dispatched
+- u016 · 2026-11-23T22:29:02Z · l03 d01 · next: Rebase after PRs 3 and 4 merge, live pass rows 17 and 18, then merge PR 6; head: a3789096e58dfd849c422726b01605321d6d8fea; state turn-finished → work-settled
