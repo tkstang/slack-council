@@ -43,6 +43,10 @@ The goal gains the panel work (presets described at convening, optional personas
 
 The advisor (Astra, xhigh) reviewed brief.md: ready with changes. Six findings, all accepted and folded into the brief: handoff approval covers exactly what runs, partial success is defined, Change returns a distinct field, cache evidence is a positive cached-token count per family, no prompt logging, and the panel notice keeps how the panel was chosen. key:log-2c294ddc919a
 
+### 2026-11-23 · structural · orchestrator · l02-d01
+
+l02-d01 delivered optional structured personas, the panel block in convening notices (picker and mention kickoff) and tiered reply-length guidance on feat/panel at ad177ae; its clean-checkout gate passed (249 tests, build). key:log-ff8af92fb953
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

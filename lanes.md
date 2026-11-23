@@ -33,18 +33,22 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ### l02
 
-- state: dispatched
-- dispatch: d01 open
-- next: Wait for the l02-d01 report, then rebase onto main once PR 3 merges, open the PR and arrange the Opus review
+- state: turn-finished
+- dispatch: d01 reported
+- next: Open the PR stacked on PR 3, Opus review, then rebase onto main after PR 3 merges and run the live pass
 - owner: orchestrator
 - task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A472456a6-5097-46e4-93de-7544d8d64cac
+- worktree: /Users/tstang/.t3/worktrees/slack-council/t3-c6109907-cadc116708165185
+- placement: own-worktree
 - branch: feat/panel
 - base: fe9ef10c4ef19de2987a01e717f8ea5244a73000
+- head: ad177ae98168397e967a0006d761b09e0a09f5aa
+- report: lane-reports/l02-d01.md
 - wake: T3 task completion
 - provider: codex_codex_proxy
 - model: gpt-6.2-sol
 - effort: high
-- last_observed: 2026-11-23T22:10:05Z
+- last_observed: 2026-11-23T22:14:56Z
 
 ## Closed
 
@@ -59,3 +63,4 @@ _None._
 - u005 · 2026-11-23T22:07:41Z · l02 d01 · created; d01 opened; next: Wait for the l02-d01 report, then rebase onto main once PR 3 merges, open the PR and arrange the Opus review; owner: orchestrator; task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A472456a6-5097-46e4-93de-7544d8d64cac; branch: feat/panel; base: fe9ef10c4ef19de2987a01e717f8ea5244a73000; wake: T3 task completion; provider: codex_codex_proxy; model: gpt-6.2-sol; effort: high; state dispatched
 - u006 · 2026-11-23T22:07:42Z · l01 d01 · next: Run the live pass for rows 11, 12 and 15 once the screen is unlocked, then merge PR 3; blocker: Live Slack pass needs the development machine's screen unlocked; waiting_on: owner; state turn-finished → blocked
 - u007 · 2026-11-23T22:10:05Z · l02 d01 · steer: Advisor findings for p02: carry the preset name or custom panel through the picker; post the default preset's notice once on mention kickoff with the user's message as trigger; one shared formatter; tiers apply to public replies only; report any output-token cap on public replies
+- u008 · 2026-11-23T22:14:56Z · l02 d01 · d01 reported (lane-reports/l02-d01.md); next: Open the PR stacked on PR 3, Opus review, then rebase onto main after PR 3 merges and run the live pass; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-c6109907-cadc116708165185; head: ad177ae98168397e967a0006d761b09e0a09f5aa; placement: own-worktree; state dispatched → turn-finished
