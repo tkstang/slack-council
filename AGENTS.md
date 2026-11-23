@@ -31,9 +31,10 @@ husky/lefthook) - `private: true` + MIT LICENSE.
 
 ## Definition of Done
 
-This local MVP has no remote. Use focused checks while editing and run
-`pnpm run worktree:validate` on a clean checkout with Node 26 before handoff.
-It runs the agent-file guard, types, lint, format, full tests and build. Reuse
+Use focused checks while editing and run `pnpm run worktree:validate` on a
+clean checkout with Node 26 before handoff. It runs the agent-file guard, types,
+lint, format, full tests and build. CI runs the same gate on every pull request
+and push to `main`. Reuse
 evidence while its source, dependencies, config, environment and relevant base
 are unchanged. Re-run affected checks after an input changes.
 
@@ -42,9 +43,10 @@ README verification policy for the full local checks.
 
 ## Complexity
 
-Use `complexity-review` when a plan or implementation accumulates abstractions,
-schemas, branching workflows, helper scripts or process that is becoming hard to
-justify or explain. Compare it with the smallest solution that meets the actual
+When a plan or implementation accumulates abstractions, schemas, branching
+workflows, helper scripts or process that is becoming hard to justify or
+explain, review it for complexity (with the `complexity-review` skill when it is
+installed). Compare it with the smallest solution that meets the actual
 contract; simplify or defer machinery that does not earn its maintenance cost.
 Before adding material complexity for a speculative failure mode or unconfirmed
 future need, explain the concrete problem, evidence that it matters, simpler
@@ -53,7 +55,7 @@ buy-in. This applies to production code, tests and fixtures, and operational
 safeguards. Do not silently expand scope for theoretical robustness, flexibility
 or scale. Ordinary regression tests and required checks do not trigger this
 buy-in requirement. Keep required correctness, security and human gates.
-Complexity review is not a mandatory extra pass for every small change.
+A complexity review is not a mandatory extra pass for every small change.
 
 ## Agent setup
 
@@ -84,6 +86,8 @@ Choose a proportional OAT lane rather than a full lifecycle for every fix.
 - Use `pnpm run worktree:validate` for explicit full clean-checkout verification
   and record that evidence for handoff. It checks cleanliness before and after.
   Do not repeat unchanged proof solely because you are pushing.
+
+## OAT
 
 <!-- OAT project-management -->
 ### Project Management
