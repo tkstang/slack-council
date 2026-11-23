@@ -67,6 +67,10 @@ PR 6 (guidance) Opus review was clean with four nits; the orchestrator fixed thr
 
 l04-d01 delivered prompt caching on feat/prompt-cache: a hashed per-council cache key on every request and a text-block cache boundary for Claude models. Through the live proxy the second request reported cached input tokens for both families (Luna 5,760 with the key; Haiku 9,812 with the boundary; zero without). Rebased onto the guidance branch at b4fea11, gate passed (255 tests). PR 7 opened, stacked on PR 6. key:log-1d9cf2037745
 
+### 2026-11-23 · structural · orchestrator · PR 7
+
+PR 7 (prompt caching) Opus review found no blocking issues; the orchestrator applied two documentation fixes in 021105c (what is always sent and the failure to expect from other endpoints; live-check row 19 uses turns without tools) and the confirmation round was clean. A per-provider opt-out was not built and is left to the user. key:log-f9da521fc1e2
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
