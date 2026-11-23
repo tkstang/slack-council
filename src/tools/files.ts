@@ -1,14 +1,6 @@
 import { constants } from 'node:fs';
 import { open, opendir, realpath, stat } from 'node:fs/promises';
-import {
-  dirname,
-  isAbsolute,
-  join,
-  matchesGlob,
-  relative,
-  resolve,
-  sep,
-} from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import type { ToolsConfig } from '@council/config/schema.js';
 import { failure, success, type Result } from '@council/core/result.js';
@@ -46,6 +38,36 @@ function inside(root: string, path: string): boolean {
   return !isAbsolute(part) && part !== '..' && !part.startsWith(`..${sep}`);
 }
 
+const folded = process.platform === 'darwin' || process.platform === 'win32';
+
+// Compile a deny glob (single star, double star, question mark). Unlike
+// path.matchesGlob, wildcards match dot segments, so the env-file pattern also
+// denies an env file inside a dot-directory. A trailing slash-double-star denies
+// the directory itself as well as its contents.
+function compileGlob(glob: string, ignoreCase: boolean): RegExp {
+  let source = '';
+  for (let index = 0; index < glob.length; index += 1) {
+    const char = glob[index] ?? '';
+    if (char === '*' && glob[index + 1] === '*') {
+      index += 1;
+      if (glob[index + 1] === '/') {
+        index += 1;
+        source += '(?:.*/)?';
+      } else {
+        source += '.*';
+      }
+    } else if (char === '*') {
+      source += '[^/]*';
+    } else if (char === '?') {
+      source += '[^/]';
+    } else {
+      source += char.replace(/[\\^$.|+()[\]{}]/u, '\\$&');
+    }
+  }
+  source = source.replace(/\/\.\*$/u, '(?:/.*)?');
+  return new RegExp(`^${source}$`, ignoreCase ? 'iu' : 'u');
+}
+
 export function createFileTools(config: ToolsConfig['files']): FileTools {
   // Pin roots to their canonical paths. A missing or inaccessible root grants nothing.
   const roots = Promise.all(
@@ -62,23 +84,17 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
     }),
   ).then((resolved) => resolved.flat());
 
+  const denyPatterns = config.deny.map((glob) => compileGlob(glob, folded));
+
   function denied(path: string, root: string): boolean {
-    const folded =
-      process.platform === 'darwin' || process.platform === 'win32';
     for (let current = path; ; current = dirname(current)) {
-      const part = relative(root, current);
+      const candidates = inside(root, current)
+        ? [current, relative(root, current)]
+        : [current];
       if (
-        config.deny.some((glob) => {
-          const candidates = inside(root, current)
-            ? [current, part]
-            : [current];
-          return candidates.some(
-            (candidate) =>
-              matchesGlob(candidate, glob) ||
-              (folded &&
-                matchesGlob(candidate.toLowerCase(), glob.toLowerCase())),
-          );
-        })
+        denyPatterns.some((pattern) =>
+          candidates.some((candidate) => pattern.test(candidate)),
+        )
       )
         return true;
       if (dirname(current) === current) return false;
