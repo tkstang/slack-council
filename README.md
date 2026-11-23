@@ -106,7 +106,7 @@ to start one:
 
 - **Mention.** Write `@council <question>`. On a top-level message the default
   preset convenes in that message's thread; inside a thread it convenes for
-  that thread.
+  that thread. The app posts "Council convened." with the panel in the thread.
 - **Slash command.** `/council [question]` in a channel opens the roster modal,
   with any typed text as the question. On submit the app posts
   "Council convened by <name>: <question>" in the channel and convenes in that

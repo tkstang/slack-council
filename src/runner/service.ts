@@ -220,6 +220,7 @@ export async function openCouncilService(
             ...council.settings,
             listen: config.council.listen,
             seenReaction: config.council.seenReaction,
+            replyWords: config.council.replyWords,
           },
         },
         'E_INVALID_STATE',

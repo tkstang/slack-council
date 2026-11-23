@@ -232,15 +232,15 @@ it.each([
     { preset: 'review', roster: ['guide', 'critic'] },
     [
       'Preset: review',
-      '- `@guide` · Guide · claude-haiku-5-5',
-      '- `@critic` · Critic · gpt-6-luna · medium effort · Sceptical reviewer',
+      '- `@guide` · Guide\\_1 · `claude_haiku-5.5`',
+      '- `@critic` · Critic · `gpt-6-luna` · medium effort · Sceptical reviewer',
     ],
   ],
   [
     { roster: ['critic'] },
     [
       'custom panel',
-      '- `@critic` · Critic · gpt-6-luna · medium effort · Sceptical reviewer',
+      '- `@critic` · Critic · `gpt-6-luna` · medium effort · Sceptical reviewer',
     ],
   ],
 ] as const)('posts a convening notice with panel %j', async (panel, lines) => {
@@ -251,7 +251,7 @@ it.each([
     botId: 'BAPP',
     botUserId: 'UAPP',
     members: [
-      { id: 'guide', name: 'Guide', model: 'claude-haiku-5-5' },
+      { id: 'guide', name: 'Guide_1', model: 'claude_haiku-5.5', effort: ' ' },
       {
         id: 'critic',
         name: 'Critic',

@@ -166,8 +166,11 @@ function panelLine({
   return [
     `- \`@${id}\``,
     panelLabel(name),
-    panelLabel(model),
-    ...(effort === undefined ? [] : [`${panelLabel(effort)} effort`]),
+    // Inline code shows a model id as written; escaping would add backslashes.
+    `\`${model.trim().replaceAll('`', '')}\``,
+    ...(effort === undefined || effort.trim() === ''
+      ? []
+      : [`${panelLabel(effort)} effort`]),
     ...(persona === undefined ? [] : [panelLabel(persona.title)]),
   ].join(' · ');
 }

@@ -207,7 +207,7 @@ misrepresent other members as the responding assistant.
 - The public reply prompt includes the council's three word limits. The member
   chooses the applicable tier from the user's request and offers to continue
   if it had more to say. Private listening keeps its own prompt and token cap.
-  Saved councils without `replyWords` load with the defaults.
+  A council restored at start takes the limits from the current config.
 - Thread council: the whole thread, newest kept when over `contextChars`. An
   omission marker says how many earlier messages were dropped and names the
   history tool.
