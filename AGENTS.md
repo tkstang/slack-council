@@ -40,6 +40,21 @@ are unchanged. Re-run affected checks after an input changes.
 The pre-push hook runs `check:agents` and `typecheck` for early feedback. See the
 README verification policy for the full local checks.
 
+## Complexity
+
+Use `complexity-review` when a plan or implementation accumulates abstractions,
+schemas, branching workflows, helper scripts or process that is becoming hard to
+justify or explain. Compare it with the smallest solution that meets the actual
+contract; simplify or defer machinery that does not earn its maintenance cost.
+Before adding material complexity for a speculative failure mode or unconfirmed
+future need, explain the concrete problem, evidence that it matters, simpler
+alternatives, and the implementation and maintenance cost, then get the user's
+buy-in. This applies to production code, tests and fixtures, and operational
+safeguards. Do not silently expand scope for theoretical robustness, flexibility
+or scale. Ordinary regression tests and required checks do not trigger this
+buy-in requirement. Keep required correctness, security and human gates.
+Complexity review is not a mandatory extra pass for every small change.
+
 ## Agent setup
 
 This repo has adopted OAT at project scope: `.oat/` holds its config, sync
