@@ -1,0 +1,78 @@
+# Shape: mvp-followups
+
+How this project runs, agreed with the user in the shaping conversation. The
+orchestrator and the user own this file; OAT never parses it. Read `AGENTS.md`
+for the fixed rules.
+
+The eight sections from Goal to Reshape checkpoints are the shaping topics, in
+order. `_Not yet shaped._` marks a topic still to discuss, and shaping resumes
+at the first one. A topic is shaped when it holds the agreed answer or says it
+is deferred to the Undecided section. Shaping is complete when every topic is
+shaped. The Project log section is a default, not a question.
+
+**Last shaped:** not yet shaped
+
+## Goal
+
+<!-- The outcome, what done means, and how large the project is. The size sets how much of the rest is worth asking. -->
+
+_Not yet shaped._
+
+## Brainstorm or discovery
+
+<!-- Whether to brainstorm (oat-brainstorm) or run an informal discovery pass before going on, and where the result lives. Offered only after the goal is written. -->
+
+_Not yet shaped._
+
+## Documents
+
+<!-- The documents this project keeps (a brief, a plan, a journal, its own pattern) and the template each started from. -->
+
+_Not yet shaped._
+
+## Execution
+
+<!-- A single agent, or an orchestrator with lanes. Lane placement is left to the orchestrator. -->
+
+_Not yet shaped._
+
+## Reviews
+
+<!-- When reviews happen, then who and how. Record each as intent (when, required independence, effort) and mechanism (tool or skill, host, source, date verified). When a review comes due, re-check its mechanism first; if it is unavailable, keep the intent, tell the user and log it. Freestyle adds no review gate; a review an adopted plan requires must still pass (its agreed mechanism or an equivalent check) before the work it guards moves on. -->
+
+_Not yet shaped._
+
+## Commits, PRs and merges
+
+<!-- Who commits and when, when PRs open, who merges. Until this is shaped, nothing is committed or pushed. -->
+
+_Not yet shaped._
+
+## User involvement
+
+<!-- What the user approves, and what they are only told. -->
+
+_Not yet shaped._
+
+## Reshape checkpoints
+
+<!-- The moments to revisit this shape, for example after the first PR merges or when a lane is added. At each one, and when a plan written after shaping is accepted, ask two questions. Does the shape still fit? Is the plan and its process proportionate to its value? Test the second by process time against code time (above about 3x needs a stated reason), by what risk each safeguard covers and whether that risk exists now, and by the lightest process that keeps the real gates (the reviews and approvals the owner or the repository requires). A "no" goes to the owner as a recommendation, even in an unattended run. -->
+
+_Not yet shaped._
+
+## Project log
+
+The project log (`project-log.md`, when enabled) records what happened and
+when: judgment entries (a reshape's decision with its reason, surprises,
+lessons learned) and structural entries for events that matter to the
+project's story, written only with `oat project log append`. Operational churn
+stays out of it. Decisions about the work live only in `decisions.md`, and a
+`decision` entry may cite one by its `drNN`; what is still true goes in
+`memories.md`. Every reshape attempts a `decision` entry; this file stands
+alone when an append is skipped.
+
+## Undecided
+
+<!-- One line per deferred item: the item, and the moment it becomes due (for example "before the first PR"). Check these on every resume. -->
+
+_None yet._
