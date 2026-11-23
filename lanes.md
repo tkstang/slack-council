@@ -91,6 +91,21 @@ update ID. Filed lane reports are in `lane-reports/`.
 - effort: high
 - last_observed: 2026-11-23T22:35:50Z
 
+### l05
+
+- state: dispatched
+- dispatch: d01 open
+- next: Wait for the l05-d01 report; then review, rebase and open the PR
+- owner: orchestrator
+- task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3Ae99bc582-1710-4893-a7d8-59e904857c32
+- branch: feat/handoff
+- base: b4fea1165a33a8e8c4bd147ca18323fbacb11334
+- wake: T3 task completion
+- provider: codex_codex_proxy
+- model: gpt-6.2-sol
+- effort: high
+- last_observed: 2026-11-23T22:36:44Z
+
 ## Closed
 
 _None._
@@ -115,3 +130,4 @@ _None._
 - u016 · 2026-11-23T22:29:02Z · l03 d01 · next: Rebase after PRs 3 and 4 merge, live pass rows 17 and 18, then merge PR 6; head: a3789096e58dfd849c422726b01605321d6d8fea; state turn-finished → work-settled
 - u017 · 2026-11-23T22:34:52Z · l04 d01 · d01 reported (lane-reports/l04-d01.md); next: Rebase onto the guidance branch head, open the PR stacked on PR 6, Opus review; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-a293358b-daa5d176621dbd48; head: b32990cd5de5872340eb6792e4df827656a2094e; placement: own-worktree; state dispatched → turn-finished
 - u018 · 2026-11-23T22:35:50Z · l04 d01 · next: Opus review of PR 7 running; then fixes, rebase after earlier PRs merge, live-check row 19; base: a3789096e58dfd849c422726b01605321d6d8fea; head: b4fea1165a33a8e8c4bd147ca18323fbacb11334; review_round: 1
+- u019 · 2026-11-23T22:36:44Z · l05 d01 · created; d01 opened; next: Wait for the l05-d01 report; then review, rebase and open the PR; owner: orchestrator; task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3Ae99bc582-1710-4893-a7d8-59e904857c32; branch: feat/handoff; base: b4fea1165a33a8e8c4bd147ca18323fbacb11334; wake: T3 task completion; provider: codex_codex_proxy; model: gpt-6.2-sol; effort: high; state dispatched
