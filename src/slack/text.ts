@@ -3,11 +3,7 @@ export const MARKDOWN_TEXT_LIMIT = 12_000;
 
 const WORD_JOINER = '⁠';
 
-/**
- * Break every broadcast form so it cannot notify: Slack's `<!here>` markup,
- * user-group mentions and plain `@here`, `@channel` and `@everyone`.
- */
-export function neutraliseBroadcasts(text: string): string {
+function neutraliseProse(text: string): string {
   return text
     .replace(
       /<!(here|channel|everyone)(?:\|[^<>]*)?>/giu,
@@ -23,6 +19,21 @@ export function neutraliseBroadcasts(text: string): string {
     );
 }
 
+/** Fenced blocks (closed or running to the end) and inline code spans. */
+const CODE = /(```[\s\S]*?(?:```|$)|`[^`\n]+`)/u;
+
+/**
+ * Break every broadcast form so it cannot notify: Slack's `<!here>` markup,
+ * user-group mentions and plain `@here`, `@channel` and `@everyone`. Code
+ * spans and fenced blocks are left as written.
+ */
+export function neutraliseBroadcasts(text: string): string {
+  return text
+    .split(CODE)
+    .map((part, index) => (index % 2 === 1 ? part : neutraliseProse(part)))
+    .join('');
+}
+
 /** User ids referenced by `<@U…>` markup. */
 export function mentionedUserIds(text: string): string[] {
   return [...text.matchAll(/<@([UW][A-Z0-9]+)(?:\|[^<>]*)?>/gu)].map(
@@ -30,34 +41,40 @@ export function mentionedUserIds(text: string): string[] {
   );
 }
 
+/** Slack's own tokens: mentions, channels, special commands and links. */
+const SLACK_TOKEN =
+  /<(@[UW][A-Z0-9]+|#[A-Z0-9]+|![^<>|\s]+|(?:https?:\/\/|mailto:)[^<>|\s]+)(?:\|([^<>\r\n]*))?>/gu;
+
 /**
  * Render Slack markup as plain text for a model transcript: user mentions
  * become `@name` (the app itself is `@council`), channels `#name`, links their
- * label and URL, and Slack's HTML entities are decoded.
+ * label and URL, and Slack's HTML entities are decoded. Other angle-bracket
+ * text is left as written.
  */
 export function renderSlackText(
   text: string,
   names: { readonly botUserId: string; name(userId: string): string },
 ): string {
   return text
-    .replace(/<([^<>\r\n]*)>/gu, (whole, inner: string) => {
-      const bar = inner.indexOf('|');
-      const target = bar === -1 ? inner : inner.slice(0, bar);
-      const label = bar === -1 ? undefined : inner.slice(bar + 1);
-      if (target.startsWith('@')) {
-        const id = target.slice(1);
-        if (id === names.botUserId) return '@council';
-        return `@${label?.replace(/^@/u, '') || names.name(id)}`;
-      }
-      if (target.startsWith('#')) return `#${label || target.slice(1)}`;
-      if (target.startsWith('!')) {
-        const command = target.slice(1);
-        if (/^(?:here|channel|everyone)$/u.test(command)) return `@${command}`;
-        return label || whole;
-      }
-      if (target.startsWith('mailto:')) return label || target.slice(7);
-      return label && label !== target ? `${label} (${target})` : target;
-    })
+    .replace(
+      SLACK_TOKEN,
+      (whole, target: string, label: string | undefined) => {
+        if (target.startsWith('@')) {
+          const id = target.slice(1);
+          if (id === names.botUserId) return '@council';
+          return `@${label?.replace(/^@/u, '') || names.name(id)}`;
+        }
+        if (target.startsWith('#')) return `#${label || target.slice(1)}`;
+        if (target.startsWith('!')) {
+          const command = target.slice(1);
+          if (/^(?:here|channel|everyone)$/u.test(command))
+            return `@${command}`;
+          return label || whole;
+        }
+        if (target.startsWith('mailto:')) return label || target.slice(7);
+        return label && label !== target ? `${label} (${target})` : target;
+      },
+    )
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
     .replaceAll('&amp;', '&');

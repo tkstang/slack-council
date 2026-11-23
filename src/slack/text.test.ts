@@ -22,17 +22,24 @@ describe('neutraliseBroadcasts', () => {
       /<!|(?<![\w])@(?:here|channel|everyone)\b(?!after)/u,
     );
   });
+
+  it('leaves code spans and fenced blocks as written', () => {
+    const code = '`@here` and\n```\n<!channel>\n```\n';
+    expect(neutraliseBroadcasts(`${code}then @here`)).toBe(
+      `${code}then @\u2060here`,
+    );
+  });
 });
 
 describe('renderSlackText', () => {
   it('renders Slack markup as readable text', () => {
     expect(
       renderSlackText(
-        '<@UAPP> ask <@U1> in <#C9|general> about <https://x.test|the doc> &lt;a&gt; &amp; <!here>',
+        '<@UAPP> ask <@U1> in <#C9|general> about <https://x.test|the doc> &lt;a&gt; &amp; <!here> <div>',
         { botUserId: 'UAPP', name: (id) => (id === 'U1' ? 'Jane' : id) },
       ),
     ).toBe(
-      '@council ask @Jane in #general about the doc (https://x.test) <a> & @here',
+      '@council ask @Jane in #general about the doc (https://x.test) <a> & @here <div>',
     );
   });
 });
