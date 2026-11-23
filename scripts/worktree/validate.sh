@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Explicit full clean-checkout verification, also used by CI.
-# This is not the narrow local final batch for every adoption contract.
+# Full local verification from a clean checkout.
 #
 # Fails if the tree is dirty before or after validation, catching generated
 # drift from build/check commands.
