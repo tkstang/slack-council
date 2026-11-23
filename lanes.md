@@ -35,21 +35,21 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 - state: turn-finished
 - dispatch: d01 reported
-- next: Opus review of PR 4 running; then fixes, rebase after PR 3 merges, live pass
+- next: Opus confirmation of the follow-up commit; then rebase after PR 3 merges and run the live pass
 - owner: orchestrator
 - task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A472456a6-5097-46e4-93de-7544d8d64cac
 - worktree: /Users/tstang/.t3/worktrees/slack-council/t3-c6109907-cadc116708165185
 - placement: own-worktree
 - branch: feat/panel
 - base: fe9ef10c4ef19de2987a01e717f8ea5244a73000
-- head: ad177ae98168397e967a0006d761b09e0a09f5aa
+- head: a5eab4857f504a72c3203cfa7820b8f28e117579
 - review_round: 1
 - report: lane-reports/l02-d01.md
 - wake: T3 task completion
 - provider: codex_codex_proxy
 - model: gpt-6.2-sol
 - effort: high
-- last_observed: 2026-11-23T22:16:05Z
+- last_observed: 2026-11-23T22:19:34Z
 
 ### l03
 
@@ -82,3 +82,4 @@ _None._
 - u008 · 2026-11-23T22:14:56Z · l02 d01 · d01 reported (lane-reports/l02-d01.md); next: Open the PR stacked on PR 3, Opus review, then rebase onto main after PR 3 merges and run the live pass; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-c6109907-cadc116708165185; head: ad177ae98168397e967a0006d761b09e0a09f5aa; placement: own-worktree; state dispatched → turn-finished
 - u009 · 2026-11-23T22:16:05Z · l03 d01 · created; d01 opened; next: Wait for the l03-d01 report, then rebase once PRs 3 and 4 merge, open the PR and arrange the Opus review; owner: orchestrator; task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3Ace739897-ad25-4a34-9c9c-58bb103a0d41; branch: feat/guidance; base: ad177ae98168397e967a0006d761b09e0a09f5aa; wake: T3 task completion; provider: codex_codex_proxy; model: gpt-6.2-sol; effort: high; state dispatched
 - u010 · 2026-11-23T22:16:05Z · l02 d01 · next: Opus review of PR 4 running; then fixes, rebase after PR 3 merges, live pass; review_round: 1
+- u011 · 2026-11-23T22:19:34Z · l02 d01 · next: Opus confirmation of the follow-up commit; then rebase after PR 3 merges and run the live pass; head: a5eab4857f504a72c3203cfa7820b8f28e117579

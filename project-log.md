@@ -47,6 +47,10 @@ The advisor (Astra, xhigh) reviewed brief.md: ready with changes. Six findings, 
 
 l02-d01 delivered optional structured personas, the panel block in convening notices (picker and mention kickoff) and tiered reply-length guidance on feat/panel at ad177ae; its clean-checkout gate passed (249 tests, build). key:log-ff8af92fb953
 
+### 2026-11-23 · structural · orchestrator · PR 4
+
+PR 4 (panel) opened on feat/panel, stacked on PR 3. The Opus review was clean with four nits; the orchestrator fixed three in a5eab48 (model id as inline code, blank effort skipped, restored councils take reply limits from config, docs and live-check rows) and left two as they were. Skills PR 173 (seshtk backward paging) merged by the orchestrator under decision R2. key:log-5c8a133e69b7
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
