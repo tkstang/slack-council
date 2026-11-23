@@ -8,6 +8,7 @@ import {
 } from '@council/config/schema.js';
 import type { Store, StoredState } from '@council/core/ports.js';
 import { failure, success, type Result } from '@council/core/result.js';
+import { MAX_PRIVATE_NOTE_CHARS } from '@council/core/types.js';
 import { z } from 'zod';
 
 export const MAX_ACCEPTED_MESSAGES = 4_096;
@@ -24,6 +25,17 @@ const StoredStateSchema = z.strictObject({
     }),
   ),
   acceptedMessageKeys: z.array(id).max(MAX_ACCEPTED_MESSAGES),
+  privateNotes: z
+    .array(
+      z.strictObject({
+        councilId: id,
+        memberId: z.string().regex(MEMBER_HANDLE),
+        targetTs: id,
+        note: id.max(MAX_PRIVATE_NOTE_CHARS),
+        createdAtTs: id,
+      }),
+    )
+    .default([]),
 });
 
 function decode(content: string): Result<StoredState> {
@@ -52,7 +64,11 @@ export function createJsonStore(stateDir: string): Store {
           'code' in error &&
           error.code === 'ENOENT'
         ) {
-          return success({ councils: [], acceptedMessageKeys: [] });
+          return success({
+            councils: [],
+            acceptedMessageKeys: [],
+            privateNotes: [],
+          });
         }
         return failure('E_STORE_READ', 'Could not read council state');
       }

@@ -1,5 +1,10 @@
 import { parseConfig } from '@council/config/load.js';
-import type { Store, StoredState, TurnInput } from '@council/core/ports.js';
+import type {
+  ListenInput,
+  Store,
+  StoredState,
+  TurnInput,
+} from '@council/core/ports.js';
 import { failure, success, type Result } from '@council/core/result.js';
 import type { HumanMessage, Message, Scope } from '@council/core/types.js';
 import { MAX_ACCEPTED_MESSAGES } from '@council/store/json-store.js';
@@ -25,6 +30,13 @@ const CONFIG = parseConfig(
         provider: 'sample',
         persona: 'Guide the discussion.',
       },
+      critic: {
+        name: 'Critic',
+        avatar: { emoji: ':mag:' },
+        model: 'example',
+        provider: 'sample',
+        persona: 'Find gaps.',
+      },
     },
     presets: { default: ['guide'] },
     defaultPreset: 'default',
@@ -44,13 +56,21 @@ function human(ts: string, text: string, userId = 'U1'): HumanMessageInput {
 }
 
 function fixtures(
-  initial: StoredState = { councils: [], acceptedMessageKeys: [] },
+  initial: StoredState = {
+    councils: [],
+    acceptedMessageKeys: [],
+    privateNotes: [],
+  },
 ) {
   let record = initial;
   let nextSave: Promise<Result<void>> | undefined;
   let nextId = 0;
   let result: Promise<Result<string>> = Promise.resolve(success('PASS'));
+  let listenResult: Promise<Result<string>> = Promise.resolve(success('PASS'));
   const calls: TurnInput[] = [];
+  const listens: ListenInput[] = [];
+  const notices: string[] = [];
+  let postTs = 8;
   const history: Message[] = [];
   const reactions: [string, boolean][] = [];
   const save: Store['save'] = async (state) => {
@@ -65,6 +85,8 @@ function fixtures(
 
   return {
     calls,
+    listens,
+    notices,
     history,
     reactions,
     store,
@@ -72,6 +94,11 @@ function fixtures(
     gateSave() {
       const gate = Promise.withResolvers<Result<void>>();
       nextSave = gate.promise;
+      return gate.resolve;
+    },
+    gateListen() {
+      const gate = Promise.withResolvers<Result<string>>();
+      listenResult = gate.promise;
       return gate.resolve;
     },
     gateModel() {
@@ -92,10 +119,17 @@ function fixtures(
               history.filter(({ ts }) => cutoff === undefined || ts <= cutoff),
             );
           },
-          async postMember() {
-            return success({ ts: '9.000' });
+          async postMember(_scope, { member, text }) {
+            const ts = `${++postTs}.000`;
+            history.push({
+              ts,
+              text,
+              author: { kind: 'member', memberId: member.id },
+            });
+            return success({ ts });
           },
-          async postNotice() {
+          async postNotice(_scope, text) {
+            notices.push(text);
             return success(undefined);
           },
           async setReaction(_channel, ts, _reaction, present) {
@@ -104,6 +138,10 @@ function fixtures(
           },
         },
         turns: {
+          runListen(input) {
+            listens.push(input);
+            return listenResult;
+          },
           runTurn(input) {
             calls.push(input);
             return result;
@@ -203,7 +241,11 @@ it('bounds dedupe retention and serialises concurrent state writes', async () =>
     { length: MAX_ACCEPTED_MESSAGES },
     (_, index) => `C1:${index}.000`,
   );
-  const f = fixtures({ councils: [], acceptedMessageKeys: keys });
+  const f = fixtures({
+    councils: [],
+    acceptedMessageKeys: keys,
+    privateNotes: [],
+  });
   const service = await f.open();
   const council = service.convene({ scope: SCOPE, owner: 'U1' });
   const other = service.convene({
@@ -235,7 +277,11 @@ it('reports a council with a missing member and keeps it in the saved state', as
     scope: { channel: 'C2' },
     roster: ['guide', 'removed'],
   };
-  const f = fixtures({ councils: [stale, retained], acceptedMessageKeys: [] });
+  const f = fixtures({
+    councils: [stale, retained],
+    acceptedMessageKeys: [],
+    privateNotes: [],
+  });
   const report = vi.fn();
   const service = await f.open(report);
   expect(report).toHaveBeenCalledExactlyOnceWith(stale, ['removed']);
@@ -323,4 +369,94 @@ it('stops accepting work on shutdown, drains reactions and preserves the council
     ['2.000', false],
   ]);
   expect(f.record().councils).toHaveLength(1);
+});
+
+async function startListening(f: ReturnType<typeof fixtures>) {
+  const service = await f.open();
+  await service.convene({
+    scope: SCOPE,
+    owner: 'U1',
+    roster: ['guide', 'critic'],
+  });
+  const input = human('1.000', '@guide Address the evidence.');
+  f.history.push(input.message);
+  const finishTurn = f.gateModel();
+  const finishListen = f.gateListen();
+  await service.handleHumanMessage(input);
+  await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
+  finishTurn(success('Public answer.'));
+  await vi.waitFor(() => expect(f.listens).toHaveLength(1), { interval: 1 });
+  expect(f.listens[0]?.member.id).toBe('critic');
+  return { service, finishListen };
+}
+
+it.each(['pass', 'post'])(
+  'carries a saved hand across restart and consumes it after a %s',
+  async (outcome) => {
+    const f = fixtures();
+    const { service, finishListen } = await startListening(f);
+    const note = 'Check whether <the assumption> transfers.';
+    finishListen(success(`HAND #2: ${note}`));
+    await vi.waitFor(() => expect(f.notices).toHaveLength(1), { interval: 1 });
+    expect(f.record().privateNotes).toEqual([
+      {
+        councilId: 'id-1',
+        memberId: 'critic',
+        targetTs: '9.000',
+        note,
+        createdAtTs: '9.000',
+      },
+    ]);
+    await service.shutdown();
+
+    const reopened = await f.open();
+    const input = human('9.001', '@critic Follow up.');
+    f.history.push(input.message);
+    const finishTurn = f.gateModel();
+    const finishNextListen = f.gateListen();
+    await reopened.handleHumanMessage(input);
+    await vi.waitFor(() => expect(f.calls).toHaveLength(2), { interval: 1 });
+    expect(f.calls[1]?.prompt.user).toContain(
+      `<private_notes>
+- [#2] Check whether &lt;the assumption&gt; transfers.
+</private_notes>`,
+    );
+    expect(f.record().privateNotes).toHaveLength(1);
+    finishTurn(
+      success(outcome === 'pass' ? 'PASS' : `I need more evidence. ${note}`),
+    );
+    await vi.waitFor(() => expect(f.record().privateNotes).toEqual([]), {
+      interval: 1,
+    });
+    if (outcome === 'post')
+      expect(f.history.at(-1)?.text).toContain('I need more evidence.');
+    expect(f.history.some(({ text }) => text.includes(note))).toBe(false);
+    expect(f.notices.some((text) => text.includes(note))).toBe(false);
+    finishNextListen(success('PASS'));
+    await reopened.shutdown();
+  },
+);
+
+it('aborts an in-flight listen at addressed arrival even while acceptance save is blocked', async () => {
+  const f = fixtures();
+  const { service, finishListen } = await startListening(f);
+
+  const input = human('9.001', '@critic New human question.');
+  f.history.push(input.message);
+  const finishSave = f.gateSave();
+  const finishTurn = f.gateModel();
+  const acceptance = service.handleHumanMessage(input);
+  expect(f.listens[0]?.signal.aborted).toBe(true);
+  finishListen(success('HAND #2: The late note must be discarded.'));
+  finishSave(success(undefined));
+  await expect(acceptance).resolves.toBe('accepted');
+  await vi.waitFor(() => expect(f.calls).toHaveLength(2), { interval: 1 });
+  expect(f.calls[1]?.prompt.user).not.toContain('<private_notes>');
+  finishTurn(success('PASS'));
+  await vi.waitFor(() => expect(f.reactions.at(-1)).toEqual(['9.001', false]), {
+    interval: 1,
+  });
+  await service.shutdown();
+  expect(f.record().privateNotes).toEqual([]);
+  expect(f.notices).toEqual([]);
 });

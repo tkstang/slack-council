@@ -1,6 +1,16 @@
-import type { Clock, SlackPort, TurnInput } from '@council/core/ports.js';
+import type {
+  Clock,
+  ListenInput,
+  SlackPort,
+  TurnInput,
+} from '@council/core/ports.js';
 import { failure, success, type Result } from '@council/core/result.js';
-import type { Council, Member, Message } from '@council/core/types.js';
+import type {
+  Council,
+  Member,
+  Message,
+  PrivateNote,
+} from '@council/core/types.js';
 import { expect, it, vi } from 'vitest';
 
 import { createChainRunner } from './chain-runner.js';
@@ -25,6 +35,7 @@ const COUNCIL: Council = {
     hopBudget: 2,
     maxTurnsPerChain: 10,
     unaddressed: 'silent',
+    listen: 'off',
     contextChars: 2_000,
     turnTimeoutMs: 500,
     approvalTimeoutMs: 300_000,
@@ -32,11 +43,20 @@ const COUNCIL: Council = {
   },
 };
 
-function harness(settings: Partial<Council['settings']> = {}) {
+function harness(
+  settings: Partial<Council['settings']> = {},
+  roster = [GUIDE, CRITIC],
+) {
   const calls: {
     input: TurnInput;
     finish: (result: Result<string>) => void;
   }[] = [];
+  const listens: {
+    input: ListenInput;
+    finish: (result: Result<string>) => void;
+  }[] = [];
+  const handReactions: string[] = [];
+  let privateNotes: readonly PrivateNote[] = [];
   const reactions: [string, string, boolean][] = [];
   const writes: string[] = [];
   const notices: string[] = [];
@@ -74,11 +94,19 @@ function harness(settings: Partial<Council['settings']> = {}) {
     },
     async postNotice(_scope, text) {
       notices.push(text);
+      history.push({
+        ts: `${postNumber++}.000`,
+        text,
+        author: { kind: 'notice' },
+      });
       return success(undefined);
     },
     async setReaction(channel, ts, reaction, present) {
-      expect(reaction).toBe('hourglass_flowing_sand');
-      reactions.push([channel, ts, present]);
+      if (reaction === 'raised_hand' && present) handReactions.push(ts);
+      else {
+        expect(reaction).toBe('hourglass_flowing_sand');
+        reactions.push([channel, ts, present]);
+      }
       return success(undefined);
     },
   };
@@ -92,12 +120,29 @@ function harness(settings: Partial<Council['settings']> = {}) {
   };
 
   const runner = createChainRunner(
-    { ...COUNCIL, settings: { ...COUNCIL.settings, ...settings } },
-    [GUIDE, CRITIC],
+    {
+      ...COUNCIL,
+      roster: roster.map(({ id }) => id),
+      settings: { ...COUNCIL.settings, ...settings },
+    },
+    roster,
     {
       slack,
       clock,
+      notes: {
+        read: () => privateNotes,
+        async update(change, signal) {
+          if (signal?.aborted) return false;
+          privateNotes = change(privateNotes);
+          return true;
+        },
+      },
       turns: {
+        runListen(input) {
+          const task = Promise.withResolvers<Result<string>>();
+          listens.push({ input, finish: task.resolve });
+          return task.promise;
+        },
         runTurn(input) {
           const task = Promise.withResolvers<Result<string>>();
           calls.push({ input, finish: task.resolve });
@@ -117,6 +162,9 @@ function harness(settings: Partial<Council['settings']> = {}) {
     ...runner,
     calls,
     call,
+    listens,
+    handReactions,
+    privateNotes: () => privateNotes,
     history,
     cutoffs,
     notices,
@@ -290,7 +338,7 @@ it('times out an unresponsive turn even when the provider has not returned and d
 });
 
 it('settles a hung Slack post with a notice and ignores its late completion', async () => {
-  const h = harness({ rounds: 1 });
+  const h = harness({ rounds: 1, listen: 'settle' });
   const release = h.gateWrite();
   h.dispatch({
     type: 'human',
@@ -308,6 +356,7 @@ it('settles a hung Slack post with a notice and ignores its late completion', as
   await h.drain();
   expect(h.notices).toEqual(['Guide’s turn failed (E_SLACK).']);
   expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
+  expect(h.listens).toEqual([]);
 
   release(success(undefined));
   await vi.waitFor(() => expect(h.history.at(-1)?.text).toBe('For @critic'), {
@@ -339,3 +388,147 @@ it('pauses the turn budget during approval and resumes with its remaining time',
   await h.drain();
   expect(signal.reason).toBe('E_TURN_TIMEOUT');
 });
+
+it.each([
+  {
+    scenario: 'unseen posts and spoke last',
+    listen: 'settle',
+    answer: 'Answer',
+    stop: false,
+    expected: ['guide'],
+  },
+  {
+    scenario: 'both saw everything',
+    listen: 'settle',
+    answer: 'PASS',
+    stop: false,
+    expected: [],
+  },
+  {
+    scenario: 'listen off',
+    listen: 'off',
+    answer: 'Answer',
+    stop: false,
+    expected: [],
+  },
+  {
+    scenario: 'stopped before settle',
+    listen: 'settle',
+    answer: 'Answer',
+    stop: true,
+    expected: [],
+  },
+] as const)(
+  'chooses listeners at settle for $scenario',
+  async ({ listen, answer, stop, expected }) => {
+    const h = harness({ listen, rounds: 1 });
+    h.open();
+    await h.waitForCalls(2);
+    h.call(0).finish(success('PASS'));
+    h.call(1).finish(success(answer));
+    if (stop) h.dispatch({ type: 'stop' });
+    if (expected.length > 0) {
+      await vi.waitFor(() => expect(h.listens).toHaveLength(1), {
+        interval: 1,
+      });
+      expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
+      h.listens[0]?.finish(success('PASS'));
+    }
+    await h.drain();
+    expect(h.listens.map(({ input }) => input.member.id)).toEqual(expected);
+    expect(h.notices.some((note) => note.startsWith('✋'))).toBe(false);
+  },
+);
+
+const OBSERVER: Member = { ...GUIDE, id: 'observer', name: 'Observer' };
+
+it.each([
+  { second: 3, reacted: ['3.000'] },
+  { second: 2, reacted: ['3.000', '2.000'] },
+])(
+  'posts one notice and reacts once per target when the second hand points to #$second',
+  async ({ second, reacted }) => {
+    const h = harness({ listen: 'settle', rounds: 1 }, [
+      GUIDE,
+      CRITIC,
+      OBSERVER,
+    ]);
+    h.history.push({
+      ts: '2.000',
+      author: { kind: 'otherBot', displayName: 'Helper' },
+      text: 'Source data',
+    });
+    h.open();
+    await h.waitForCalls(3);
+    h.call(0).finish(success('PASS'));
+    h.call(1).finish(success('PASS'));
+    h.call(2).finish(success('Answer'));
+    await vi.waitFor(() => expect(h.listens).toHaveLength(2), { interval: 1 });
+    expect(h.cutoffs).toEqual(['1.000', undefined]);
+    expect(h.listens[0]?.input.prompt.user).toContain(
+      '[#3] [new] Observer (member): Answer',
+    );
+    expect(h.listens[1]?.input.prompt.user).toContain(
+      '[#2] [new] Helper (bot): Source data',
+    );
+    h.listens[0]?.finish(success('HAND #99: Outside the snapshot.'));
+    h.listens[1]?.finish(success(`HAND #${second}: Check the scope.`));
+    await vi.waitFor(() => expect(h.listens).toHaveLength(3), { interval: 1 });
+    expect(h.listens[2]?.input.prompt).toEqual(h.listens[0]?.input.prompt);
+    h.listens[2]?.finish(success('HAND [#3]: The assumption needs evidence.'));
+    await h.drain();
+    expect(h.notices).toEqual([
+      '✋ Guide and Critic have something to add. Mention them to hear it.',
+    ]);
+    expect(h.handReactions).toEqual(reacted);
+    expect(
+      h.privateNotes().map(({ memberId, targetTs }) => [memberId, targetTs]),
+    ).toEqual([
+      ['guide', '3.000'],
+      ['critic', second === 3 ? '3.000' : '2.000'],
+    ]);
+
+    // A notice is in history but has neither started a chain nor made an old
+    // batch eligible again when the observer passes on the next grant.
+    h.dispatch({
+      type: 'human',
+      chainId: 'check-notice',
+      ts: '4.000',
+      address: { kind: 'members', handles: ['observer'] },
+    });
+    await h.waitForCalls(4);
+    expect(h.call(3).input.prompt.user).toContain('Guide and Critic');
+    expect(h.call(3).input.prompt.user).not.toContain('<private_notes>');
+    h.call(3).finish(success('PASS'));
+    await h.drain();
+    expect(h.listens).toHaveLength(3);
+    expect(h.notices).toHaveLength(1);
+  },
+);
+
+it.each(['malformed', 'model failure', 'timeout'])(
+  'passes silently on a listen %s',
+  async (scenario) => {
+    const h = harness({ listen: 'settle', rounds: 1, turnTimeoutMs: 60_000 });
+    h.open();
+    await h.waitForCalls(2);
+    h.call(0).finish(success('PASS'));
+    h.call(1).finish(success('Answer'));
+    await vi.waitFor(() => expect(h.listens).toHaveLength(1), { interval: 1 });
+    expect([...h.timers.values()]).toEqual([10_000]);
+    if (scenario === 'timeout') h.timers.keys().next().value?.();
+    else if (scenario === 'model failure')
+      h.listens[0]?.finish(failure('E_TURN_FAILED', 'Provider information'));
+    else {
+      h.listens[0]?.finish(success('Not the protocol'));
+      await vi.waitFor(() => expect(h.listens).toHaveLength(2), {
+        interval: 1,
+      });
+      h.listens[1]?.finish(success('HAND #0: Still invalid.'));
+    }
+    await h.drain();
+    expect(h.notices).toEqual([]);
+    expect(h.privateNotes()).toEqual([]);
+    expect(h.listens).toHaveLength(scenario === 'malformed' ? 2 : 1);
+  },
+);

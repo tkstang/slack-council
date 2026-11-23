@@ -1,8 +1,9 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { TurnInput } from '@council/core/ports.js';
-import { APICallError } from 'ai';
+import { APICallError, tool } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 
 import { createProviderModels, createTurnRunner } from './turn-runner.js';
 
@@ -79,6 +80,67 @@ describe('createTurnRunner', () => {
       },
     ]);
     expect(call?.tools ?? []).toEqual([]);
+  });
+
+  it('runs a capped listen without resolving turn tools or effort', async () => {
+    const model = textModel('PASS');
+    const toolsFor = vi.fn(() => ({}));
+    const runner = createTurnRunner({ models: () => model, toolsFor });
+    const { member, prompt, signal } = input();
+    await expect(runner.runListen({ member, prompt, signal })).resolves.toEqual(
+      {
+        ok: true,
+        value: 'PASS',
+      },
+    );
+    expect(toolsFor).not.toHaveBeenCalled();
+    expect(model.doGenerateCalls).toHaveLength(1);
+    const call = model.doGenerateCalls[0];
+    expect(call?.tools ?? []).toEqual([]);
+    expect(call?.maxOutputTokens).toBe(256);
+    expect(call?.providerOptions).toBeUndefined();
+  });
+
+  it('blocks a tool call containing a private note before execution', async () => {
+    const privateNote = 'Check the assumption.';
+    const model = new MockLanguageModelV4({
+      doGenerate: {
+        content: [
+          { type: 'text', text: 'Here is the answer.' },
+          {
+            type: 'tool-call',
+            toolCallId: 'private',
+            toolName: 'use_text',
+            input: JSON.stringify({ text: privateNote }),
+          },
+          {
+            type: 'tool-call',
+            toolCallId: 'public',
+            toolName: 'use_text',
+            input: JSON.stringify({ text: 'Public follow-up.' }),
+          },
+        ],
+        finishReason: finish,
+        usage,
+        warnings: [],
+      },
+    });
+    const execute = vi.fn(async (_args: { text: string }) => 'Done');
+    const runner = createTurnRunner({
+      models: () => model,
+      toolsFor: () => ({
+        use_text: tool({
+          inputSchema: z.object({ text: z.string() }),
+          execute,
+        }),
+      }),
+    });
+    const result = await runner.runTurn(
+      input({ maxSteps: 1, privateNoteText: [privateNote] }),
+    );
+    expect(result.ok).toBe(true);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]?.[0]).toEqual({ text: 'Public follow-up.' });
   });
 
   it('sends effort in the request body for a dotted provider name, once', async () => {

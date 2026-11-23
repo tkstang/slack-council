@@ -15,3 +15,24 @@ export function parseTurnOutput(text: string): TurnOutput {
     ? { kind: 'pass' }
     : { kind: 'message', text };
 }
+
+export type ListenOutput =
+  | { readonly kind: 'pass' }
+  | { readonly kind: 'hand'; readonly targetTs: string; readonly note: string }
+  | { readonly kind: 'invalid' };
+
+export function parseListenOutput(
+  text: string,
+  targets: ReadonlyMap<number, string>,
+): ListenOutput {
+  if (parseTurnOutput(text).kind === 'pass') return { kind: 'pass' };
+  const match =
+    /^HAND[^\S\r\n]+(?:#\s*(\d+)|\[#\s*(\d+)\])\s*:\s*(.+)$/isu.exec(
+      text.trim(),
+    );
+  const note = match?.[3]?.trim();
+  const targetTs = targets.get(Number(match?.[1] ?? match?.[2]));
+  return targetTs !== undefined && note
+    ? { kind: 'hand', targetTs, note }
+    : { kind: 'invalid' };
+}

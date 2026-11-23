@@ -21,6 +21,7 @@ export interface CouncilSettings {
   readonly hopBudget: number;
   readonly maxTurnsPerChain: number;
   readonly unaddressed: 'silent' | 'council';
+  readonly listen: 'settle' | 'off';
   readonly contextChars: number;
   readonly turnTimeoutMs: number;
   readonly approvalTimeoutMs: number;
@@ -59,6 +60,18 @@ export interface HumanMessage {
   readonly author: HumanAuthor;
   /** Raw Slack-encoded event text, used only for addressing. */
   readonly text: string;
+}
+
+export const MAX_PRIVATE_NOTES_PER_MEMBER = 3;
+export const MAX_PRIVATE_NOTE_CHARS = 500;
+
+export interface PrivateNote {
+  readonly councilId: string;
+  readonly memberId: string;
+  readonly targetTs: string;
+  readonly note: string;
+  /** Latest content timestamp in the settle snapshot. */
+  readonly createdAtTs: string;
 }
 
 export type FloorKind = 'round' | 'react' | 'mention';

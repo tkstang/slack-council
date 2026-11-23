@@ -36,6 +36,7 @@ describe('configuration', () => {
       value: {
         council: {
           unaddressed: 'silent',
+          listen: 'settle',
           rounds: 2,
           hopBudget: 6,
           approvalTimeoutMs: 300_000,
@@ -113,6 +114,7 @@ describe('configuration', () => {
         },
       },
       { council: { hopBudget: -1 } },
+      { council: { listen: 'every-post' } },
       { council: { approvalTimeoutMs: 0 } },
       { council: { contextChars: 999 } },
       { tools: { files: { roots: [false] } } },

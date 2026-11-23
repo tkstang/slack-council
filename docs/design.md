@@ -134,15 +134,29 @@ quoted lines, so quoting someone's message does not address them.
 A member's turn prompt marks every post since it last spoke and tells it to raise
 any disagreement with those posts before answering what it was asked.
 
-### Raised hand (later batch)
+### Raised hand
 
-At settle, every member with posts it has not seen gets one **listen** call: no
-tools, small output, returning `PASS` or `HAND #<n>: <note>`. `#<n>` is resolved
-through the timestamp map of the exact transcript snapshot the member was shown.
-Malformed output is retried once, then treated as a pass. Notes are stored
-privately and shown to that member on its next turn. If any member raised a hand,
-the app posts one line as `council` naming them and adds ✋ to each target
-message. The line is needed because a reaction cannot identify the member.
+With `council.listen: "settle"` (the default), the reducer emits a settle
+effect after a chain finishes normally. The runner removes the hourglass,
+fetches one transcript for the batch, and asks each roster member with unseen
+posts from others to listen. It checks the member's last post, what the
+member saw on successful turns or earlier listens, and the timestamp of any
+outstanding hand. App notices do not count as new posts.
+
+A listen uses the member's model with no tools, one step, 256 output tokens,
+and up to 10 seconds or the configured turn timeout, whichever is shorter.
+The role brief and the transcript go in the user message. The model replies
+with `PASS` or `HAND #<n>: <note>`. The runner resolves `#<n>` to a timestamp
+from the visible `[new]` rows of that same snapshot. It retries malformed
+replies once within the same deadline. Model errors and timeouts pass silently.
+
+After the batch completes, the app saves the hands and posts one line naming
+the members who raised them. It adds the `raised_hand` reaction to each distinct
+target message. The names in the notice identify the members because every
+reaction comes from the same app bot. Listening uses no turns or hops.
+An addressed human message, stop, end, or shutdown cancels an in-flight
+batch and discards its results. Set `council.listen: "off"` to disable the
+feature. The switch follows the current config when the service opens.
 
 ## Context assembly
 
@@ -158,6 +172,7 @@ misrepresent other members as the responding assistant.
 [#3] You (Bo): …
 </transcript>
 <floor>Thomas addressed you in #4.</floor>
+<private_notes>…earlier hand notes for this member, when present…</private_notes>
 ```
 
 - Author labels come from Slack ids and the roster, never from message text.
@@ -170,7 +185,12 @@ misrepresent other members as the responding assistant.
 - Channel council: the most recent top-level messages within the same budget.
 - A member post is recognised by message metadata (`member` id), falling back to
   our `bot_id` plus `username`.
-- App notices appear as `council (system)`.
+- App notices appear as `council (system)` in real turns. The listen transcript
+  leaves them out.
+- A member's next real turn receives its own surviving hand notes and asks it
+  to raise the points in its own words. A note refers to the target's number
+  when the post is still visible. The app strips verbatim echoes from member
+  replies and blocks tool arguments that quote a private note.
 
 Output protocol: a turn that is only `PASS`, ignoring case, surrounding
 whitespace, markdown emphasis and trailing punctuation, posts nothing.
@@ -252,10 +272,14 @@ tested without Slack.
 
 ## State
 
-`stateDir/councils.json`, written atomically: councils, private notes and
-a bounded set of accepted human message keys, so a redelivery after a restart
-cannot reopen a round. Slack remains the record of
-what was said.
+`stateDir/councils.json` holds councils, a bounded set of accepted human message
+keys, and private hand notes. The service serializes changes and writes the
+file atomically. Each note stores the council, member, target timestamp, note
+text, and latest post timestamp from the settle snapshot. The store retains
+the newest three notes per member and council, up to 500 characters each.
+A successful post or pass consumes the notes the member was shown. Ending a
+council removes its notes. Older state files load with an empty note list.
+Slack remains the record of what was said.
 
 ## Configuration
 

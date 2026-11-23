@@ -17,6 +17,7 @@ const DEFAULTS = {
   hopBudget: 6,
   maxTurnsPerChain: 24,
   unaddressed: 'silent',
+  listen: 'off',
 } as const;
 const PASS = { kind: 'pass' } as const;
 type Started = Extract<EngineEffect, { type: 'run-turn' }>;

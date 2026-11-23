@@ -30,7 +30,7 @@ export interface EngineState {
   readonly roster: readonly string[];
   readonly settings: Pick<
     CouncilSettings,
-    'rounds' | 'hopBudget' | 'maxTurnsPerChain' | 'unaddressed'
+    'rounds' | 'hopBudget' | 'maxTurnsPerChain' | 'unaddressed' | 'listen'
   >;
   readonly ended: boolean;
   readonly active?: Chain;
@@ -65,6 +65,7 @@ export type EngineEffect =
       readonly ts: string;
       readonly present: boolean;
     })
+  | (ChainRef & { readonly type: 'settled' })
   | ((TurnRef | ChainRef) & { readonly type: 'limit-notice' })
   | (TurnRef & {
       readonly type: 'turn-notice';
@@ -197,6 +198,9 @@ function advance(state: EngineState, effects: EngineEffect[]): EngineState {
   const first = chain.queued[0];
   if (!first) {
     effects.push(progress(chain, false));
+    if (state.settings.listen === 'settle') {
+      effects.push({ type: 'settled', chainId: chain.id, turnId: null });
+    }
     return { ...state, active: undefined };
   }
 

@@ -13,6 +13,7 @@ export type {
   ApprovalRequest,
   Clock,
   IdSource,
+  ListenInput,
   SlackPort,
   Store,
   StoredState,
@@ -41,6 +42,7 @@ export type {
   HumanMessage,
   Member,
   Message,
+  PrivateNote,
   Prompt,
   Scope,
 } from '@council/core/types.js';

@@ -1,5 +1,12 @@
 import type { Result } from './result.js';
-import type { Council, Member, Message, Prompt, Scope } from './types.js';
+import type {
+  Council,
+  Member,
+  Message,
+  PrivateNote,
+  Prompt,
+  Scope,
+} from './types.js';
 
 export interface TurnRef {
   readonly chainId: string;
@@ -69,18 +76,24 @@ export interface TurnInput extends TurnRef {
   readonly maxSteps: number;
   readonly signal: AbortSignal;
   readonly approval?: TurnApproval;
+  /** Private text that must stay out of tool arguments and approval previews. */
+  readonly privateNoteText?: readonly string[];
   /** Exclusive default cutoff for retrieving messages before the prompt. */
   readonly historyBeforeTs?: string;
 }
 
+export type ListenInput = Pick<TurnInput, 'member' | 'prompt' | 'signal'>;
+
 export interface TurnRunner {
   runTurn(input: TurnInput): Promise<Result<string>>;
+  runListen(input: ListenInput): Promise<Result<string>>;
 }
 
 export interface StoredState {
   readonly councils: readonly Council[];
   /** Oldest accepted key first. */
   readonly acceptedMessageKeys: readonly string[];
+  readonly privateNotes: readonly PrivateNote[];
 }
 
 export interface Store {

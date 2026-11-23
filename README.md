@@ -124,6 +124,12 @@ being in the channel, are reported to you ephemerally.
 Once convened, address a member with `@<handle>`, and use `@council stop` or
 `@council end`.
 
+After the hourglass clears, members with unseen posts can raise a hand. Look
+for a ✋ reaction on the post and a notice naming the members. Mention one of
+them to hear their point. The council saves their private notes until their
+next turn posts or passes. Set `council.listen` to `"off"` to disable this
+behavior. The default is `"settle"`.
+
 ## Member tools
 
 Set `members.<handle>.tools` to the grants that member can use. An empty list
@@ -192,6 +198,9 @@ the roster modal that `registerCouncilHandlers` serves for `/council` and the
 accepted message keys across restarts. It dispatches floor grants and removes
 ended councils after saving. Both `stop` and `end` cancel active turns before
 saving so cancellation stays responsive during a slow or failed save.
+
+The model port provides `runTurn` for real turns and `runListen` for the
+bounded, tool-free check at settle. Both receive an abort signal.
 
 The Slack port reads oldest-to-newest history with an inclusive cutoff, posts
 members with chain and turn metadata, and neutralises broadcast mentions. Call

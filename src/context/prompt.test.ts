@@ -1,7 +1,7 @@
 import type { Member, Message } from '@council/core/types.js';
 import { expect, it } from 'vitest';
 
-import { buildPrompt, type PromptInput } from './prompt.js';
+import { buildListenContext, buildPrompt, type PromptInput } from './prompt.js';
 
 const GUIDE: Member = {
   id: 'guide',
@@ -118,4 +118,37 @@ it('keeps a bounded excerpt of an oversized latest question without breaking esc
     /^\[#1\] \[new\] Reader \(human\): … (?:&lt;|&gt;|&amp;)* Last question\?$/u,
   );
   expect(rows?.length).toBeLessThanOrEqual(70);
+});
+
+it('maps only numbered new posts visible in the bounded listening snapshot', () => {
+  const context = buildListenContext(
+    {
+      member: GUIDE,
+      roster: [GUIDE, CRITIC],
+      contextChars: 160,
+      messages: [
+        {
+          ts: '1',
+          author: { kind: 'member', memberId: 'critic' },
+          text: 'Abbreviate '.repeat(100),
+        },
+        {
+          ts: '2',
+          author: { kind: 'member', memberId: 'guide' },
+          text: 'Earlier reply',
+        },
+        {
+          ts: '3',
+          author: { kind: 'member', memberId: 'critic' },
+          text: 'Latest reply',
+        },
+      ],
+    },
+    2,
+  );
+  expect(context.prompt.user).toContain(
+    '[#3] [new] Critic (member): Latest reply',
+  );
+  expect(context.prompt.user).not.toContain('[#1]');
+  expect(context.targets).toEqual(new Map([[3, '3']]));
 });

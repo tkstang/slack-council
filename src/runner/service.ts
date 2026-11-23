@@ -115,6 +115,7 @@ export async function openCouncilService(
   const writes = createSerialQueue();
   let shutdownTask: Promise<void> | undefined;
   const saved = unwrap(await store.load());
+  let privateNotes = saved.privateNotes;
   let accepted = new Set(
     saved.acceptedMessageKeys.slice(-MAX_ACCEPTED_MESSAGES),
   );
@@ -146,6 +147,30 @@ export async function openCouncilService(
         turns,
         clock,
         onEffectFailure,
+        notes: {
+          read: () =>
+            privateNotes.filter(({ councilId }) => councilId === council.id),
+          update: (change, signal) =>
+            writes.run(async () => {
+              if (
+                signal?.aborted ||
+                entries.get(scopeKey(council.scope))?.council !== council
+              )
+                return false;
+              const next = change(
+                privateNotes.filter(
+                  ({ councilId }) => councilId === council.id,
+                ),
+              );
+              await save(councils(), undefined, undefined, [
+                ...privateNotes.filter(
+                  ({ councilId }) => councilId !== council.id,
+                ),
+                ...next,
+              ]);
+              return true;
+            }),
+        },
       }),
     };
   }
@@ -169,7 +194,16 @@ export async function openCouncilService(
       dormant.set(key, council);
       continue;
     }
-    entries.set(key, makeEntry(council, 'E_INVALID_STATE'));
+    entries.set(
+      key,
+      makeEntry(
+        {
+          ...council,
+          settings: { ...council.settings, listen: config.council.listen },
+        },
+        'E_INVALID_STATE',
+      ),
+    );
   }
 
   function makeCouncil(input: ConveneInput): Entry {
@@ -219,18 +253,26 @@ export async function openCouncilService(
     records: readonly Council[],
     acceptedMessageKeys = [...accepted],
     endedDormant?: string,
+    notes = privateNotes,
   ): Promise<void> {
     // A council convened in a dormant council's scope replaces it. The dormant
     // record leaves memory only once the save has succeeded.
     const replaced = new Set(records.map(({ scope }) => scopeKey(scope)));
     if (endedDormant !== undefined) replaced.add(endedDormant);
     const kept = [...dormant].filter(([key]) => !replaced.has(key));
+    const retained = [...records, ...kept.map(([, council]) => council)];
+    const retainedIds = new Set(retained.map(({ id }) => id));
+    const retainedNotes = notes.filter(({ councilId }) =>
+      retainedIds.has(councilId),
+    );
     unwrap(
       await store.save({
-        councils: [...records, ...kept.map(([, council]) => council)],
+        councils: retained,
         acceptedMessageKeys,
+        privateNotes: retainedNotes,
       }),
     );
+    privateNotes = retainedNotes;
     for (const key of replaced) dormant.delete(key);
   }
 
@@ -284,6 +326,11 @@ export async function openCouncilService(
         );
         if (receivedAddress.kind === 'stop' || receivedAddress.kind === 'end')
           received?.runner.dispatch({ type: 'stop' });
+        else if (
+          receivedAddress.kind !== 'unaddressed' ||
+          received?.council.settings.unaddressed === 'council'
+        )
+          received?.runner.cancelListening();
 
         return await writes.run(async () => {
           const current = entries.get(key);
@@ -367,6 +414,7 @@ export async function openCouncilService(
     },
 
     shutdown() {
+      for (const { runner } of entries.values()) runner.cancelListening();
       shutdownTask ??= (async () => {
         await writes.drain();
         const active = [...entries.values()];
