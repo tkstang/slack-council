@@ -109,7 +109,8 @@ to start one:
   "Council convened by <name>: <question>" in the channel and convenes in that
   message's thread, or, if you choose **This whole channel** under **Where**,
   in the channel itself. Slack does not run slash commands inside threads.
-- **Message shortcut.** Choose **Start a council** from a message's menu. The
+- **Message shortcut.** Choose **Start a council** from a message's **More
+  actions** menu, under **Connect to apps**. The
   council convenes in that message's thread, or the thread it replies in. The
   app posts "Council convened by <name>" in the thread, with any question typed
   in the modal; left empty, the post quotes up to 1,000 characters of the
@@ -132,17 +133,17 @@ app ignores posts from bots, itself included.
 
 Everything you can do in Slack once the app is running:
 
-| You write or click                          | Where                            | What happens                                                                                          | Acknowledgement               |
-| ------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `@council <question>`                       | Channel, top level               | Convenes the default preset in that message's thread. Every member answers, then a react round runs.  | ⏳ while members work         |
-| `@council <question>`                       | A council's thread or channel    | Opens a new round for the whole roster.                                                               | ⏳                            |
-| `/council [question]`                       | Channel composer                 | Opens the roster picker (preset, members, question, thread or whole channel).                         | "Council convened by …" post  |
-| **Start a council** message shortcut        | A message's menu                 | Opens the picker; the council convenes in that message's thread.                                      | "Council convened by …" post  |
-| `@<handle>` (one or several)                | A council's thread or channel    | Only those members answer.                                                                            | ⏳                            |
-| A message with no `@council` or `@<handle>` | A council's thread or channel    | Nobody answers; members read it as context on their next turn. `council.unaddressed` can change this. | 👀 in a thread council        |
-| `@council stop`                             | A council's thread or channel    | Cancels running and queued turns. The council stays.                                                  | 🛑                            |
-| `@council end`                              | A council's thread or channel    | Cancels turns and ends the council.                                                                   | 👋                            |
-| **Approve** or **Deny**                     | A tool request posted by the app | Runs or refuses that one tool call. Allow-listed users only.                                          | The request shows who decided |
+| You write or click                          | Where                                       | What happens                                                                                          | Acknowledgement               |
+| ------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `@council <question>`                       | Channel, top level                          | Convenes the default preset in that message's thread. Every member answers, then a react round runs.  | ⏳ while members work         |
+| `@council <question>`                       | A council's thread or channel               | Opens a new round for the whole roster.                                                               | ⏳                            |
+| `/council [question]`                       | Channel composer                            | Opens the roster picker (preset, members, question, thread or whole channel).                         | "Council convened by …" post  |
+| **Start a council** message shortcut        | A message's menu, under **Connect to apps** | Opens the picker; the council convenes in that message's thread.                                      | "Council convened by …" post  |
+| `@<handle>` (one or several)                | A council's thread or channel               | Only those members answer.                                                                            | ⏳                            |
+| A message with no `@council` or `@<handle>` | A council's thread or channel               | Nobody answers; members read it as context on their next turn. `council.unaddressed` can change this. | 👀 in a thread council        |
+| `@council stop`                             | A council's thread or channel               | Cancels running and queued turns. The council stays.                                                  | 🛑                            |
+| `@council end`                              | A council's thread or channel               | Cancels turns and ends the council.                                                                   | 👋                            |
+| **Approve** or **Deny**                     | A tool request posted by the app            | Runs or refuses that one tool call. Allow-listed users only.                                          | The request shows who decided |
 
 A member handle is plain text that the app reads; Slack does not autocomplete
 it. `@council` works as the real app mention or as plain text. `stop` and
