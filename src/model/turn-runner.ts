@@ -15,9 +15,13 @@ import {
   APICallError,
   generateText,
   isStepCount,
+  RetryError,
   type LanguageModel,
   type ToolSet,
 } from 'ai';
+
+// Provider warnings can carry model-supplied text; keep them out of the log.
+globalThis.AI_SDK_LOG_WARNINGS = false;
 
 /** Resolves a configured provider name and model id to an AI SDK model. */
 export type ModelFactory = (provider: string, model: string) => LanguageModel;
@@ -62,7 +66,9 @@ function abortFailure(signal: AbortSignal): Failure {
     : failure('E_TURN_ABORTED', 'Turn was cancelled');
 }
 
-function modelFailure(error: unknown): Failure {
+function modelFailure(thrown: unknown): Failure {
+  // After the retry the SDK wraps the last provider error.
+  const error = RetryError.isInstance(thrown) ? thrown.lastError : thrown;
   // Provider messages can echo request content, so only the status is kept.
   if (APICallError.isInstance(error) && error.statusCode !== undefined) {
     return failure(
@@ -122,6 +128,7 @@ export function createTurnRunner({
     try {
       const tools =
         turn && protectToolArguments(toolsFor?.(turn), turn.privateNoteText);
+      const lastStep = (turn?.maxSteps ?? 1) - 1;
       const generation = generateText({
         model: models(member.provider, member.model),
         system: prompt.system,
@@ -130,9 +137,20 @@ export function createTurnRunner({
         stopWhen: isStepCount(turn?.maxSteps ?? 1),
         ...(turn ? {} : { maxOutputTokens: 600 }),
         abortSignal: signal,
-        // The turn contract: nothing is retried.
-        maxRetries: 0,
-        ...(tools === undefined ? {} : { tools }),
+        // One retry of a failed model request (429, 5xx, network). The SDK
+        // never repeats a tool call, so a retry cannot repeat a side effect.
+        maxRetries: 1,
+        ...(tools === undefined
+          ? {}
+          : {
+              tools,
+              // The last step must be the reply: a tool call there would end
+              // the turn with nothing to post after the tools already ran.
+              prepareStep: ({ stepNumber }) =>
+                stepNumber >= lastStep && lastStep > 0
+                  ? { toolChoice: 'none' as const }
+                  : undefined,
+            }),
         ...(effort === undefined
           ? {}
           : {
@@ -142,7 +160,13 @@ export function createTurnRunner({
                 openaiCompatible: { reasoningEffort: effort },
               },
             }),
-      }).then(({ text }) => success(text));
+      }).then(({ text, finishReason }) =>
+        // A reply cut off at the output limit is not posted as if complete.
+        // A listen note is private, so a short one is still useful.
+        turn && finishReason === 'length'
+          ? failure('E_TURN_FAILED', 'Model reply was cut off at its limit')
+          : success(text),
+      );
       const result = await Promise.race([aborted.promise, generation]);
       if (signal.aborted) {
         generation.catch(() => undefined);

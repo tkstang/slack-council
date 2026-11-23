@@ -13,6 +13,12 @@ describe('prefilterSlackEvent', () => {
   it.each([
     ['plain human message', base, true],
     ['file share', { ...base, subtype: 'file_share' }, true],
+    [
+      'thread reply also sent to the channel',
+      { ...base, subtype: 'thread_broadcast', thread_ts: '1.000000' },
+      true,
+    ],
+    ['post carrying a bot profile', { ...base, bot_profile: {} }, false],
     ['app mention', { ...base, type: 'app_mention', text: '<@UAPP> hi' }, true],
     [
       'own custom-identity post',

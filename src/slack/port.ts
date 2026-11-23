@@ -280,7 +280,9 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
     method: string,
     args: Record<string, unknown>,
   ): Promise<SlackCall> {
-    return queue.run(channel, () => callSlack(writeApi, method, args));
+    return queue.run(channel, () =>
+      callSlack(writeApi, method, args, { retryRateLimited: true }),
+    );
   }
 
   return {

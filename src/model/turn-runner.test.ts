@@ -183,7 +183,7 @@ describe('createTurnRunner', () => {
     await runner.runTurn(input({ member }));
     expect(bodies[1]).not.toHaveProperty('reasoning_effort');
 
-    status = 500;
+    status = 400;
     await expect(runner.runTurn(input())).resolves.toMatchObject({
       ok: false,
       code: 'E_TURN_FAILED',
@@ -235,6 +235,77 @@ describe('createTurnRunner', () => {
       code: 'E_TURN_FAILED',
       message: 'Model call failed with HTTP 401',
     });
+  });
+
+  it('retries a retryable provider error once and keeps its status', async () => {
+    vi.useFakeTimers();
+    try {
+      const busy = new MockLanguageModelV4({
+        doGenerate: () => {
+          throw new APICallError({
+            message: 'busy',
+            url: 'https://models.example.com/v1/chat/completions',
+            requestBodyValues: {},
+            statusCode: 503,
+            isRetryable: true,
+          });
+        },
+      });
+      const pending = createTurnRunner({ models: () => busy }).runTurn(input());
+      await vi.runAllTimersAsync();
+      await expect(pending).resolves.toEqual({
+        ok: false,
+        code: 'E_TURN_FAILED',
+        message: 'Model call failed with HTTP 503',
+      });
+      expect(busy.doGenerateCalls).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails a reply that was cut off at the output limit', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: {
+        content: [{ type: 'text', text: 'Half a sent' }],
+        finishReason: { unified: 'length', raw: 'length' },
+        usage,
+        warnings: [],
+      },
+    });
+    const result = await createTurnRunner({ models: () => model }).runTurn(
+      input(),
+    );
+    expect(result).toMatchObject({ ok: false, code: 'E_TURN_FAILED' });
+  });
+
+  it('forbids tool calls on the last step so the turn ends with a reply', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: {
+        content: [
+          {
+            type: 'tool-call',
+            toolCallId: 'call',
+            toolName: 'look',
+            input: '{}',
+          },
+        ],
+        finishReason: { unified: 'tool-calls', raw: 'tool_calls' },
+        usage,
+        warnings: [],
+      },
+    });
+    const runner = createTurnRunner({
+      models: () => model,
+      toolsFor: () => ({
+        look: tool({ inputSchema: z.object({}), execute: async () => 'seen' }),
+      }),
+    });
+    await runner.runTurn(input({ maxSteps: 2 }));
+    expect(model.doGenerateCalls.map((call) => call.toolChoice?.type)).toEqual([
+      'auto',
+      'none',
+    ]);
   });
 });
 

@@ -36,17 +36,36 @@ export function slackErrorCode(error: unknown): string {
   );
 }
 
-/** Call once. Never retries and never throws. */
+/** The longest Retry-After a write waits out before giving up. */
+export const MAX_RATE_LIMIT_WAIT_MS = 30_000;
+
+function rateLimitWaitMs(error: unknown): number | undefined {
+  if (field(error, 'code') !== webApi.ErrorCode.RateLimitedError) return;
+  const seconds = field(error, 'retryAfter');
+  if (typeof seconds !== 'number' || !(seconds >= 0)) return;
+  const wait = seconds * 1_000;
+  return wait <= MAX_RATE_LIMIT_WAIT_MS ? wait : undefined;
+}
+
+/**
+ * Call once and never throw. With `retryRateLimited`, a call Slack refused as
+ * rate limited is sent once more after the wait Slack asked for: a refusal is
+ * a definite "not done", unlike a timeout, so resending cannot duplicate it.
+ */
 export async function callSlack(
   api: SlackApi,
   method: string,
   options: Record<string, unknown>,
+  { retryRateLimited = false }: { readonly retryRateLimited?: boolean } = {},
 ): Promise<SlackCall> {
   let response: unknown;
   try {
     response = await api.apiCall(method, options);
   } catch (error) {
-    return { ok: false, error: slackErrorCode(error) };
+    const wait = retryRateLimited ? rateLimitWaitMs(error) : undefined;
+    if (wait === undefined) return { ok: false, error: slackErrorCode(error) };
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    return callSlack(api, method, options);
   }
   if (typeof response !== 'object' || response === null) {
     return { ok: false, error: 'invalid_response' };
@@ -73,7 +92,8 @@ export interface SlackClientOptions {
 
 /**
  * Build the read and write clients. Both time out; reads retry twice with a
- * short backoff, writes never retry and fail fast when rate limited.
+ * short backoff. Writes are never resent by the client; `callSlack` resends
+ * one that Slack refused as rate limited.
  */
 export function createSlackClients(
   token: string,

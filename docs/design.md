@@ -129,7 +129,11 @@ quoted lines, so quoting someone's message does not address them.
   but their mentions grant nothing. The new chain's first turns start after
   those turns have finished.
 - A turn that fails, times out or is aborted releases its grant. The app posts a
-  one-line notice naming the member. Nothing is retried.
+  one-line notice naming the member. A failed turn is not rerun. Within a turn,
+  one failed model request (429, 5xx or a network error) is retried once; tool
+  calls are never repeated. A reply cut off at the model's output limit fails
+  the turn. On a turn's last step the model may not call tools, so a turn that
+  used tools still ends with a reply.
 - A chain settles when its queue is empty, nothing is running and every post has
   been written. Settling removes the progress indicator.
 
@@ -251,7 +255,8 @@ produce mention grants.
 Bolt in Socket Mode behind a narrow `SlackPort`, so the engine and runner are
 tested without Slack.
 
-- Inbound: accept `message` events with no subtype or `file_share`; drop our own
+- Inbound: accept `message` events with no subtype, or `file_share`,
+  `thread_broadcast` or `me_message`; drop our own
   `bot_id`; dedupe on `channel:ts` before any await.
 - Routing: a thread reply belongs to its thread. A top-level message belongs to
   the channel council when the channel has one; a top-level `@council end` also
@@ -298,7 +303,8 @@ tested without Slack.
     `not_in_channel`, reach the user through the response URL and are logged
     with fixed fields only.
 - Posting: per-channel serial queue, at least one second apart, no automatic
-  retry of a write whose outcome is unknown. Every Slack call has a finite
+  retry of a write whose outcome is unknown. A write Slack refuses as rate
+  limited is sent once more after the wait Slack names, up to 30 s. Every Slack call has a finite
   timeout: a write gets one attempt of 15 s, then the queue moves on; reads
   retry at most twice. A member turn is one message: text over Slack's
   12,000-character `markdown_text` limit is truncated with a closing

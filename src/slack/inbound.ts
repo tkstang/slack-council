@@ -17,12 +17,21 @@ const InboundEvent = z.looseObject({
   type: z.enum(['message', 'app_mention']),
   subtype: z.string().optional(),
   bot_id: z.string().optional(),
+  bot_profile: z.unknown().optional(),
   user: z.string().optional(),
   channel: z.string(),
   ts: z.string(),
   thread_ts: z.string().optional(),
   text: z.string().optional(),
 });
+
+// New messages a person can write: with a file, a thread reply also sent to
+// the channel, and a /me message.
+const HUMAN_SUBTYPES = new Set([
+  'file_share',
+  'thread_broadcast',
+  'me_message',
+]);
 
 /**
  * Keep only human-authored new messages. Edits, deletes and other subtypes are
@@ -34,8 +43,13 @@ export function prefilterSlackEvent(
   const parsed = InboundEvent.safeParse(event);
   if (!parsed.success) return undefined;
   const { subtype, bot_id: botId, user, channel, ts, text = '' } = parsed.data;
-  if (subtype !== undefined && subtype !== 'file_share') return undefined;
-  if (botId !== undefined || user === undefined) return undefined;
+  if (subtype !== undefined && !HUMAN_SUBTYPES.has(subtype)) return undefined;
+  if (
+    botId !== undefined ||
+    parsed.data.bot_profile !== undefined ||
+    user === undefined
+  )
+    return undefined;
   const threadTs = parsed.data.thread_ts;
   return threadTs === undefined || threadTs === ts
     ? { channel, ts, userId: user, text }
