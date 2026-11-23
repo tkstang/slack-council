@@ -42,9 +42,19 @@ model plus an effort level, a persona and a set of tool grants.
   and the `username`. A reaction belongs to the app's single bot user, so a ✋
   reaction cannot show which member raised it. Slash commands cannot be invoked in
   threads. `trigger_id` lasts three seconds. Internal apps keep Tier 3 history limits.
-- Still to verify live: whether the app receives events for its own posts, whether
-  `chat.update` keeps a custom identity, and whether `markdown_text` works with a
-  custom `username`.
+- Checked live on 2026-11-23: the app does receive `message` events for its own
+  posts. Posts as the app arrive with our `bot_id` and no subtype; custom-identity
+  posts arrive as `bot_message` with our `bot_id` and the `username`. Bolt's
+  `ignoreSelf` drops both, and the inbound prefilter drops any `bot_id` as well.
+- `markdown_text` works with a custom `username` and `icon_emoji`. Read back, the
+  message `text` is mrkdwn: `**bold**` becomes `*bold*`, `<`, `>` and `&` are
+  entity-escaped, and a fenced block keeps its code but loses its language tag
+  and the line breaks next to the fences. The adapter decodes the entities, which
+  leaves the code intact for a transcript. The `rich_text` blocks hold the exact
+  code and its language if a later batch needs them. A plain `@here` in
+  `markdown_text` reads back as plain text, not `<!here>`; it is neutralised
+  anyway.
+- Still to verify live: whether `chat.update` keeps a custom identity.
 
 ## Concepts
 

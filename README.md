@@ -18,8 +18,92 @@ providers. Provider keys are named by environment variable. A relative
 `stateDir` resolves from the process working directory.
 
 Source modules live in `src/core`, `src/config`, `src/engine`, `src/context`,
-`src/runner`, and `src/store`. Imports within a directory use relative paths and
+`src/runner`, `src/store`, `src/model` (the AI SDK turn runner), `src/slack`
+(the Bolt adapter) and `src/app` (startup wiring). Imports within a directory use relative paths and
 cross-directory imports use `@council/*`.
+
+## Run it in Slack
+
+### 1. Create the Slack app
+
+Create an app from a manifest at <https://api.slack.com/apps> and install it to
+your workspace. Socket Mode means no public URL is needed.
+
+```yaml
+display_information:
+  name: council
+features:
+  bot_user:
+    display_name: council
+    always_online: true
+  slash_commands:
+    - command: /council
+      description: Start a council
+      should_escape: false
+  shortcuts:
+    - name: Start a council
+      type: message
+      callback_id: council_start
+      description: Convene a council on this message
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:history
+      - channels:read
+      - groups:history
+      - groups:read
+      - chat:write
+      - chat:write.customize
+      - commands
+      - reactions:read
+      - reactions:write
+      - users:read
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_mention
+      - message.channels
+      - message.groups
+  interactivity:
+    is_enabled: true
+  socket_mode_enabled: true
+```
+
+Under **Basic Information → App-Level Tokens**, create a token with the
+`connections:write` scope. Invite the app to each channel it should serve.
+
+### 2. Configure
+
+Copy `council.config.example.json` to a private path, for example
+`.council/council.config.json` (gitignored). Set `slack.allowedUsers` to the
+Slack user ids that may convene councils, and point each provider at an
+OpenAI-compatible endpoint.
+
+Create `.env` in the repo root (gitignored):
+
+```sh
+SLACK_BOT_TOKEN=   # Bot User OAuth Token, xoxb-…
+SLACK_APP_TOKEN=   # App-Level Token with connections:write, xapp-…
+COUNCIL_MODEL_API_KEY=   # one variable per provider, named by its apiKeyEnv
+```
+
+### 3. Start
+
+```sh
+pnpm build
+node --env-file=.env dist/cli.js start --config .council/council.config.json
+```
+
+`start` prints one JSON line when connected, logs JSON lines to stderr and
+shuts down cleanly on Ctrl-C or SIGTERM. A missing variable fails with
+`E_MISSING_ENV` and names the variable.
+
+In a channel the app has joined, an allowed user writes `@council <question>`.
+On a top-level message the default preset convenes in that message's thread;
+inside a thread it convenes for that thread. Address a member with `@<handle>`,
+and use `@council stop` or `@council end`. `/council` and the message shortcut
+reply that the roster picker is not built yet.
 
 ## Adapter entry points
 
