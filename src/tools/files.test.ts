@@ -23,7 +23,10 @@ beforeEach(async () => {
   await mkdir(join(root, '.cfg'), { recursive: true });
   await Promise.all([
     writeFile(join(root, '.cfg', '.env'), 'first\nneedle\n'),
-    writeFile(join(root, '.cfg', 'server.key'), 'first\nneedle\n'),
+    writeFile(join(root, '.cfg', 'SERVER.KEY'), 'first\nneedle\n'),
+    mkdir(join(root, 'line\nbreak')).then(() =>
+      writeFile(join(root, 'line\nbreak', '.env'), 'first\nneedle\n'),
+    ),
     writeFile(join(root, 'public.txt'), 'first\nneedle\n'),
     writeFile(join(root, '.env'), 'needle'),
     writeFile(join(tmp, 'outside.txt'), 'needle'),
@@ -44,8 +47,13 @@ it.each([
   ['a symlink escaping the root', 'root/escape.txt', true, false],
   ['a denied file', 'root/.env', true, false],
   ['a denied file in a dot-directory', 'root/.cfg/.env', true, false],
-  ['a key in a dot-directory', 'root/.cfg/server.key', true, false],
-  ['a denied name in another case', 'root/.ENV', true, false],
+  ['an upper-case key in a dot-directory', 'root/.cfg/SERVER.KEY', true, false],
+  [
+    'a denied file under a name with a line break',
+    'root/line\nbreak/.env',
+    true,
+    false,
+  ],
   ['an alias of a denied file', 'root/alias.txt', true, false],
   ['a denied alias', 'root/.env.alias', true, false],
   ['an absent file', 'root/missing.txt', true, false],
@@ -93,7 +101,7 @@ it.each(['search', 'listing'] as const)(
         (listed as { value: { entries: { name: string }[] } }).value.entries
           .map(({ name }) => name)
           .toSorted(),
-      ).toEqual(['.cfg', 'public.txt']);
+      ).toEqual(['.cfg', 'line\nbreak', 'public.txt']);
     } else {
       expect(
         await search_files.execute?.({ path: root, query: 'needle' }, options),

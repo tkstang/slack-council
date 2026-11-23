@@ -38,20 +38,21 @@ function inside(root: string, path: string): boolean {
   return !isAbsolute(part) && part !== '..' && !part.startsWith(`..${sep}`);
 }
 
-const folded = process.platform === 'darwin' || process.platform === 'win32';
-
 // Compile a deny glob (single star, double star, question mark). Unlike
 // path.matchesGlob, wildcards match dot segments, so the env-file pattern also
 // denies an env file inside a dot-directory. A trailing slash-double-star denies
-// the directory itself as well as its contents.
-function compileGlob(glob: string, ignoreCase: boolean): RegExp {
+// the directory itself as well as its contents. Matching ignores case on every
+// platform and crosses line breaks in names: a deny rule should over-match.
+function compileGlob(glob: string): RegExp {
   let source = '';
   for (let index = 0; index < glob.length; index += 1) {
     const char = glob[index] ?? '';
     if (char === '*' && glob[index + 1] === '*') {
-      index += 1;
+      while (glob[index + 1] === '*') index += 1;
       if (glob[index + 1] === '/') {
         index += 1;
+        // Repeated double-star segments mean the same as one.
+        while (glob.startsWith('**/', index + 1)) index += 3;
         source += '(?:.*/)?';
       } else {
         source += '.*';
@@ -65,8 +66,11 @@ function compileGlob(glob: string, ignoreCase: boolean): RegExp {
     }
   }
   source = source.replace(/\/\.\*$/u, '(?:/.*)?');
-  return new RegExp(`^${source}$`, ignoreCase ? 'iu' : 'u');
+  return new RegExp(`^${source}$`, 'isu');
 }
+
+const toPosix = (path: string) =>
+  sep === '/' ? path : path.replaceAll(sep, '/');
 
 export function createFileTools(config: ToolsConfig['files']): FileTools {
   // Pin roots to their canonical paths. A missing or inaccessible root grants nothing.
@@ -84,7 +88,7 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
     }),
   ).then((resolved) => resolved.flat());
 
-  const denyPatterns = config.deny.map((glob) => compileGlob(glob, folded));
+  const denyPatterns = config.deny.map(compileGlob);
 
   function denied(path: string, root: string): boolean {
     for (let current = path; ; current = dirname(current)) {
@@ -93,7 +97,7 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
         : [current];
       if (
         denyPatterns.some((pattern) =>
-          candidates.some((candidate) => pattern.test(candidate)),
+          candidates.some((candidate) => pattern.test(toPosix(candidate))),
         )
       )
         return true;

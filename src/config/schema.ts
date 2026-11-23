@@ -87,7 +87,14 @@ const ToolsSchema = z.strictObject({
   files: z
     .strictObject({
       roots: z.array(nonempty).default([]),
-      deny: z.array(nonempty).default(DEFAULT_DENY),
+      deny: z
+        .array(
+          nonempty.regex(
+            /^[^[\]{}!\\]+$/u,
+            'Deny globs support only *, ** and ?',
+          ),
+        )
+        .default(DEFAULT_DENY),
     })
     .prefault({}),
   mcpServers: z.record(mcpServerKey, McpServerSchema).default({}),
