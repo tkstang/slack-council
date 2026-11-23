@@ -10,7 +10,8 @@ to the log.
 
 Start the app with a config that has two members on different model families,
 the notes example server with `notes__append_note` set to `ask`, and yourself
-in `slack.allowedUsers`. Use cheap models. Send every message as a real user in
+in `slack.allowedUsers`. Leave `council.unaddressed` at its default, `silent`.
+Use cheap models. Send every message as a real user in
 the Slack client: messages injected below the adapter do not prove it.
 
 ## Checklist

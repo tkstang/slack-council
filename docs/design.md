@@ -246,7 +246,7 @@ produce mention grants.
 - Approval uses the first matching exact name or prefix ending in `*`.
   Built-in read tools default to `auto` and MCP tools default to `ask`. An
   `ask` call posts the member, tool and the full arguments with Approve and
-  Deny buttons; arguments too long to show in full are refused, never cut. The opaque request id binds the decision to the arguments,
+  Deny buttons. Each argument is a `name: value` line; a string is shown without quotes only when it is one plain line that is not itself JSON, and invisible characters are escaped. Arguments too long to show in full are refused, never cut. The opaque request id binds the decision to the arguments,
   council, chain, turn and expiry. Any user in `slack.allowedUsers`
   can decide once. The app acknowledges clicks immediately and updates the
   message with the outcome and removes its buttons. Pending requests expire
