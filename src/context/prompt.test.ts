@@ -120,7 +120,7 @@ it('keeps a bounded excerpt of an oversized latest question without breaking esc
   expect(rows?.length).toBeLessThanOrEqual(70);
 });
 
-it('maps only numbered new posts visible in the bounded listening snapshot', () => {
+it('maps only visible new posts by others in the bounded listening snapshot', () => {
   const context = buildListenContext(
     {
       member: GUIDE,
@@ -144,10 +144,10 @@ it('maps only numbered new posts visible in the bounded listening snapshot', () 
         },
       ],
     },
-    2,
+    1,
   );
   expect(context.prompt.user).toContain(
-    '[#3] [new] Critic (member): Latest reply',
+    '[#2] You (Guide): Earlier reply\n[#3] [new] Critic (member): Latest reply',
   );
   expect(context.prompt.user).not.toContain('[#1]');
   expect(context.targets).toEqual(new Map([[3, '3']]));

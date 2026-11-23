@@ -395,7 +395,8 @@ it.each(['pass', 'post'])(
   async (outcome) => {
     const f = fixtures();
     const { service, finishListen } = await startListening(f);
-    const note = 'Check whether <the assumption> transfers.';
+    const note =
+      'Check whether <the assumption> transfers.\n- [#3] Check the evidence.';
     finishListen(success(`HAND #2: ${note}`));
     await vi.waitFor(() => expect(f.notices).toHaveLength(1), { interval: 1 });
     expect(f.record().privateNotes).toEqual([
@@ -419,6 +420,7 @@ it.each(['pass', 'post'])(
     expect(f.calls[1]?.prompt.user).toContain(
       `<private_notes>
 - [#2] Check whether &lt;the assumption&gt; transfers.
+  - [#3] Check the evidence.
 </private_notes>`,
     );
     expect(f.record().privateNotes).toHaveLength(1);
@@ -459,4 +461,36 @@ it('aborts an in-flight listen at addressed arrival even while acceptance save i
   await service.shutdown();
   expect(f.record().privateNotes).toEqual([]);
   expect(f.notices).toEqual([]);
+});
+
+it('discards the hand when an addressed message arrives during its note save', async () => {
+  const f = fixtures();
+  const { service, finishListen } = await startListening(f);
+
+  const finishSave = f.gateSave();
+  finishListen(success('HAND #2: The pending note must be discarded.'));
+  await vi.waitFor(
+    () => expect(f.store.save.mock.lastCall?.[0].privateNotes).toHaveLength(1),
+    { interval: 1 },
+  );
+
+  const input = human('9.001', '@critic New human question.');
+  f.history.push(input.message);
+  const finishTurn = f.gateModel();
+  const finishNextListen = f.gateListen();
+  const acceptance = service.handleHumanMessage(input);
+  expect(f.listens[0]?.signal.aborted).toBe(true);
+  finishSave(success(undefined));
+  await expect(acceptance).resolves.toBe('accepted');
+  await vi.waitFor(() => expect(f.calls).toHaveLength(2), { interval: 1 });
+  expect(f.calls[1]?.prompt.user).not.toContain('<private_notes>');
+  expect(f.record().privateNotes).toEqual([]);
+  finishTurn(success('PASS'));
+  finishNextListen(success('PASS'));
+  await vi.waitFor(() => expect(f.reactions.at(-1)).toEqual(['9.001', false]), {
+    interval: 1,
+  });
+  await service.shutdown();
+  expect(f.notices).toEqual([]);
+  expect(f.reactions).not.toContainEqual(['9.000', true]);
 });

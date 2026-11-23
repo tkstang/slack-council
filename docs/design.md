@@ -139,24 +139,29 @@ any disagreement with those posts before answering what it was asked.
 With `council.listen: "settle"` (the default), the reducer emits a settle
 effect after a chain finishes normally. The runner removes the hourglass,
 fetches one transcript for the batch, and asks each roster member with unseen
-posts from others to listen. It checks the member's last post, what the
-member saw on successful turns or earlier listens, and the timestamp of any
-outstanding hand. App notices do not count as new posts.
+posts from others to listen. It uses what the member saw on successful turns
+or earlier listens, falling back to the member's last post when that history
+is unknown. An outstanding hand also sets a cutoff for new posts. App notices
+and the member's own posts are excluded from hand targets.
 
 A listen uses the member's model with no tools, one step, 256 output tokens,
 and up to 10 seconds or the configured turn timeout, whichever is shorter.
 The role brief and the transcript go in the user message. The model replies
-with `PASS` or `HAND #<n>: <note>`. The runner resolves `#<n>` to a timestamp
-from the visible `[new]` rows of that same snapshot. It retries malformed
-replies once within the same deadline. Model errors and timeouts pass silently.
+with `HAND #<n>: <note>` to disagree with a `[new]` post or add a materially
+new point. Agreement, thanks and restatements get `PASS`. The runner resolves
+`#<n>` to a timestamp from the visible `[new]` rows of that same snapshot.
+It retries malformed replies once within the same deadline. Model errors and
+timeouts pass silently.
 
 After the batch completes, the app saves the hands and posts one line naming
 the members who raised them. It adds the `raised_hand` reaction to each distinct
 target message. The names in the notice identify the members because every
 reaction comes from the same app bot. Listening uses no turns or hops.
 An addressed human message, stop, end, or shutdown cancels an in-flight
-batch and discards its results. Set `council.listen: "off"` to disable the
-feature. The switch follows the current config when the service opens.
+batch. If cancellation arrives during the note save, the app restores the
+previous notes before continuing the write queue and skips the notice and
+reactions. Set `council.listen: "off"` to disable the feature. The switch
+follows the current config when the service opens.
 
 ## Context assembly
 

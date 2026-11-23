@@ -437,6 +437,33 @@ it.each([
   },
 );
 
+it('asks the last parallel poster to listen to the other member’s unseen answer', async () => {
+  const h = harness({ listen: 'settle' });
+  h.history[0] = {
+    ts: '1.000',
+    author: { kind: 'human', userId: 'U1', displayName: 'Reader' },
+    text: '@guide @critic Explain.',
+  };
+  h.dispatch({
+    type: 'human',
+    chainId: 'parallel',
+    ts: '1.000',
+    address: { kind: 'members', handles: ['guide', 'critic'] },
+  });
+  await h.waitForCalls(2);
+  h.call(0).finish(success('Guide’s answer.'));
+  await vi.waitFor(() => expect(h.history).toHaveLength(2), { interval: 1 });
+  h.call(1).finish(success('Critic’s answer.'));
+
+  await vi.waitFor(() => expect(h.listens).toHaveLength(2), { interval: 1 });
+  const critic = h.listens.find(({ input }) => input.member.id === 'critic');
+  expect(critic?.input.prompt.user).toContain(
+    '[#2] [new] Guide (member): Guide’s answer.\n[#3] You (Critic): Critic’s answer.',
+  );
+  for (const listen of h.listens) listen.finish(success('PASS'));
+  await h.drain();
+});
+
 const OBSERVER: Member = { ...GUIDE, id: 'observer', name: 'Observer' };
 
 it.each([
@@ -460,7 +487,7 @@ it.each([
     h.call(0).finish(success('PASS'));
     h.call(1).finish(success('PASS'));
     h.call(2).finish(success('Answer'));
-    await vi.waitFor(() => expect(h.listens).toHaveLength(2), { interval: 1 });
+    await vi.waitFor(() => expect(h.listens).toHaveLength(3), { interval: 1 });
     expect(h.cutoffs).toEqual(['1.000', undefined]);
     expect(h.listens[0]?.input.prompt.user).toContain(
       '[#3] [new] Observer (member): Answer',
@@ -468,11 +495,16 @@ it.each([
     expect(h.listens[1]?.input.prompt.user).toContain(
       '[#2] [new] Helper (bot): Source data',
     );
+    expect(h.listens[2]?.input.member.id).toBe('observer');
+    expect(h.listens[2]?.input.prompt.user).toContain(
+      '[#2] [new] Helper (bot): Source data\n[#3] You (Observer): Answer',
+    );
     h.listens[0]?.finish(success('HAND #99: Outside the snapshot.'));
     h.listens[1]?.finish(success(`HAND #${second}: Check the scope.`));
-    await vi.waitFor(() => expect(h.listens).toHaveLength(3), { interval: 1 });
-    expect(h.listens[2]?.input.prompt).toEqual(h.listens[0]?.input.prompt);
-    h.listens[2]?.finish(success('HAND [#3]: The assumption needs evidence.'));
+    h.listens[2]?.finish(success('PASS'));
+    await vi.waitFor(() => expect(h.listens).toHaveLength(4), { interval: 1 });
+    expect(h.listens[3]?.input.prompt).toEqual(h.listens[0]?.input.prompt);
+    h.listens[3]?.finish(success('HAND [#3]: The assumption needs evidence.'));
     await h.drain();
     expect(h.notices).toEqual([
       '✋ Guide and Critic have something to add. Mention them to hear it.',
@@ -498,7 +530,7 @@ it.each([
     expect(h.call(3).input.prompt.user).not.toContain('<private_notes>');
     h.call(3).finish(success('PASS'));
     await h.drain();
-    expect(h.listens).toHaveLength(3);
+    expect(h.listens).toHaveLength(4);
     expect(h.notices).toHaveLength(1);
   },
 );

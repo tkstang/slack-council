@@ -325,11 +325,6 @@ export function createChainRunner(
       (body, { note }) => body.replaceAll(note, '…'),
       output.text,
     );
-    if (shownNotes.some(({ note }) => publicText.includes(note))) {
-      await completeTurn(grant, shownNotes, latestSeenTs);
-      return { kind: 'pass' };
-    }
-
     // An in-flight Slack write may still complete after the chain has moved on.
     const deadline = Promise.withResolvers<Failure>();
     const cancelPostTimeout = clock.setTimeout(
@@ -388,17 +383,20 @@ export function createChainRunner(
     createdAtTs: string,
     batchSignal: AbortSignal,
   ): Promise<{ member: Member; note?: PrivateNote } | undefined> {
-    const lastSpoke = messages.findLastIndex(
-      ({ author }) => author.kind === 'member' && author.memberId === member.id,
-    );
     const seen = seenThrough.get(member.id);
+    const lastSpoke =
+      seen === undefined
+        ? messages.findLastIndex(
+            ({ author }) =>
+              author.kind === 'member' && author.memberId === member.id,
+          )
+        : -1;
     const latestNote = savedNotes.findLast(
       ({ memberId }) => memberId === member.id,
     );
     const firstNew = messages.findIndex(
       ({ ts }, index) =>
-        index > lastSpoke &&
-        (seen === undefined || isAfter(ts, seen)) &&
+        (seen === undefined ? index > lastSpoke : isAfter(ts, seen)) &&
         (latestNote === undefined || isAfter(ts, latestNote.createdAtTs)),
     );
     if (firstNew === -1) return;
@@ -489,6 +487,7 @@ export function createChainRunner(
       report('private-notes', effect, saved);
       if (!saved.ok || !saved.value) return;
     }
+    if (batchSignal.aborted) return;
     for (const result of results) {
       if (result) markSeen(result.member.id, createdAtTs);
     }
@@ -501,6 +500,7 @@ export function createChainRunner(
       names,
     );
     await ancillary.run(async () => {
+      if (batchSignal.aborted) return;
       const result = await protect(
         () =>
           slack.postNotice(
@@ -513,6 +513,7 @@ export function createChainRunner(
       );
       report('hand-notice', effect, result);
       for (const targetTs of new Set(hands.map((hand) => hand.targetTs))) {
+        if (batchSignal.aborted) return;
         const reaction = await protect(
           () => slack.setReaction(scope.channel, targetTs, 'raised_hand', true),
           'E_SLACK',

@@ -30,6 +30,14 @@ function escapeLabel(text: string): string {
   return escapeText(text.replace(/[\r\n\t\u2028\u2029]+/gu, ' '));
 }
 
+function escapeRowText(text: string): string {
+  return escapeText(text).replace(/\r\n?|\n|\u2028|\u2029/gu, '\n  ');
+}
+
+function isOwnPost(input: TranscriptInput, author: Author): boolean {
+  return author.kind === 'member' && author.memberId === input.member.id;
+}
+
 function authorLabel(input: TranscriptInput, author: Author): string {
   switch (author.kind) {
     case 'human':
@@ -80,12 +88,10 @@ function renderRows(
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (!message) continue;
-    const marker = index >= firstNew ? ' [new]' : '';
+    const marker =
+      index >= firstNew && !isOwnPost(input, message.author) ? ' [new]' : '';
     const label = `[#${index + 1}]${marker} ${authorLabel(input, message.author)}: `;
-    const text = escapeText(message.text).replace(
-      /\r\n?|\n|\u2028|\u2029/gu,
-      '\n  ',
-    );
+    const text = escapeRowText(message.text);
     const overhead =
       chars +
       rows.length +
@@ -112,9 +118,8 @@ function renderRows(
 }
 
 export function renderTranscript(input: TranscriptInput) {
-  const lastSpoke = input.messages.findLastIndex(
-    ({ author }) =>
-      author.kind === 'member' && author.memberId === input.member.id,
+  const lastSpoke = input.messages.findLastIndex(({ author }) =>
+    isOwnPost(input, author),
   );
   const { transcript, oldestTs } = renderRows(input, lastSpoke + 1, true);
   return { transcript, oldestTs };
@@ -178,7 +183,7 @@ export function buildTurnContext(input: PromptInput) {
     );
     const target =
       firstVisible >= 0 && index >= 0 ? `[#${index + 1}]` : '(earlier post)';
-    return `- ${target} ${escapeText(note)}`;
+    return `- ${target} ${escapeRowText(note)}`;
   });
   const privateBlock =
     lines.length === 0
@@ -195,14 +200,15 @@ export function buildTurnContext(input: PromptInput) {
 export function buildListenContext(input: TranscriptInput, firstNew: number) {
   const role = roleBrief(
     input,
-    'You have a private listening turn. Do you disagree with, or have something important to add to, any post marked [new]?',
+    'You have a private listening turn. Raise a hand only to disagree with a [new] post or to add a materially new point that nobody has made. Agreement, thanks and restatement are PASS.',
     'Reply exactly PASS or HAND #<n>: <one or two sentences>, where <n> is the transcript number of the new post your note concerns.',
   );
   const { transcript, hidden } = renderRows(input, firstNew, false);
   const from = Math.max(firstNew, hidden);
-  const targets = new Map(
-    input.messages.slice(from).map(({ ts }, i) => [from + i + 1, ts]),
-  );
+  const targets = new Map<number, string>();
+  for (const [index, { author, ts }] of input.messages.slice(from).entries()) {
+    if (!isOwnPost(input, author)) targets.set(from + index + 1, ts);
+  }
   return {
     prompt: assemblePrompt(role, transcript, ''),
     targets,

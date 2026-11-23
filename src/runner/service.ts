@@ -151,24 +151,29 @@ export async function openCouncilService(
           read: () =>
             privateNotes.filter(({ councilId }) => councilId === council.id),
           update: (change, signal) =>
-            writes.run(async () => {
+            writes.run(() => {
               if (
                 signal?.aborted ||
                 entries.get(scopeKey(council.scope))?.council !== council
               )
-                return false;
+                return Promise.resolve(false);
               const next = change(
                 privateNotes.filter(
                   ({ councilId }) => councilId === council.id,
                 ),
               );
-              await save(councils(), undefined, undefined, [
-                ...privateNotes.filter(
-                  ({ councilId }) => councilId !== council.id,
-                ),
-                ...next,
-              ]);
-              return true;
+              return save(
+                councils(),
+                undefined,
+                undefined,
+                [
+                  ...privateNotes.filter(
+                    ({ councilId }) => councilId !== council.id,
+                  ),
+                  ...next,
+                ],
+                signal,
+              );
             }),
         },
       }),
@@ -254,7 +259,8 @@ export async function openCouncilService(
     acceptedMessageKeys = [...accepted],
     endedDormant?: string,
     notes = privateNotes,
-  ): Promise<void> {
+    signal?: AbortSignal,
+  ): Promise<boolean> {
     // A council convened in a dormant council's scope replaces it. The dormant
     // record leaves memory only once the save has succeeded.
     const replaced = new Set(records.map(({ scope }) => scopeKey(scope)));
@@ -265,15 +271,21 @@ export async function openCouncilService(
     const retainedNotes = notes.filter(({ councilId }) =>
       retainedIds.has(councilId),
     );
-    unwrap(
-      await store.save({
-        councils: retained,
-        acceptedMessageKeys,
-        privateNotes: retainedNotes,
-      }),
-    );
+    const state = {
+      councils: retained,
+      acceptedMessageKeys,
+      privateNotes: retainedNotes,
+    };
+    if (signal?.aborted) return false;
+    unwrap(await store.save(state));
+    if (signal?.aborted) {
+      // Restore the previous notes before any queued state write can start.
+      unwrap(await store.save({ ...state, privateNotes }));
+      return false;
+    }
     privateNotes = retainedNotes;
     for (const key of replaced) dormant.delete(key);
+    return true;
   }
 
   function retire(key: string, entry: Entry): void {
