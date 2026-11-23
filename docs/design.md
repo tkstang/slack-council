@@ -103,7 +103,8 @@ Every command is acknowledged: the progress reaction for an addressed message,
 🛑 for `stop` and 👋 for `end`. A message kept as context gets 👀 in a thread
 council and nothing in a channel council, where it would mark every top-level
 message. Setting: `seenReaction: 'threads' | 'always' | 'off'`, default
-`threads`. These reactions are best effort and never fail the message.
+`threads`; a saved council follows the current config when the service opens.
+These reactions are best effort and never fail the message.
 
 ### Rounds
 
@@ -324,8 +325,8 @@ tested without Slack.
   neutralised, code included. With `council.memberMentions: 'people'`, `@Name`
   of a person seen in that channel (an author or someone mentioned) becomes a
   real mention. The post's own mentions are neutralised first, so a mention
-  exists only where a name matched: whole, at the start of a word, outside
-  `<…>` markup. The longest matching name decides: if two people
+  exists only where a name matched: whole, at the start of a word, not
+  continued by a letter, digit, accent or dash, outside `<…>` markup. The longest matching name decides: if two people
   share it, or it is or begins with a member handle, the text is left alone and
   no shorter name is tried. Group and
   channel-wide mentions are neutralised in both modes.

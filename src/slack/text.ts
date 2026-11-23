@@ -35,7 +35,9 @@ export function neutraliseBroadcasts(text: string): string {
 }
 
 const RESERVED_NAMES = new Set(['council', 'here', 'channel', 'everyone']);
-const MARKUP = /(<[^<>\n]*>)/u;
+// Spans cross lines, as the neutraliser's patterns do, so nothing it rewrites
+// is ever searched for names.
+const MARKUP = /(<[^<>]*>)/u;
 // A display name with markup or invisible characters could pass for the
 // neutraliser's own output, so it is never linkable.
 const UNSAFE_NAME = /[<>@\p{C}\p{Default_Ignorable_Code_Point}]/u;
@@ -49,7 +51,8 @@ const escapeRegExp = (text: string) =>
  * whole and never searched, so a mention's label cannot produce a link.
  *
  * A name is matched whole and longest first ("Ann Lee" before "Ann"), ignoring
- * case, at the start of a word and never before a hyphen. The longest match
+ * case, at the start of a word and never before a letter, digit, accent or
+ * dash that would continue it. The longest match
  * decides: when it fits two people, or is reserved (it is, or as a handle
  * would read as, a member handle or a word like `council`), nothing shorter is
  * tried and the text stays as written.
@@ -61,7 +64,7 @@ export function linkPeopleMentions(
 ): string {
   const entries = [...people]
     .map(([id, name]) => ({ id, name: name.trim() }))
-    .filter(({ name }) => name.length > 1 && !UNSAFE_NAME.test(name))
+    .filter(({ name }) => name !== '' && !UNSAFE_NAME.test(name))
     .map((entry) => ({
       ...entry,
       // The same case rules as the search below, so two names it cannot tell
@@ -73,17 +76,19 @@ export function linkPeopleMentions(
 
   const taken = (word: string) =>
     RESERVED_NAMES.has(word) || reserved.has(word);
-  const isReserved = (name: string) => {
-    const folded = name.normalize('NFKC').toLowerCase();
-    // What the addressing parser would read as a handle at the name's start.
-    const handle =
-      /^[a-z][a-z0-9-]*(?![\p{L}\p{N}_-])/u.exec(folded)?.[0] ?? '';
-    return taken(folded) || taken(handle);
-  };
+  // The name as written and as Unicode folds it: the addressing parser reads
+  // the first, and a look-alike spelling must not slip past the second.
+  const isReserved = (name: string) =>
+    [name.toLowerCase(), name.normalize('NFKC').toLowerCase()].some(
+      (folded) =>
+        taken(folded) ||
+        // What the addressing parser would read as a handle at the start.
+        taken(/^[a-z][a-z0-9-]*(?![\p{L}\p{N}_-])/u.exec(folded)?.[0] ?? ''),
+    );
   const search = new RegExp(
-    String.raw`(?<=^|[\s(\[{"'*_~>])@(${entries
+    String.raw`(?<=^|[\s\p{Ps}\p{Pi}"'*_~>])@(${entries
       .map(({ name }) => escapeRegExp(name))
-      .join('|')})(?![\p{L}\p{N}_-])`,
+      .join('|')})(?![\p{L}\p{N}\p{M}\p{Pd}_])`,
     'giu',
   );
   const link = (prose: string) =>

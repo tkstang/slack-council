@@ -23,9 +23,9 @@ interface Pending {
   finish(outcome: ApprovalOutcome | undefined): void;
 }
 
-// Invisible characters: controls, format characters and anything Unicode
-// marks as ignorable when displayed.
-const HIDDEN = String.raw`\u007f-\u009f  ⠀\p{Cf}\p{Default_Ignorable_Code_Point}`;
+// Characters that do not show as themselves: controls, format characters,
+// anything Unicode marks as ignorable, and every blank other than a space.
+const HIDDEN = String.raw`\u007f-\u009f\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u2800\u3000\p{Cf}\p{Default_Ignorable_Code_Point}`;
 
 const escapeHidden = (text: string) =>
   text.replace(

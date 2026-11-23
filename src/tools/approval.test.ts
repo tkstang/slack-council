@@ -101,13 +101,19 @@ it('shows a plain one-line argument as a readable line', async () => {
   const call = f.call({ text: 'desktop test one' });
   const post = await f.posted();
   expect(post.preview).toBe('text: desktop test one');
-  // A string that reads as JSON is quoted, so it cannot pass for another type.
-  const g = fixture();
-  const second = g.call({ text: '[]' });
-  const quoted = await g.posted();
-  expect(quoted.preview).toBe('text: "[]"');
-  g.decide(quoted.id, 'U1', 'deny');
-  await second;
+  // A string that reads as JSON, or holds a blank that is not a space, is
+  // quoted, so it cannot pass for another value.
+  for (const [text, shown] of [
+    ['[]', 'text: "[]"'],
+    ['foo\u00a0bar', String.raw`text: "foo\u00a0bar"`],
+  ] as const) {
+    const g = fixture();
+    const second = g.call({ text });
+    const quoted = await g.posted();
+    expect(quoted.preview).toBe(shown);
+    g.decide(quoted.id, 'U1', 'deny');
+    await second;
+  }
   f.decide(post.id, 'U1', 'deny');
   await call;
 });

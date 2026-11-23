@@ -57,10 +57,17 @@ describe('linkPeopleMentions', () => {
     expect(post('Ask @Ann', names)).toBe('Ask <@U1>');
   });
 
+  it('stops at an accent or dash that continues the name, and starts after a quote', () => {
+    const names = ['Jose', 'Ann', '\u674E', 'Bo\u0301'];
+    const untouched = '@Jose\u0301 @Ann\uFF0DLee @Bo\u0301';
+    expect(post(untouched, names)).toBe(untouched);
+    expect(post('\u201C@\u674E\u201D', names)).toBe('\u201C<@U3>\u201D');
+  });
+
   it('never keeps or builds a mention from markup the model wrote', () => {
     const names = ['Ann', 'Zoe', '\u2060U9'];
     const posted = post(
-      '<@U1> <@U9> <@U8|x @Zoe> <!here> @here <https://x.io/@Ann|see @Ann> @Ann',
+      '<@U1> <@U9> <@U8|x\n @Zoe> <!here> @here <https://x.io/@Ann|see @Ann> @Ann',
       names,
     );
     expect(posted.match(/<[@!][^>]*>/gu)).toEqual(['<@U1>']);

@@ -214,7 +214,11 @@ export async function openCouncilService(
       makeEntry(
         {
           ...council,
-          settings: { ...council.settings, listen: config.council.listen },
+          settings: {
+            ...council.settings,
+            listen: config.council.listen,
+            seenReaction: config.council.seenReaction,
+          },
         },
         'E_INVALID_STATE',
       ),
