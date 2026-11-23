@@ -167,7 +167,7 @@ function panelLine({
     `- \`@${id}\``,
     panelLabel(name),
     // Inline code shows a model id as written; escaping would add backslashes.
-    `\`${model.trim().replaceAll('`', '')}\``,
+    `\`${model.trim().replace(/\s+/gu, ' ').replaceAll('`', '')}\``,
     ...(effort === undefined || effort.trim() === ''
       ? []
       : [`${panelLabel(effort)} effort`]),
