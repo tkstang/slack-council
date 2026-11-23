@@ -90,7 +90,7 @@ export function parseHumanAddress(
       // A control word counts only when it ends the line, so prose such as
       // "@council, end users are complaining" stays an ordinary address.
       const command =
-        /^(?:[ \t]*[:,][ \t]*|[ \t]+)(end|stop)[.!]*[ \t]*(?=\r?\n|$)/iu
+        /^(?:[ \t]*[:,][ \t]*|[ \t]+)(end|stop)[.!]*[ \t\u00a0]*(?=\r?\n|$)/iu
           .exec(after)?.[1]
           ?.toLowerCase();
       if (command === 'end') return { kind: 'end' };

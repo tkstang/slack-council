@@ -47,6 +47,7 @@ it.each([
   ['@council, end users are complaining', 'council'],
   ['@council stop me if I am wrong', 'council'],
   ['@council stop\nthanks', 'stop'],
+  ['@council end\u00a0', 'end'],
   ['@council: stop', 'stop'],
   ['@council, end', 'end'],
   ['<@UAPP>:stop', 'stop'],
