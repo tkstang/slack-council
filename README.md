@@ -160,7 +160,8 @@ behavior. The default is `"settle"`.
 Members cannot notify people by default: every mention in a member's post is
 written so that Slack does not deliver it. Set `council.memberMentions` to
 `"people"` to let a member write `@Name` for someone who has posted or been
-mentioned in that channel's councils; it becomes a real mention. `@here`,
+mentioned in that channel's councils; it becomes a real mention, as does a raw
+Slack mention of the same person. `@here`,
 `@channel`, `@everyone` and user groups never notify, whatever the setting.
 
 ## Member tools
@@ -269,7 +270,7 @@ source, generator and nonmutating freshness check.
 
 ## Verification policy
 
-This MVP is verified locally and has no remote. Development uses Node 26.
+This MVP is verified locally and has no CI. Development uses Node 26.
 The app runs on Node 24 and later and uses Node 24 type declarations.
 
 Run focused tests while editing. Before handoff, run `pnpm run worktree:validate`
@@ -277,6 +278,10 @@ from a clean checkout with dependencies installed using `pnpm install --frozen-l
 The script checks the agent-file policy, lint, format, types, the full test suite,
 the build and worktree cleanliness. To smoke-test the built CLI locally, run
 `node dist/cli.js validate --config council.config.example.json`.
+
+The tests stop at the ports. After a change to the Slack adapter, the turn
+runner, tools or approvals, run the checklist in
+[docs/live-checks.md](docs/live-checks.md) and add a line to its log.
 
 Record the tested revision, toolchain, commands, outcomes and exclusions in the
 handoff. Reuse that evidence while the tested inputs remain unchanged.

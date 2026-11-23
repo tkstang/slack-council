@@ -27,7 +27,7 @@ husky/lefthook) - `private: true` + MIT LICENSE.
   codes, no interactivity, NO_COLOR-safe.
 - **Proportionate tests** - prefer a table-driven case over a new suite. Skip
   bespoke harnesses and snapshot padding. Live end-to-end checks carry the
-  integration proof.
+  integration proof: see `docs/live-checks.md`.
 
 ## Definition of Done
 

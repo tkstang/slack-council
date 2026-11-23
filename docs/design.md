@@ -136,8 +136,9 @@ reactions are best effort and never fail the message.
   one-line notice naming the member. A failed turn is not rerun. Within a turn,
   one failed model request (429, 5xx or a network error) is retried once; tool
   calls are never repeated. A reply cut off at the model's output limit fails
-  the turn. On a turn's last step the model may not call tools, so a turn that
-  used tools still ends with a reply.
+  the turn. When a turn has more than one step, the model may not call tools on
+  the last one, so a turn that used tools still ends with a reply. With
+  `maxSteps: 1` a tool call ends the turn with no reply.
 - A chain settles when its queue is empty, nothing is running and every post has
   been written. Settling removes the progress indicator.
 
@@ -153,7 +154,8 @@ effect after a chain finishes normally. The runner removes the hourglass,
 fetches one transcript for the batch, and asks each roster member with unseen
 posts from others to listen. It uses what the member saw on successful turns
 or earlier listens, falling back to the member's last post when that history
-is unknown. An outstanding hand also sets a cutoff for new posts. App notices
+is unknown. The fallback never looks back past the message that started the
+current chain. An outstanding hand also sets a cutoff for new posts. App notices
 and the member's own posts are excluded from hand targets.
 
 A listen uses the member's model with no tools, one step, low reasoning
@@ -260,8 +262,8 @@ Bolt in Socket Mode behind a narrow `SlackPort`, so the engine and runner are
 tested without Slack.
 
 - Inbound: accept `message` events with no subtype, or `file_share`,
-  `thread_broadcast` or `me_message`; drop our own
-  `bot_id`; dedupe on `channel:ts` before any await.
+  `thread_broadcast` or `me_message`; drop anything with a `bot_id` or a
+  `bot_profile`, our own posts included; dedupe on `channel:ts` before any await.
 - Routing: a thread reply belongs to its thread. A top-level message belongs to
   the channel council when the channel has one; a top-level `@council end` also
   goes to a dormant channel council (one whose roster names a removed member) so
@@ -275,8 +277,8 @@ tested without Slack.
   multi-select that overrides the preset, a question and, for the command
   only, a "Where" choice: "New thread" (default) or "This whole channel".
   `private_metadata` carries only the source, channel, thread and message ts,
-  user and response URL, plus a fingerprint of the preset and member keys in
-  order. It is size-checked and Zod-validated on return. The response URL must
+  user and response URL, plus a fingerprint of the presets (keys and rosters),
+  the member keys and names, and the default preset. It is size-checked and Zod-validated on return. The response URL must
   be `https://hooks.slack.com` with no credentials and is fetched with
   redirects refused. Select options carry index ids that map back to configured
   keys; an unknown id is invalid input, and a form whose fingerprint no longer
@@ -290,7 +292,9 @@ tested without Slack.
     in the message's thread (`thread_ts`, else `ts`) and convenes there. Left
     empty, the notice reads "Council convened by <name> on this message:" and
     quotes up to 1,000 characters of the selected message, escaped the same
-    way, so the round's trigger carries the prompt.
+    way, so the round's trigger carries the prompt. If the selected message
+    cannot be read, nothing is posted and the user is asked to reopen the
+    shortcut and type a question.
   - Both post first, then convene, then open the round, all writes through the
     port's queue. If convening fails the notice is deleted and the user told; a
     council is never saved before its notice exists, and a failure never ends
@@ -309,13 +313,15 @@ tested without Slack.
 - Posting: per-channel serial queue, at least one second apart, no automatic
   retry of a write whose outcome is unknown. A write Slack refuses as rate
   limited is sent once more after the wait Slack names, up to 30 s. Every Slack call has a finite
-  timeout: a write gets one attempt of 15 s, then the queue moves on; reads
-  retry at most twice. A member turn is one message: text over Slack's
+  timeout: a write attempt lasts at most 15 s, so with one rate-limit resend a
+  write can hold its channel's queue for about a minute before the queue moves
+  on; reads retry at most twice. A member turn is one message: text over Slack's
   12,000-character `markdown_text` limit is truncated with a closing
   `… (truncated)` line. Every mention in member output is
   neutralised, code included. With `council.memberMentions: 'people'`, `@Name`
   of a person seen in that channel (an author or someone mentioned) becomes a
-  real mention; names that equal a member handle are left alone. Group and
+  real mention, and a raw `<@U…>` for such a person is kept; names that equal a
+  member handle are left alone. Group and
   channel-wide mentions are neutralised in both modes.
 - Reading: a channel council reads the newest 200 messages; a thread council
   reads up to 50 pages of replies through the trigger and fails with `E_SLACK`

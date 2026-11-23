@@ -305,7 +305,7 @@ it('aborts running turns on stop, reports cancellation and ignores late model re
   expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
 });
 
-it('reports a coded turn failure, keeps other turns running and never retries', async () => {
+it('reports a coded turn failure, keeps other turns running and never reruns the turn', async () => {
   const h = harness({ rounds: 1 });
   h.open();
   await h.waitForCalls(2);
