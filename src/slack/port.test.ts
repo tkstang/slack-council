@@ -182,6 +182,12 @@ describe('writes', () => {
   });
 });
 
+// The arguments sit alone in their own section so they are shown in full.
+const plain = (text: unknown) => ({
+  type: 'section',
+  text: { type: 'plain_text', text },
+});
+
 it('posts plain-text approval buttons in scope and clears them on the outcome update', async () => {
   const calls: [string, Record<string, unknown>][] = [];
   const api = {
@@ -215,13 +221,7 @@ it('posts plain-text approval buttons in scope and clears them on the outcome up
       userId: 'U1',
     }),
   ).toMatchObject({ ok: true });
-  const section = {
-    type: 'section',
-    text: {
-      type: 'plain_text',
-      text: expect.stringContaining(request.preview),
-    },
-  };
+  const section = plain(request.preview);
   expect(calls).toMatchObject([
     [
       'chat.postMessage',
@@ -231,6 +231,7 @@ it('posts plain-text approval buttons in scope and clears them on the outcome up
         mrkdwn: false,
         text: expect.stringContaining('&lt;!here&gt;'),
         blocks: [
+          plain(expect.stringContaining('read_file')),
           section,
           {
             type: 'actions',
@@ -248,7 +249,11 @@ it('posts plain-text approval buttons in scope and clears them on the outcome up
         channel: 'C1',
         ts: '2.000000',
         text: expect.stringContaining('Request denied by U1.'),
-        blocks: [section],
+        blocks: [
+          plain(expect.stringContaining('read_file')),
+          section,
+          plain('Request denied by U1.'),
+        ],
       },
     ],
   ]);

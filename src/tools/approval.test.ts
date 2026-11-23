@@ -90,8 +90,7 @@ it('rejects an unpermitted click, then a single owner approval runs the exact ap
   const call = f.call(args);
   const post = await f.posted();
   expect(post).toMatchObject({ memberName: 'Ada', tool: 'notes__write' });
-  expect(post.preview).toContain('\\n');
-  expect(post.preview.length).toBeLessThanOrEqual(2_500);
+  expect(post.preview).toBe(JSON.stringify({ text: original }));
   args.text = 'changed after the request';
   expect(f.decide(post.id, 'U3', 'deny')).toBe('forbidden');
   expect(f.perform).not.toHaveBeenCalled();

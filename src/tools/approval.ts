@@ -32,7 +32,12 @@ interface Pending {
 function preview(args: unknown): string | undefined {
   const text = (JSON.stringify(args) ?? '{}').replace(
     /[\u007f-\u009f\u2028\u2029\p{Cf}]/gu,
-    (char) => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`,
+    // Standard JSON escapes, one per UTF-16 unit, so the preview stays valid JSON.
+    (char) =>
+      char
+        .split('')
+        .map((unit) => `\\u${unit.charCodeAt(0).toString(16).padStart(4, '0')}`)
+        .join(''),
   );
   return text.length <= MAX_PREVIEW ? text : undefined;
 }
@@ -139,12 +144,13 @@ export function createApprovalGate(
           const resume = suspendTimeout();
           try {
             const decision = await request(input, owner, timeoutMs, tool, args);
-            // An unanswered request counts like a denial, so a member cannot
-            // hold a turn open by asking again and again.
+            // An unanswered or unpostable request counts like a denial, so a
+            // member cannot hold a turn open by asking again and again.
             if (
               !decision.ok &&
               (decision.code === 'E_APPROVAL_DENIED' ||
-                decision.code === 'E_APPROVAL_EXPIRED')
+                decision.code === 'E_APPROVAL_EXPIRED' ||
+                decision.code === 'E_SLACK')
             )
               denials += 1;
             return decision;

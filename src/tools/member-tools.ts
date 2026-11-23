@@ -14,7 +14,7 @@ import type { createMcpManager } from './mcp.js';
 import { resolveToolPolicy } from './policy.js';
 import { createSlackHistoryTool } from './slack-history.js';
 
-const MAX_RESULT_CHARS = 65_536;
+const MAX_RESULT_BYTES = 65_536;
 
 export function createMemberTools({
   config,
@@ -76,7 +76,8 @@ export function createMemberTools({
               abortSignal: input.signal,
             });
             // A server controls its own output size; keep it out of the context.
-            return (JSON.stringify(result) ?? '').length > MAX_RESULT_CHARS
+            return Buffer.byteLength(JSON.stringify(result) ?? '') >
+              MAX_RESULT_BYTES
               ? failure('E_TOOL_FAILED', 'Tool result is too large')
               : result;
           } catch {

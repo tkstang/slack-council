@@ -169,8 +169,12 @@ function approvalMessage(request: ApprovalRequest, outcome?: ApprovalOutcome) {
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;'),
     mrkdwn: false,
+    // Each section holds at most 3,000 characters, so the arguments get their own.
     blocks: [
-      { type: 'section', text: { type: 'plain_text', text, emoji: false } },
+      ...text.split('\n').map((part) => ({
+        type: 'section',
+        text: { type: 'plain_text', text: part.slice(0, 3_000), emoji: false },
+      })),
       ...(outcome === undefined
         ? [
             {
