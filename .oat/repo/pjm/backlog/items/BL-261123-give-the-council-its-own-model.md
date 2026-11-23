@@ -21,4 +21,3 @@ The app borrows a general proxy key. A dedicated key lets its usage be told apar
 ## Acceptance Criteria
 
 - The app authenticates to the model proxy with a key used by nothing else.
-- The setup docs name the environment variable without showing a value.

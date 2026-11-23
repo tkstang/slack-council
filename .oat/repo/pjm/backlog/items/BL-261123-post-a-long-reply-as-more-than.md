@@ -16,8 +16,8 @@ external_plans: []
 
 ## Description
 
-A member post is one Slack message, truncated at 12,000 characters. A 1,000-word reply fits, but one with long code blocks or URLs can be cut off. Split at a paragraph boundary instead of truncating, or say plainly that the reply was cut.
+A member post is one Slack message, truncated at 12,000 characters. A 1,000-word reply fits, but one with long code blocks or URLs is cut off and ends with a "(truncated)" line. Decide whether to split at a paragraph boundary instead.
 
 ## Acceptance Criteria
 
-- A reply over the one-message limit is delivered in full across messages, or ends with a visible note that it was cut.
+- A reply over the one-message limit is delivered in full across messages, or the item is closed with the reason truncation is enough.

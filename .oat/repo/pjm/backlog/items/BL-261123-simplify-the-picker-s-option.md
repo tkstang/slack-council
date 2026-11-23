@@ -16,9 +16,9 @@ external_plans: []
 
 ## Description
 
-The convening modal maps options through index ids and carries a roster fingerprint so a stale form is refused. A reviewer of the MVP thought this could be simpler. Decide whether the indirection earns its place and remove it if not.
+The convening modal maps options through index ids and carries a roster fingerprint so a stale form is refused. A reviewer of the MVP thought this could be simpler. Comments in `src/slack/picker.ts` give the reasons: a long configured key cannot break the modal, and a stale form is refused. Decide whether the indirection earns its place and remove it if not.
 
 ## Acceptance Criteria
 
-- The picker either drops the index ids and fingerprint or a comment states the failure they prevent.
+- The picker drops the index ids and fingerprint, or the item is closed confirming the existing rationale.
 - A stale or tampered form is still refused.

@@ -16,7 +16,7 @@ external_plans: []
 
 ## Description
 
-A mention always convenes the default preset; only the slash command and the message shortcut offer a choice. Let a mention name a preset, for example '@council frontier: question', without making ordinary questions ambiguous.
+A mention always convenes the default preset; only the slash command and the message shortcut offer a choice. Let a mention name a preset, for example '@council frontier: question', without making ordinary questions ambiguous. Depends on the convening notice that names the preset.
 
 ## Acceptance Criteria
 
