@@ -94,12 +94,9 @@ function harness(
     },
     async postNotice(_scope, text) {
       notices.push(text);
-      history.push({
-        ts: `${postNumber++}.000`,
-        text,
-        author: { kind: 'notice' },
-      });
-      return success(undefined);
+      const ts = `${postNumber++}.000`;
+      history.push({ ts, text, author: { kind: 'notice' } });
+      return success({ ts });
     },
     async setReaction(channel, ts, reaction, present) {
       if (reaction === 'raised_hand' && present) handReactions.push(ts);

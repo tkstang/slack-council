@@ -28,7 +28,11 @@ export interface SlackPort {
     scope: Scope,
     post: TurnRef & { readonly member: Member; readonly text: string },
   ): Promise<Result<{ readonly ts: string; readonly text?: string }>>;
-  postNotice(scope: Scope, text: string): Promise<Result<void>>;
+  /** Post an app notice, truncated to one message, and return its ts. */
+  postNotice(
+    scope: Scope,
+    text: string,
+  ): Promise<Result<{ readonly ts: string }>>;
   setReaction(
     channel: string,
     ts: string,

@@ -571,7 +571,7 @@ export function createChainRunner(
           snapshots.delete(effect.chainId);
         schedule(
           ancillary.run(async () => {
-            const result = await protect(
+            const result = await protect<unknown>(
               () =>
                 effect.type === 'progress'
                   ? slack.setReaction(

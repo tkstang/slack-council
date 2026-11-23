@@ -177,7 +177,7 @@ describe('writes', () => {
       port.postNotice(scope, 'two'),
     ]);
     expect(first).toMatchObject({ ok: false, code: 'E_SLACK' });
-    expect(second).toEqual({ ok: true, value: undefined });
+    expect(second).toEqual({ ok: true, value: { ts: '2.0' } });
     expect(attempts).toBe(2);
   });
 });

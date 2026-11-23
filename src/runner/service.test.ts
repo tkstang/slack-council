@@ -130,7 +130,7 @@ function fixtures(
           },
           async postNotice(_scope, text) {
             notices.push(text);
-            return success(undefined);
+            return success({ ts: `${notices.length}.000` });
           },
           async setReaction(_channel, ts, _reaction, present) {
             reactions.push([ts, present]);

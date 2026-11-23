@@ -101,7 +101,13 @@ function compareTs(a: string, b: string): number {
 }
 
 function slackFailure(method: string, call: SlackCall & { ok: false }) {
-  return failure('E_SLACK', `Slack ${method} failed: ${call.error}`);
+  return failure(
+    'E_SLACK',
+    `Slack ${method} failed: ${call.error}`,
+    call.error === 'not_in_channel'
+      ? 'The app is not in this channel. Invite it with `/invite @council`, then try again.'
+      : undefined,
+  );
 }
 
 /** Decide who wrote a Slack message, from ids and metadata, never from its text. */
@@ -202,9 +208,12 @@ function approvalMessage(request: ApprovalRequest, outcome?: ApprovalOutcome) {
   };
 }
 
-export function createSlackPort(
-  options: SlackPortOptions,
-): SlackPort & ApprovalPort {
+export interface SlackAdapterPort extends SlackPort, ApprovalPort {
+  /** Delete one of the app's own messages, through the same write queue. */
+  deleteMessage(channel: string, ts: string): Promise<Result<void>>;
+}
+
+export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
   const { api, writeApi, botId, botUserId, maxPages = 50 } = options;
   const queue = createChannelWriteQueue(options);
   const membersByName = new Map(
@@ -382,15 +391,24 @@ export function createSlackPort(
     async postNotice(scope, text) {
       const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),
-        markdown_text: neutraliseBroadcasts(text),
+        markdown_text: truncateMarkdown(neutraliseBroadcasts(text)),
+        unfurl_links: false,
+        unfurl_media: false,
         metadata: {
           event_type: NOTICE_EVENT,
           event_payload: { kind: 'notice' },
         },
       });
-      return call.ok
-        ? success(undefined)
-        : slackFailure('chat.postMessage', call);
+      if (!call.ok) return slackFailure('chat.postMessage', call);
+      const posted = Posted.safeParse(call.value);
+      return posted.success
+        ? success({ ts: posted.data.ts })
+        : failure('E_SLACK', 'Slack chat.postMessage returned no ts');
+    },
+
+    async deleteMessage(channel, ts) {
+      const call = await write(channel, 'chat.delete', { channel, ts });
+      return call.ok ? success(undefined) : slackFailure('chat.delete', call);
     },
 
     async postApproval(scope, request) {
