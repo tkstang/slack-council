@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@app/result.js';
+import type { ErrorCode } from './result.js';
 
 /**
  * The boundary error model: a single typed class thrown at CLI/service edges
@@ -9,12 +9,12 @@ import type { ErrorCode } from '@app/result.js';
  */
 export class CliError extends Error {
   override readonly name = 'CliError';
-  readonly code: ErrorCode | 'E_UNEXPECTED';
+  readonly code: ErrorCode;
   readonly exitCode: number;
   readonly hint: string | undefined;
 
   constructor(
-    code: ErrorCode | 'E_UNEXPECTED',
+    code: ErrorCode,
     message: string,
     options?: {
       readonly exitCode?: number;

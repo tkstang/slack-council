@@ -1,0 +1,77 @@
+{
+  "providers": {
+    "default": {
+      "baseURL": "https://models.example.com/v1",
+      "apiKeyEnv": "COUNCIL_MODEL_API_KEY"
+    }
+  },
+  "members": {
+    "guide": {
+      "name": "Guide",
+      "avatar": {
+        "emoji": ":compass:"
+      },
+      "provider": "default",
+      "model": "claude-haiku-5-5",
+      "persona": "Clarify the question and explain your reasoning succinctly.",
+      "tools": ["files", "slack_history", "notes"]
+    },
+    "critic": {
+      "name": "Critic",
+      "avatar": {
+        "emoji": ":mag:"
+      },
+      "provider": "default",
+      "model": "gpt-6-luna",
+      "effort": "medium",
+      "persona": "Surface missing evidence and test assumptions.",
+      "tools": ["slack_history", "notes__list_notes"]
+    }
+  },
+  "presets": {
+    "review": ["guide", "critic"]
+  },
+  "defaultPreset": "review",
+  "slack": {
+    "allowedUsers": ["U0123456789"]
+  },
+  "council": {
+    "rounds": 2,
+    "hopBudget": 6,
+    "maxTurnsPerChain": 24,
+    "unaddressed": "silent",
+    "seenReaction": "threads",
+    "listen": "settle",
+    "memberMentions": "none",
+    "contextChars": 24000,
+    "turnTimeoutMs": 60000,
+    "maxSteps": 8,
+    "approvalTimeoutMs": 300000
+  },
+  "tools": {
+    "files": {
+      "roots": ["/path/to/council-shared-files"]
+    },
+    "mcpServers": {
+      "notes": {
+        "transport": "stdio",
+        "command": "node",
+        "args": ["examples/notes-mcp-server.mjs"],
+        "env": {
+          "COUNCIL_NOTES_FILE": "COUNCIL_NOTES_FILE"
+        }
+      }
+    },
+    "policy": [
+      {
+        "tool": "notes__list_notes",
+        "action": "auto"
+      },
+      {
+        "tool": "notes__*",
+        "action": "ask"
+      }
+    ]
+  },
+  "stateDir": ".council"
+}

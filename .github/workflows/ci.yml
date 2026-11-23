@@ -45,14 +45,5 @@ jobs:
         with:
           node-version: 24.0.0
 
-      - name: Smoke-test built library and CLI on Node 24
-        run: |
-          node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          import { execFileSync } from 'node:child_process';
-          import { parseConfig } from './dist/index.js';
-          const expected = { name: 'compat', retries: 3, verbose: false };
-          assert.deepEqual(parseConfig('{"name":"compat"}'), { ok: true, value: expected });
-          const output = execFileSync(process.execPath, ['dist/cli.js', '--config', '{"name":"compat"}'], { encoding: 'utf8' });
-          assert.deepEqual(JSON.parse(output), { ok: true, command: 'parse-config', data: expected });
-          JS
+      - name: Smoke-test the built CLI on Node 24
+        run: node dist/cli.js validate --config council.config.example.json

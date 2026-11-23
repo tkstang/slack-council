@@ -30,7 +30,7 @@
     // No `baseUrl` (removed in TS 7): paths resolve
     // relative to this config file.
     "paths": {
-      "@app/*": ["./src/*"]
+      "@council/*": ["./src/*"]
     },
 
     "skipLibCheck": true,
