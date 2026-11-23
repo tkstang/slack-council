@@ -1,3 +1,4 @@
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { TurnInput } from '@council/core/ports.js';
 import { APICallError } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
@@ -80,19 +81,50 @@ describe('createTurnRunner', () => {
     expect(call?.tools ?? []).toEqual([]);
   });
 
-  it('passes the member effort as provider options keyed by provider name', async () => {
-    const model = textModel('ok');
-    const runner = createTurnRunner({ models: () => model });
+  it('sends effort in the request body for a dotted provider name, once', async () => {
+    const bodies: unknown[] = [];
+    let status = 200;
+    const provider = createOpenAICompatible({
+      name: 'proxy.prod',
+      baseURL: 'https://models.example.com/v1',
+      apiKey: 'test',
+      fetch: async (_url, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                index: 0,
+                message: { role: 'assistant', content: 'ok' },
+                finish_reason: 'stop',
+              },
+            ],
+          }),
+          { status, headers: { 'content-type': 'application/json' } },
+        );
+      },
+    });
+    const runner = createTurnRunner({ models: (_, id) => provider(id) });
 
-    await runner.runTurn(input());
-    expect(model.doGenerateCalls[0]?.providerOptions).toEqual({
-      proxy: { reasoningEffort: 'high' },
+    await expect(runner.runTurn(input())).resolves.toEqual({
+      ok: true,
+      value: 'ok',
+    });
+    expect(bodies[0]).toMatchObject({
+      model: 'model-a',
+      reasoning_effort: 'high',
     });
 
-    const quiet = textModel('ok');
     const { effort: _effort, ...member } = input().member;
-    await createTurnRunner({ models: () => quiet }).runTurn(input({ member }));
-    expect(quiet.doGenerateCalls[0]?.providerOptions).toBeUndefined();
+    await runner.runTurn(input({ member }));
+    expect(bodies[1]).not.toHaveProperty('reasoning_effort');
+
+    status = 500;
+    await expect(runner.runTurn(input())).resolves.toMatchObject({
+      ok: false,
+      code: 'E_TURN_FAILED',
+    });
+    expect(bodies).toHaveLength(3);
   });
 
   it('honours the abort signal with the timeout or cancel code', async () => {

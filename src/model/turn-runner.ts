@@ -90,12 +90,16 @@ export function createTurnRunner({
           prompt: prompt.user,
           stopWhen: isStepCount(maxSteps),
           abortSignal: signal,
+          // The turn contract: nothing is retried.
+          maxRetries: 0,
           ...(tools === undefined ? {} : { tools }),
           ...(member.effort === undefined
             ? {}
             : {
+                // The provider-agnostic key: a provider-name key is cut at
+                // its first dot, so `proxy.prod` would drop the effort.
                 providerOptions: {
-                  [member.provider]: { reasoningEffort: member.effort },
+                  openaiCompatible: { reasoningEffort: member.effort },
                 },
               }),
         }).then(({ text }) => success(text));
