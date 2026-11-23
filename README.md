@@ -21,6 +21,19 @@ Source modules live in `src/core`, `src/config`, `src/engine`, `src/context`,
 `src/runner`, and `src/store`. Imports within a directory use relative paths and
 cross-directory imports use `@council/*`.
 
+## Adapter entry points
+
+Open the service with `openCouncilService(config, { slack, turns, appUserId })`.
+Pass normalised human messages to `handleHumanMessage`. For mention-based
+kickoff, pass the resolved thread scope with `kickoff: true`. Convene a chosen
+roster or preset through `convene`. The service persists accepted messages before
+dispatching them and retains the newest 4,096 message keys across restarts.
+
+The Slack port reads oldest-to-newest history with an inclusive cutoff, posts
+members with chain and turn metadata, and neutralises broadcast mentions. Call
+`shutdown()` while that port is still available so outstanding writes and
+reactions can drain.
+
 ## Scripts
 
 | Script                       | Does                                                         |

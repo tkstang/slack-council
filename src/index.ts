@@ -43,3 +43,12 @@ export type {
 export { buildPrompt, type PromptInput } from '@council/context/prompt.js';
 export { parseTurnOutput, type TurnOutput } from '@council/context/output.js';
 export { createJsonStore } from '@council/store/json-store.js';
+export {
+  openCouncilService,
+  type ConveneInput,
+  type CouncilService,
+  type CouncilServiceOptions,
+  type HumanMessageInput,
+  type HumanMessageResult,
+} from '@council/runner/service.js';
+export type { EffectFailure } from '@council/runner/chain-runner.js';
