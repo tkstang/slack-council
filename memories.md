@@ -56,6 +56,11 @@ One bullet per item, each with its date and source (a dispatch ID such as
   config under `~/.config/slack-council/`; a live pass restarts the app on the
   test config in `.council/` and must switch it back afterwards.
   (2026-11-23, orchestrator)
+- The user's config for the new build is prepared beside the live one as
+  `council.config.next.json` (no personas, the instructions file, Stoa
+  orientation). It validates on the handoff branch build. Swap it in when the
+  stack has merged; it still lacks the handoff block and a Switchboard server,
+  which wait on the user's token. (2026-11-23, orchestrator)
 
 ## Context
 
