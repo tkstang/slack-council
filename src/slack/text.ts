@@ -35,59 +35,72 @@ export function neutraliseBroadcasts(text: string): string {
 }
 
 const RESERVED_NAMES = new Set(['council', 'here', 'channel', 'everyone']);
+const MARKUP = /(<[^<>\n]*>)/u;
+// A display name with markup or invisible characters could pass for the
+// neutraliser's own output, so it is never linkable.
+const UNSAFE_NAME = /[<>@\p{C}\p{Default_Ignorable_Code_Point}]/u;
+const escapeRegExp = (text: string) =>
+  text.replace(/[\\^$.*+?()[\]{}|]/gu, String.raw`\$&`);
 
 /**
- * Turn `@Name` into `<@U…>` for the given people. Run it on text whose own
- * mentions are already neutralised, so a mention exists only where a name
- * matched. A name is matched whole, ignoring case, longest first ("Ann Lee"
- * before "Ann"), at the start of a word and never inside `<…>` markup or
- * before a hyphen (`@ann-lee` is one token). A name is skipped when it is not
- * unique among the people given, or when it or its first word is a reserved
- * word such as a member handle: those already mean something else.
+ * Member text with every mention neutralised, then `@Name` turned into
+ * `<@U…>` for the given people. A mention exists in the result only where a
+ * name matched in the member's own prose: `<…>` markup is neutralised as a
+ * whole and never searched, so a mention's label cannot produce a link.
+ *
+ * A name is matched whole and longest first ("Ann Lee" before "Ann"), ignoring
+ * case, at the start of a word and never before a hyphen. The longest match
+ * decides: when it fits two people, or is reserved (it is, or as a handle
+ * would read as, a member handle or a word like `council`), nothing shorter is
+ * tried and the text stays as written.
  */
 export function linkPeopleMentions(
   text: string,
   people: ReadonlyMap<string, string>,
   reserved: ReadonlySet<string> = new Set(),
 ): string {
-  const named = [...people].map(([id, name]) => ({ id, name: name.trim() }));
-  const uses = new Map<string, number>();
-  for (const { name } of named) {
-    const lower = name.toLowerCase();
-    uses.set(lower, (uses.get(lower) ?? 0) + 1);
-  }
+  const entries = [...people]
+    .map(([id, name]) => ({ id, name: name.trim() }))
+    .filter(({ name }) => name.length > 1 && !UNSAFE_NAME.test(name))
+    .map((entry) => ({
+      ...entry,
+      // The same case rules as the search below, so two names it cannot tell
+      // apart count as one name held by two people.
+      exact: new RegExp(`^${escapeRegExp(entry.name)}$`, 'iu'),
+    }))
+    .toSorted((a, b) => b.name.length - a.name.length);
+  if (entries.length === 0) return neutraliseProse(text);
+
   const taken = (word: string) =>
     RESERVED_NAMES.has(word) || reserved.has(word);
-  const known = named
-    .filter(({ name }) => {
-      const lower = name.toLowerCase();
-      return (
-        name.length > 1 &&
-        uses.get(lower) === 1 &&
-        !taken(lower) &&
-        !taken(lower.split(/[\s-]/u)[0] ?? '')
-      );
-    })
-    .toSorted((a, b) => b.name.length - a.name.length);
-  if (known.length === 0) return text;
-  const link = (plain: string) => {
-    let out = plain;
-    for (const { id, name } of known) {
-      const escaped = name.replace(/[\\^$.*+?()[\]{}|]/gu, String.raw`\$&`);
-      out = out.replace(
-        new RegExp(
-          String.raw`(?<=^|[\s(\[{"'*_~>])@${escaped}(?![\p{L}\p{N}_-])`,
-          'giu',
-        ),
-        `<@${id}>`,
-      );
-    }
-    return out;
+  const isReserved = (name: string) => {
+    const folded = name.normalize('NFKC').toLowerCase();
+    // What the addressing parser would read as a handle at the name's start.
+    const handle =
+      /^[a-z][a-z0-9-]*(?![\p{L}\p{N}_-])/u.exec(folded)?.[0] ?? '';
+    return taken(folded) || taken(handle);
   };
-  // Odd pieces are `<…>` markup (links, channels); leave them as written.
+  const search = new RegExp(
+    String.raw`(?<=^|[\s(\[{"'*_~>])@(${entries
+      .map(({ name }) => escapeRegExp(name))
+      .join('|')})(?![\p{L}\p{N}_-])`,
+    'giu',
+  );
+  const link = (prose: string) =>
+    prose.replace(search, (whole: string, matched: string) => {
+      const [first, second] = entries.filter(({ exact }) =>
+        exact.test(matched),
+      );
+      return first && !second && !isReserved(first.name)
+        ? `<@${first.id}>`
+        : whole;
+    });
+  // Odd pieces are `<…>` markup: neutralised, never searched for names.
   return text
-    .split(/(<[^<>\n]*>)/u)
-    .map((piece, index) => (index % 2 === 1 ? piece : link(piece)))
+    .split(MARKUP)
+    .map((piece, index) =>
+      index % 2 === 1 ? neutraliseProse(piece) : link(neutraliseProse(piece)),
+    )
     .join('');
 }
 

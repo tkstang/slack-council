@@ -74,7 +74,9 @@ export function createMcpManager(
           options: { signal },
         });
         tools.push(
-          ...page.tools.filter(({ name }) => /^[a-zA-Z0-9_-]+$/u.test(name)),
+          ...page.tools.filter(({ name }) =>
+            /^[a-zA-Z0-9_-]{1,64}$/u.test(name),
+          ),
         );
         cursor = page.nextCursor;
         if (cursor !== undefined) {

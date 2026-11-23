@@ -390,10 +390,10 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
         }
       }
       // One message per turn: text over the limit is truncated, never split.
-      // Break every mention the model wrote, then add back only those that
-      // match a known person's name.
+      // Every mention the model wrote is broken; one is added back only
+      // where a known person's name matched.
       const posting = truncateMarkdown(
-        linkPeopleMentions(neutraliseBroadcasts(text), people, handles),
+        linkPeopleMentions(text, people, handles),
       );
       const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),

@@ -323,8 +323,9 @@ tested without Slack.
   of a person seen in that channel (an author or someone mentioned) becomes a
   real mention. The post's own mentions are neutralised first, so a mention
   exists only where a name matched: whole, at the start of a word, outside
-  `<…>` markup. A name shared by two people, or one that is or begins with a
-  member handle, is left alone. Group and
+  `<…>` markup. The longest matching name decides: if two people
+  share it, or it is or begins with a member handle, the text is left alone and
+  no shorter name is tried. Group and
   channel-wide mentions are neutralised in both modes.
 - Reading: a channel council reads the newest 200 messages; a thread council
   reads up to 50 pages of replies through the trigger and fails with `E_SLACK`

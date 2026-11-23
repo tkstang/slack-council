@@ -33,31 +33,37 @@ describe('neutraliseBroadcasts', () => {
 });
 
 describe('linkPeopleMentions', () => {
-  const people = new Map([
-    ['U1', 'Ann'],
-    ['U2', 'Ann Lee'],
-    ['U3', 'bo'],
-    ['U4', 'Sam'],
-    ['U5', 'sam'],
-    ['U6', 'Bo Diaz'],
-  ]);
   const handles = new Set(['bo', 'ann-lee']);
-  const post = (text: string) =>
-    linkPeopleMentions(neutraliseBroadcasts(text), people, handles);
+  const post = (text: string, names: string[]) =>
+    linkPeopleMentions(
+      text,
+      new Map(names.map((name, index) => [`U${index + 1}`, name])),
+      handles,
+    );
 
-  it('links only whole, unique names that are not handles', () => {
+  it('links whole names, longest first, and nothing a handle could claim', () => {
+    const names = ['Ann', 'Ann Lee', 'bo', 'Bo Diaz', 'Ann-Lee Smith'];
     expect(
-      post('Ask @ann lee, then (@Ann). Not @Annabel or @Zed. mail a@ann.io'),
-    ).toBe('Ask <@U2>, then (<@U1>). Not @Annabel or @Zed. mail a@ann.io');
-    // A handle, a handle that starts with a name, a name that starts with a
-    // handle, and a name two people share are all left alone.
-    const untouched = '@bo @ann-lee @Bo Diaz @Sam';
-    expect(post(untouched)).toBe(untouched);
+      post('Ask @ann lee, then (@Ann). Not @Annabel or @Zed. a@ann.io', names),
+    ).toBe('Ask <@U2>, then (<@U1>). Not @Annabel or @Zed. a@ann.io');
+    const untouched = '@bo @ann-lee @Bo Diaz @Ann-Lee Smith';
+    expect(post(untouched, names)).toBe(untouched);
   });
 
-  it('never keeps a mention the model wrote itself, and skips markup', () => {
-    const posted = post('<@U1> <@U9> @here <https://x.io/@Ann|see @Ann> @Ann');
-    expect(posted.match(/<@U[0-9]+>/gu)).toEqual(['<@U1>']);
+  it('leaves a name two people share, without falling back to a shorter one', () => {
+    const names = ['Ann', 'Ann Lee', 'ann lee', 'Sam', '\u017Fam'];
+    const untouched = 'Ask @Ann Lee or @Sam';
+    expect(post(untouched, names)).toBe(untouched);
+    expect(post('Ask @Ann', names)).toBe('Ask <@U1>');
+  });
+
+  it('never keeps or builds a mention from markup the model wrote', () => {
+    const names = ['Ann', 'Zoe', '\u2060U9'];
+    const posted = post(
+      '<@U1> <@U9> <@U8|x @Zoe> <!here> @here <https://x.io/@Ann|see @Ann> @Ann',
+      names,
+    );
+    expect(posted.match(/<[@!][^>]*>/gu)).toEqual(['<@U1>']);
     expect(posted.endsWith('<https://x.io/@Ann|see @Ann> <@U1>')).toBe(true);
     expect(posted).not.toMatch(/(?<!\w)@here/u);
   });

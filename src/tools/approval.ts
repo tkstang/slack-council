@@ -25,7 +25,7 @@ interface Pending {
 
 // Invisible characters: controls, format characters and anything Unicode
 // marks as ignorable when displayed.
-const HIDDEN = String.raw`\u007f-\u009f  \p{Cf}\p{Default_Ignorable_Code_Point}`;
+const HIDDEN = String.raw`\u007f-\u009f  ⠀\p{Cf}\p{Default_Ignorable_Code_Point}`;
 
 const escapeHidden = (text: string) =>
   text.replace(
@@ -59,10 +59,20 @@ function isJson(text: string): boolean {
  * line that is not itself JSON. So `[]` the string is quoted and `[]` the
  * empty list is not, and the two never look alike.
  */
+const NEGATIVE_ZERO = `-0:${randomUUID()}`;
+
+// JSON writes -0 as 0; the approver must see the value the tool will get.
+const toJson = (value: unknown) =>
+  (
+    JSON.stringify(value, (_, item: unknown) =>
+      Object.is(item, -0) ? NEGATIVE_ZERO : item,
+    ) ?? 'null'
+  ).replaceAll(`"${NEGATIVE_ZERO}"`, '-0');
+
 const showValue = (value: unknown) =>
   typeof value === 'string' && PLAIN_LINE.test(value) && !isJson(value)
     ? value
-    : (JSON.stringify(value) ?? 'null');
+    : toJson(value);
 
 /**
  * The exact arguments as the approver will see them: one `name: value` line
@@ -77,7 +87,7 @@ function preview(args: unknown): string | undefined {
       : undefined;
   const text =
     fields === undefined
-      ? (JSON.stringify(args) ?? '{}')
+      ? toJson(args)
       : fields.length === 0
         ? '(no arguments)'
         : fields
