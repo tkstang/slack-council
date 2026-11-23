@@ -437,32 +437,35 @@ it.each([
   },
 );
 
-it('asks the last parallel poster to listen to the other member’s unseen answer', async () => {
-  const h = harness({ listen: 'settle' });
-  h.history[0] = {
-    ts: '1.000',
-    author: { kind: 'human', userId: 'U1', displayName: 'Reader' },
-    text: '@guide @critic Explain.',
-  };
-  h.dispatch({
-    type: 'human',
-    chainId: 'parallel',
-    ts: '1.000',
-    address: { kind: 'members', handles: ['guide', 'critic'] },
-  });
-  await h.waitForCalls(2);
-  h.call(0).finish(success('Guide’s answer.'));
-  await vi.waitFor(() => expect(h.history).toHaveLength(2), { interval: 1 });
-  h.call(1).finish(success('Critic’s answer.'));
+// The trigger is an app notice when a round is opened from the roster picker.
+it.each([
+  [{ kind: 'human', userId: 'U1', displayName: 'Reader' }, 2],
+  [{ kind: 'notice' }, 1],
+] as const)(
+  'asks the last parallel poster to listen to the other member’s unseen answer after a %o trigger',
+  async (author, firstRow) => {
+    const h = harness({ listen: 'settle' });
+    h.history[0] = { ts: '1.000', author, text: '@guide @critic Explain.' };
+    h.dispatch({
+      type: 'human',
+      chainId: 'parallel',
+      ts: '1.000',
+      address: { kind: 'members', handles: ['guide', 'critic'] },
+    });
+    await h.waitForCalls(2);
+    h.call(0).finish(success('Guide’s answer.'));
+    await vi.waitFor(() => expect(h.history).toHaveLength(2), { interval: 1 });
+    h.call(1).finish(success('Critic’s answer.'));
 
-  await vi.waitFor(() => expect(h.listens).toHaveLength(2), { interval: 1 });
-  const critic = h.listens.find(({ input }) => input.member.id === 'critic');
-  expect(critic?.input.prompt.user).toContain(
-    '[#2] [new] Guide (member): Guide’s answer.\n[#3] You (Critic): Critic’s answer.',
-  );
-  for (const listen of h.listens) listen.finish(success('PASS'));
-  await h.drain();
-});
+    await vi.waitFor(() => expect(h.listens).toHaveLength(2), { interval: 1 });
+    const critic = h.listens.find(({ input }) => input.member.id === 'critic');
+    expect(critic?.input.prompt.user).toContain(
+      `[#${firstRow}] [new] Guide (member): Guide’s answer.\n[#${firstRow + 1}] You (Critic): Critic’s answer.`,
+    );
+    for (const listen of h.listens) listen.finish(success('PASS'));
+    await h.drain();
+  },
+);
 
 const OBSERVER: Member = { ...GUIDE, id: 'observer', name: 'Observer' };
 

@@ -198,13 +198,10 @@ export function createChainRunner(
       privateNotes: shownNotes,
     });
     const firstVisible = messages.value.findIndex(({ ts }) => ts === oldestTs);
+    // Everything shown counts as seen, app notices included: a round opened
+    // from the picker has only a notice before the first member posts.
     const latestSeenTs =
-      firstVisible < 0
-        ? undefined
-        : messages.value.findLast(
-            ({ author }, index) =>
-              index >= firstVisible && author.kind !== 'notice',
-          )?.ts;
+      firstVisible < 0 ? undefined : messages.value.at(-1)?.ts;
     const result = await protect(
       () =>
         turns.runTurn({
