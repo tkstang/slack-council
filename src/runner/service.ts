@@ -277,7 +277,7 @@ export async function openCouncilService(
           appUserId,
           received?.council.roster ?? [],
         );
-        if (receivedAddress.kind === 'stop')
+        if (receivedAddress.kind === 'stop' || receivedAddress.kind === 'end')
           received?.runner.dispatch({ type: 'stop' });
 
         return await writes.run(async () => {
@@ -300,8 +300,9 @@ export async function openCouncilService(
           const entry = current ?? opening;
           if (!entry) return 'ignored';
 
-          // Earlier queued messages may have started another chain while stop waited.
-          if (address.kind === 'stop') entry.runner.dispatch({ type: 'stop' });
+          // Earlier queued messages may have started another chain while cancellation waited.
+          if (address.kind === 'stop' || address.kind === 'end')
+            entry.runner.dispatch({ type: 'stop' });
           const event =
             address.kind === 'end' || address.kind === 'stop'
               ? undefined
@@ -336,10 +337,12 @@ export async function openCouncilService(
     async end(scope, userId) {
       requireOpen();
       requireAllowed(userId);
+      const key = scopeKey(scope);
+      entries.get(key)?.runner.dispatch({ type: 'stop' });
       return writes.run(async () => {
-        const key = scopeKey(scope);
         const entry = entries.get(key);
         if (!entry) return false;
+        entry.runner.dispatch({ type: 'stop' });
         await save(councils(key));
         retire(key, entry);
         return true;

@@ -279,9 +279,12 @@ it('persists end, aborts the old chain and prevents its kickoff message from reo
   expect(await service.handleHumanMessage(opening)).toBe('accepted');
   await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
 
-  expect(await service.handleHumanMessage(human('2.000', '<@UAPP> end'))).toBe(
-    'accepted',
-  );
+  const saveEnd = f.gateSave();
+  const ending = service.handleHumanMessage(human('2.000', '<@UAPP> end'));
+  const abortedBeforeSave = f.calls[0]?.signal.aborted;
+  saveEnd(success(undefined));
+  expect(await ending).toBe('accepted');
+  expect(abortedBeforeSave).toBe(true);
   expect(service.getCouncil(SCOPE)).toBeUndefined();
   expect(f.calls[0]?.signal.aborted).toBe(true);
   expect(f.record().councils).toEqual([]);

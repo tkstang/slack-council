@@ -2,7 +2,14 @@ import { readFile } from 'node:fs/promises';
 
 import { failure, success, type Result } from '@council/core/result.js';
 
-import { ConfigSchema, MEMBER_HANDLE, type Config } from './schema.js';
+import {
+  ConfigSchema,
+  FILES_GRANT,
+  MCP_TOOL_SEPARATOR,
+  MEMBER_HANDLE,
+  SLACK_HISTORY_GRANT,
+  type Config,
+} from './schema.js';
 
 export function parseConfig(input: string): Result<Config> {
   if (!input.trim()) {
@@ -53,6 +60,24 @@ export function parseConfig(input: string): Result<Config> {
         'E_UNKNOWN_PROVIDER',
         `Member ${id} names an unknown provider: ${member.provider}`,
       );
+    }
+    for (const grant of member.tools) {
+      if (grant === FILES_GRANT || grant === SLACK_HISTORY_GRANT) continue;
+      const separator = grant.indexOf(MCP_TOOL_SEPARATOR);
+      const server = separator === -1 ? grant : grant.slice(0, separator);
+      const tool =
+        separator === -1
+          ? undefined
+          : grant.slice(separator + MCP_TOOL_SEPARATOR.length);
+      if (
+        !Object.hasOwn(config.tools.mcpServers, server) ||
+        (tool !== undefined && !/^[a-zA-Z0-9_-]+$/u.test(tool))
+      ) {
+        return failure(
+          'E_UNKNOWN_TOOL_GRANT',
+          `Member ${id} names an unknown tool grant: ${grant}`,
+        );
+      }
     }
   }
   for (const [preset, roster] of Object.entries(config.presets)) {

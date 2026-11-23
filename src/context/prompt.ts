@@ -1,12 +1,15 @@
 import type { Author, Member, Message, Prompt } from '@council/core/types.js';
 import type { Grant } from '@council/engine/reducer.js';
 
-export interface PromptInput {
+interface TranscriptInput {
   readonly member: Member;
   readonly roster: readonly Member[];
   readonly messages: readonly Message[];
-  readonly grant: Pick<Grant, 'kind' | 'round' | 'sourceTs'>;
   readonly contextChars: number;
+}
+
+export interface PromptInput extends TranscriptInput {
+  readonly grant: Pick<Grant, 'kind' | 'round' | 'sourceTs'>;
 }
 
 function escapeText(text: string): string {
@@ -20,7 +23,7 @@ function escapeLabel(text: string): string {
   return escapeText(text.replace(/[\r\n\t\u2028\u2029]+/gu, ' '));
 }
 
-function authorLabel(input: PromptInput, author: Author): string {
+function authorLabel(input: TranscriptInput, author: Author): string {
   switch (author.kind) {
     case 'human':
       return `${escapeLabel(author.displayName)} (human)`;
@@ -58,7 +61,7 @@ function escapedTail(text: string, budget: number): string {
   return tail;
 }
 
-function renderTranscript(input: PromptInput): string {
+export function renderTranscript(input: TranscriptInput) {
   const { messages, member, contextChars } = input;
   const lastSpoke = messages.findLastIndex(
     ({ author }) => author.kind === 'member' && author.memberId === member.id,
@@ -91,9 +94,11 @@ function renderTranscript(input: PromptInput): string {
     chars += label.length + text.length;
   }
 
-  const omitted = omission(messages.length - rows.length);
+  const hidden = messages.length - rows.length;
+  const oldestTs = messages[hidden]?.ts;
+  const omitted = omission(hidden);
   if (omitted) rows.push(omitted);
-  return rows.toReversed().join('\n');
+  return { transcript: rows.toReversed().join('\n'), oldestTs };
 }
 
 function renderFloor(input: PromptInput): string {
@@ -113,7 +118,7 @@ function renderFloor(input: PromptInput): string {
   }
 }
 
-export function buildPrompt(input: PromptInput): Prompt {
+export function buildTurnContext(input: PromptInput) {
   const roster = input.roster
     .map((m) => `@${m.id} (${escapeLabel(m.name)})`)
     .join(', ');
@@ -127,8 +132,14 @@ export function buildPrompt(input: PromptInput): Prompt {
     'Posts tagged [new] appeared since you last spoke. Raise any disagreement with them before answering the current request.',
   ].join('\n');
 
-  return {
+  const { transcript, oldestTs } = renderTranscript(input);
+  const prompt: Prompt = {
     system: role,
-    user: `<council_role>\n${role}\n</council_role>\n<transcript>\n${renderTranscript(input)}\n</transcript>\n<floor>${renderFloor(input)}</floor>`,
+    user: `<council_role>\n${role}\n</council_role>\n<transcript>\n${transcript}\n</transcript>\n<floor>${renderFloor(input)}</floor>`,
   };
+  return { prompt, oldestTs };
+}
+
+export function buildPrompt(input: PromptInput): Prompt {
+  return buildTurnContext(input).prompt;
 }

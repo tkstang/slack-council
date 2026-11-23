@@ -26,6 +26,37 @@ export interface SlackPort {
   ): Promise<Result<void>>;
 }
 
+export interface ApprovalRequest {
+  readonly id: string;
+  readonly memberName: string;
+  readonly tool: string;
+  readonly preview: string;
+}
+
+export type ApprovalOutcome =
+  | { readonly kind: 'approved' | 'denied'; readonly userId: string }
+  | { readonly kind: 'expired' | 'cancelled' };
+
+export interface ApprovalPort {
+  postApproval(
+    scope: Scope,
+    request: ApprovalRequest,
+  ): Promise<Result<{ readonly ts: string }>>;
+  updateApproval(
+    scope: Scope,
+    ts: string,
+    request: ApprovalRequest,
+    outcome: ApprovalOutcome,
+  ): Promise<Result<void>>;
+}
+
+export interface TurnApproval {
+  readonly owner: string;
+  readonly timeoutMs: number;
+  /** Pause the turn deadline until the returned function is called. */
+  suspendTimeout(): () => void;
+}
+
 export interface TurnInput extends TurnRef {
   readonly councilId: string;
   readonly scope: Scope;
@@ -33,6 +64,9 @@ export interface TurnInput extends TurnRef {
   readonly prompt: Prompt;
   readonly maxSteps: number;
   readonly signal: AbortSignal;
+  readonly approval?: TurnApproval;
+  /** Exclusive default cutoff for retrieving messages before the prompt. */
+  readonly historyBeforeTs?: string;
 }
 
 export interface TurnRunner {
@@ -51,6 +85,8 @@ export interface Store {
 }
 
 export interface Clock {
+  /** Monotonic milliseconds, defaulting to performance.now(). */
+  now?(): number;
   /** Schedule a callback and return a function that cancels it. */
   setTimeout(callback: () => void, ms: number): () => void;
 }

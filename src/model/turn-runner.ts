@@ -20,7 +20,7 @@ export type ModelFactory = (provider: string, model: string) => LanguageModel;
 
 export interface TurnRunnerOptions {
   readonly models: ModelFactory;
-  /** Tool seam for later batches. Returns no tools by default. */
+  /** Resolve tools for each turn. Returns no tools by default. */
   readonly toolsFor?: (input: TurnInput) => ToolSet | undefined;
 }
 

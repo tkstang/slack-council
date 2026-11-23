@@ -38,6 +38,7 @@ it('round-trips councils and dedupe order across store instances and replaces th
           unaddressed: 'silent',
           contextChars: 400,
           turnTimeoutMs: 200,
+          approvalTimeoutMs: 300_000,
           maxSteps: 5,
         },
       },

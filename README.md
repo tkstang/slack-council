@@ -19,7 +19,8 @@ providers. Provider keys are named by environment variable. A relative
 
 Source modules live in `src/core`, `src/config`, `src/engine`, `src/context`,
 `src/runner`, `src/store`, `src/model` (the AI SDK turn runner), `src/slack`
-(the Bolt adapter) and `src/app` (startup wiring). Imports within a directory use relative paths and
+(the Bolt adapter), `src/tools` (member tools and approvals) and `src/app`
+(startup wiring). Imports within a directory use relative paths and
 cross-directory imports use `@council/*`.
 
 ## Run it in Slack
@@ -105,15 +106,71 @@ inside a thread it convenes for that thread. Address a member with `@<handle>`,
 and use `@council stop` or `@council end`. `/council` and the message shortcut
 reply that the roster picker is not built yet.
 
+## Member tools
+
+Set `members.<handle>.tools` to the grants that member can use. An empty list
+gives the member no tools.
+
+| Grant              | Tools it exposes                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `files`            | `read_file`, `list_dir`, `search_files`                                                                                                                  |
+| `slack_history`    | Earlier messages from this council's thread or channel. It starts before the prompt transcript and accepts the returned `oldestTs` as a `before` cursor. |
+| `<server>`         | Every compatible tool from the named MCP server.                                                                                                         |
+| `<server>__<tool>` | One tool from the named MCP server.                                                                                                                      |
+
+MCP tool names use ASCII letters, digits, underscores and hyphens. Server
+names use the same characters with single underscores between segments.
+Config validation checks grants against declared server names. The server
+supplies the available tool names at startup.
+
+**A readable file is a quotable file.** Anything the tools can read may appear
+in Slack. Choose roots whose contents the council's Slack audience can see.
+`tools.files.roots` has no default. Relative paths resolve from the app's
+working directory. The tools check real paths, filter directory entries and
+search hits through the same policy, and refuse symlinks that escape a root.
+The default deny globs cover env files, common credential directories, keys
+and keychains. Supplying `tools.files.deny` replaces that list. The denylist
+helps prevent accidental disclosure. Use the roots to limit access.
+
+Reads accept UTF-8 files up to 64 KiB and support inclusive, one-based line
+ranges. Listings return up to 100 entries. Literal searches return up to 50
+hits with 300 characters per line. Listings and searches inspect up to 2,000
+directory entries per call.
+
+Declare stdio and HTTP servers in `tools.mcpServers`. For stdio, `env` maps
+child variable names to variable names in the app's environment. For HTTP,
+`headersEnv` maps header names to environment variable names. Each server
+connects at startup. A failed connection disables that server's tools and
+logs `E_MCP_UNAVAILABLE`. The CLI's `validate` command checks config without
+opening MCP connections.
+
+The example config uses [the notes MCP server](examples/notes-mcp-server.mjs).
+Set `COUNCIL_NOTES_FILE` in the app's environment to a file intended for the
+council. The server exposes `notes__list_notes` and `notes__append_note`.
+The example allows automatic reads and asks for approval before appending.
+
+Rules in `tools.policy` match the exposed tool name, in order. Use an exact
+name or a prefix ending in `*`. The first match wins. Built-in reads default
+to `auto` and MCP tools default to `ask`. Approval rules apply only to
+tools already granted to the member.
+
+An `ask` call posts the member, tool and a bounded argument preview in the
+council conversation. The owner or a user in `slack.allowedUsers` can click
+**Approve** or **Deny**. Each request can be decided once. A denial, expiry
+or cancellation returns a tool error. Two denials suppress further requests
+during that turn. `council.approvalTimeoutMs` defaults to 300,000 ms.
+The turn timer pauses while waiting for approval. `stop` and `end` cancel
+the wait immediately. Pending requests expire on restart.
+
 ## Adapter entry points
 
 Open the service with `openCouncilService(config, { slack, turns, appUserId })`.
 Pass human messages with raw Slack-encoded text to `handleHumanMessage`. For
 mention-based kickoff, pass the resolved thread scope with `kickoff: true`.
 Convene a chosen roster or preset through `convene`. The service retains the newest 4,096
-accepted message keys across restarts. It dispatches floor grants and `end`
-after saving, and dispatches `stop` before saving so a slow or failed save does
-not delay cancellation of the active turn.
+accepted message keys across restarts. It dispatches floor grants and removes
+ended councils after saving. Both `stop` and `end` cancel active turns before
+saving so cancellation stays responsive during a slow or failed save.
 
 The Slack port reads oldest-to-newest history with an inclusive cutoff, posts
 members with chain and turn metadata, and neutralises broadcast mentions. Call

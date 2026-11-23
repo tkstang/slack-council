@@ -8,6 +8,17 @@ const httpUrl = z.url({ protocol: /^https?$/ }).refine((value) => {
 }, 'Use a URL without inline credentials');
 
 export const MEMBER_HANDLE = /^[a-z][a-z0-9-]*$/;
+export const FILES_GRANT = 'files';
+export const SLACK_HISTORY_GRANT = 'slack_history';
+export const MCP_TOOL_SEPARATOR = '__';
+const mcpServerName = /^[a-zA-Z0-9-]+(?:_[a-zA-Z0-9-]+)*$/u;
+const mcpServerKey = z
+  .string()
+  .regex(mcpServerName)
+  .refine(
+    (name) => name !== FILES_GRANT && name !== SLACK_HISTORY_GRANT,
+    'MCP server name is reserved',
+  );
 
 const ProviderSchema = z.strictObject({
   baseURL: httpUrl,
@@ -40,6 +51,7 @@ export const CouncilSettingsSchema = z.strictObject({
   unaddressed: z.enum(['silent', 'council']).default('silent'),
   contextChars: positive.default(DEFAULT_CONTEXT_CHARS),
   turnTimeoutMs: positive.max(2_147_483_647).default(60_000),
+  approvalTimeoutMs: positive.max(2_147_483_647).default(300_000),
   maxSteps: positive.default(8),
 });
 
@@ -77,11 +89,14 @@ const ToolsSchema = z.strictObject({
       deny: z.array(nonempty).default(DEFAULT_DENY),
     })
     .prefault({}),
-  mcpServers: z.record(nonempty, McpServerSchema).default({}),
+  mcpServers: z.record(mcpServerKey, McpServerSchema).default({}),
   policy: z
     .array(
       z.strictObject({
-        tool: nonempty,
+        tool: nonempty.regex(
+          /^[^*]+\*?$|^\*$/u,
+          'Use a name or a prefix ending in *',
+        ),
         action: z.enum(['auto', 'ask']),
       }),
     )

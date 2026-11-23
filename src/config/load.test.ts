@@ -34,7 +34,12 @@ describe('configuration', () => {
     expect(parseConfig(JSON.stringify(config()))).toMatchObject({
       ok: true,
       value: {
-        council: { unaddressed: 'silent', rounds: 2, hopBudget: 6 },
+        council: {
+          unaddressed: 'silent',
+          rounds: 2,
+          hopBudget: 6,
+          approvalTimeoutMs: 300_000,
+        },
         members: { reviewer: { effort: ' future-level ', tools: [] } },
         tools: {
           files: { roots: [], deny: expect.arrayContaining(['**/.env']) },
@@ -86,7 +91,7 @@ describe('configuration', () => {
     ).toMatchObject({ ok: false, code: 'E_UNKNOWN_PRESET' });
   });
 
-  it('requires an allowlist and validates URL, secret references, limits and future tools', () => {
+  it('requires an allowlist and validates URL, secret references, limits and tools', () => {
     const input = config();
     for (const invalid of [
       { slack: { allowedUsers: [] } },
@@ -108,6 +113,7 @@ describe('configuration', () => {
         },
       },
       { council: { hopBudget: -1 } },
+      { council: { approvalTimeoutMs: 0 } },
       { council: { contextChars: 999 } },
       { tools: { files: { roots: [false] } } },
       { tools: { files: { deny: 'glob' } } },
@@ -117,6 +123,7 @@ describe('configuration', () => {
         },
       },
       { tools: { policy: [{ tool: 'read_file', action: 'allow' }] } },
+      { tools: { policy: [{ tool: 'read_*file', action: 'ask' }] } },
     ]) {
       expect(
         parseConfig(JSON.stringify({ ...input, ...invalid })),
@@ -148,6 +155,28 @@ describe('configuration', () => {
       ok: true,
       value: { tools },
     });
+  });
+
+  it.each([
+    [['files', 'slack_history', 'notes', 'notes__append_note'], true],
+    [['unknown'], false],
+    [['other__append_note'], false],
+    [['notes__'], false],
+    [['notes__*'], false],
+  ] as const)('validates member tool grants %j', (grants, ok) => {
+    const input = config();
+    const parsed = parseConfig(
+      JSON.stringify({
+        ...input,
+        members: { reviewer: { ...input.members.reviewer, tools: grants } },
+        tools: {
+          mcpServers: { notes: { transport: 'stdio', command: 'mcp' } },
+        },
+      }),
+    );
+    expect(parsed).toMatchObject(
+      ok ? { ok: true } : { ok: false, code: 'E_UNKNOWN_TOOL_GRANT' },
+    );
   });
 
   it('reports a coded read failure from the filesystem boundary', async () => {

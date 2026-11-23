@@ -178,3 +178,75 @@ describe('writes', () => {
     expect(attempts).toBe(2);
   });
 });
+
+it('posts plain-text approval buttons in scope and clears them on the outcome update', async () => {
+  const calls: [string, Record<string, unknown>][] = [];
+  const api = {
+    async apiCall(method: string, args: Record<string, unknown> = {}) {
+      calls.push([method, args]);
+      return { ok: true, ts: '2.000000' };
+    },
+  };
+  const slack = createSlackPort({
+    api,
+    writeApi: api,
+    botId: 'BAPP',
+    botUserId: 'UAPP',
+    members: [],
+    intervalMs: 0,
+  });
+  const scope = { channel: 'C1', threadTs: '1.000000' };
+  const request = {
+    id: 'opaque',
+    memberName: 'Ada',
+    tool: 'read_file',
+    preview: '{"path":"<!here>"}',
+  };
+  expect(await slack.postApproval(scope, request)).toEqual({
+    ok: true,
+    value: { ts: '2.000000' },
+  });
+  expect(
+    await slack.updateApproval(scope, '2.000000', request, {
+      kind: 'denied',
+      userId: 'U1',
+    }),
+  ).toMatchObject({ ok: true });
+  const section = {
+    type: 'section',
+    text: {
+      type: 'plain_text',
+      text: expect.stringContaining(request.preview),
+    },
+  };
+  expect(calls).toMatchObject([
+    [
+      'chat.postMessage',
+      {
+        channel: 'C1',
+        thread_ts: '1.000000',
+        mrkdwn: false,
+        text: expect.stringContaining('&lt;!here&gt;'),
+        blocks: [
+          section,
+          {
+            type: 'actions',
+            elements: [
+              { action_id: 'council_approve_tool', value: 'opaque' },
+              { action_id: 'council_deny_tool', value: 'opaque' },
+            ],
+          },
+        ],
+      },
+    ],
+    [
+      'chat.update',
+      {
+        channel: 'C1',
+        ts: '2.000000',
+        text: expect.stringContaining('Request denied by U1.'),
+        blocks: [section],
+      },
+    ],
+  ]);
+});

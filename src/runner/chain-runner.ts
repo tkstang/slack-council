@@ -1,6 +1,11 @@
 import { parseTurnOutput } from '@council/context/output.js';
-import { buildPrompt } from '@council/context/prompt.js';
-import type { Clock, SlackPort, TurnRunner } from '@council/core/ports.js';
+import { buildTurnContext } from '@council/context/prompt.js';
+import type {
+  Clock,
+  SlackPort,
+  TurnApproval,
+  TurnRunner,
+} from '@council/core/ports.js';
 import {
   failure,
   type ErrorCode,
@@ -93,13 +98,14 @@ export function createChainRunner(
     grant: Grant,
     member: Member,
     signal: AbortSignal,
+    suspendTimeout: TurnApproval['suspendTimeout'],
   ): Promise<Result<string>> {
     if (signal.aborted) return abortFailure(signal);
     const messages = await history(grant);
     if (signal.aborted) return abortFailure(signal);
     if (!messages.ok) return messages;
 
-    const prompt = buildPrompt({
+    const { prompt, oldestTs } = buildTurnContext({
       member,
       roster,
       messages: messages.value,
@@ -117,6 +123,12 @@ export function createChainRunner(
           signal,
           chainId: grant.chainId,
           turnId: grant.turnId,
+          historyBeforeTs: oldestTs,
+          approval: {
+            owner: council.owner,
+            timeoutMs: settings.approvalTimeoutMs,
+            suspendTimeout,
+          },
         }),
       'E_TURN_FAILED',
     );
@@ -132,17 +144,39 @@ export function createChainRunner(
     const aborted = Promise.withResolvers<Failure>();
     const onAbort = () => aborted.resolve(abortFailure(signal));
     signal.addEventListener('abort', onAbort, { once: true });
-    const cancelTimeout = clock.setTimeout(
-      () => controller.abort('E_TURN_TIMEOUT'),
-      settings.turnTimeoutMs,
-    );
+    const now = () => clock.now?.() ?? performance.now();
+    let remaining = settings.turnTimeoutMs;
+    let started = now();
+    let waits = 0;
+    let finished = false;
+    const arm = () =>
+      clock.setTimeout(() => controller.abort('E_TURN_TIMEOUT'), remaining);
+    let cancelTimeout = arm();
+
+    function suspendTimeout(): () => void {
+      if (finished || signal.aborted) return () => undefined;
+      waits += 1;
+      if (waits === 1) {
+        cancelTimeout();
+        remaining = Math.max(0, remaining - (now() - started));
+        if (remaining === 0) controller.abort('E_TURN_TIMEOUT');
+      }
+      return () => {
+        waits -= 1;
+        if (waits === 0 && !finished && !signal.aborted) {
+          started = now();
+          cancelTimeout = arm();
+        }
+      };
+    }
     let result: Result<string>;
     try {
       result = await Promise.race([
         aborted.promise,
-        generate(grant, member, signal),
+        generate(grant, member, signal, suspendTimeout),
       ]);
     } finally {
+      finished = true;
       cancelTimeout();
       signal.removeEventListener('abort', onAbort);
     }

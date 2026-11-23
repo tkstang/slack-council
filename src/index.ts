@@ -8,11 +8,15 @@ export {
 } from '@council/config/schema.js';
 export { CliError, isCliError } from '@council/core/errors.js';
 export type {
+  ApprovalOutcome,
+  ApprovalPort,
+  ApprovalRequest,
   Clock,
   IdSource,
   SlackPort,
   Store,
   StoredState,
+  TurnApproval,
   TurnInput,
   TurnRef,
   TurnRunner,

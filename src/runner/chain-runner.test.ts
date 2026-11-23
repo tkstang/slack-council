@@ -27,6 +27,7 @@ const COUNCIL: Council = {
     unaddressed: 'silent',
     contextChars: 2_000,
     turnTimeoutMs: 500,
+    approvalTimeoutMs: 300_000,
     maxSteps: 4,
   },
 };
@@ -50,6 +51,7 @@ function harness(settings: Partial<Council['settings']> = {}) {
   const timers = new Map<() => void, number>();
   let writeGate: Promise<Result<void>> | undefined;
   let postNumber = 3;
+  let monotonicMs = 0;
 
   const slack: SlackPort = {
     async fetchMessages(_scope, cutoff) {
@@ -82,6 +84,7 @@ function harness(settings: Partial<Council['settings']> = {}) {
   };
 
   const clock: Clock = {
+    now: () => monotonicMs,
     setTimeout(callback, ms) {
       timers.set(callback, ms);
       return () => timers.delete(callback);
@@ -120,6 +123,9 @@ function harness(settings: Partial<Council['settings']> = {}) {
     reactions,
     writes,
     timers,
+    elapse(ms: number) {
+      monotonicMs += ms;
+    },
     open() {
       runner.dispatch({
         type: 'human',
@@ -309,4 +315,27 @@ it('settles a hung Slack post with a notice and ignores its late completion', as
   });
   await h.drain();
   expect(h.calls).toHaveLength(1);
+});
+
+it('pauses the turn budget during approval and resumes with its remaining time', async () => {
+  const h = harness({ rounds: 1 });
+  h.dispatch({
+    type: 'human',
+    chainId: 'first',
+    ts: '1.000',
+    address: { kind: 'members', handles: ['guide'] },
+  });
+  await h.waitForCalls(1);
+  const { approval, signal } = h.call(0).input;
+  if (!approval) throw new Error('Missing approval context');
+  h.elapse(120);
+  const resume = approval.suspendTimeout();
+  expect(h.timers.size).toBe(0);
+  h.elapse(10_000);
+  expect(signal.aborted).toBe(false);
+  resume();
+  expect([...h.timers.values()]).toEqual([380]);
+  h.timers.keys().next().value?.();
+  await h.drain();
+  expect(signal.reason).toBe('E_TURN_TIMEOUT');
 });

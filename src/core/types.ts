@@ -23,6 +23,7 @@ export interface CouncilSettings {
   readonly unaddressed: 'silent' | 'council';
   readonly contextChars: number;
   readonly turnTimeoutMs: number;
+  readonly approvalTimeoutMs: number;
   readonly maxSteps: number;
 }
 

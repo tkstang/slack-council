@@ -10,6 +10,9 @@ import { callSlack, createSlackClients } from '@council/slack/api.js';
 import { registerCouncilHandlers } from '@council/slack/bolt.js';
 import { createInboundHandler } from '@council/slack/inbound.js';
 import { createSlackPort } from '@council/slack/port.js';
+import { createApprovalGate } from '@council/tools/approval.js';
+import { createMcpManager } from '@council/tools/mcp.js';
+import { createMemberTools } from '@council/tools/member-tools.js';
 import { App } from '@slack/bolt';
 import { z } from 'zod';
 
@@ -75,19 +78,33 @@ export async function startCouncilApp({
   }
   const { user_id: botUserId, bot_id: botId } = identity.data;
 
+  const members = Object.entries(config.members).map(([id, member]) => ({
+    id,
+    ...member,
+  }));
   const slack = createSlackPort({
     api: reader,
     writeApi: writer,
     botId,
     botUserId,
-    members: Object.entries(config.members).map(([id, { name }]) => ({
-      id,
-      name,
-    })),
+    members,
+  });
+  const approvals = createApprovalGate(slack, config.slack.allowedUsers, () =>
+    log({ level: 'warn', event: 'approval_write_failed', code: 'E_SLACK' }),
+  );
+  const mcp = createMcpManager(config.tools.mcpServers, env, (server, code) =>
+    log({ level: 'warn', event: 'mcp_unavailable', code, server }),
+  );
+  const toolsFor = createMemberTools({
+    config: config.tools,
+    slack,
+    members,
+    mcp,
+    approvals,
   });
   const service = await openCouncilService(config, {
     slack,
-    turns: createTurnRunner({ models }),
+    turns: createTurnRunner({ models, toolsFor }),
     appUserId: botUserId,
     onSkippedCouncil: (council, missingMembers) =>
       log({
@@ -118,15 +135,25 @@ export async function startCouncilApp({
   });
   registerCouncilHandlers(app, {
     onEvent: createInboundHandler({ service, log }),
+    onApproval: approvals.decide,
     log,
   });
   try {
+    await mcp.start();
     await app.start();
   } catch {
-    await service.shutdown();
+    await shutdown();
     throw new CliError('E_SLACK', 'Could not connect to Slack in Socket Mode', {
       hint: 'Check SLACK_APP_TOKEN and that Socket Mode is enabled.',
     });
+  }
+
+  async function shutdown() {
+    try {
+      await service.shutdown();
+    } finally {
+      await Promise.all([mcp.close(), approvals.drain()]);
+    }
   }
 
   let stopping: Promise<void> | undefined;
@@ -136,7 +163,7 @@ export async function startCouncilApp({
     stop() {
       stopping ??= (async () => {
         try {
-          await service.shutdown();
+          await shutdown();
         } finally {
           await app.stop();
         }

@@ -1,4 +1,9 @@
-import type { SlackPort } from '@council/core/ports.js';
+import type {
+  ApprovalOutcome,
+  ApprovalPort,
+  ApprovalRequest,
+  SlackPort,
+} from '@council/core/ports.js';
 import { failure, success, type Result } from '@council/core/result.js';
 import type { Author, Member, Message, Scope } from '@council/core/types.js';
 import { z } from 'zod';
@@ -17,6 +22,9 @@ import {
 
 export const MEMBER_POST_EVENT = 'council_member_post';
 export const NOTICE_EVENT = 'council_notice';
+export const APPROVE_ACTION = 'council_approve_tool';
+export const DENY_ACTION = 'council_deny_tool';
+const APPROVAL_EVENT = 'council_tool_approval';
 
 export interface SlackPortOptions extends WriteQueueOptions {
   /** Client for reads. */
@@ -139,7 +147,59 @@ function target(scope: Scope): Record<string, string> {
     : { channel: scope.channel, thread_ts: scope.threadTs };
 }
 
-export function createSlackPort(options: SlackPortOptions): SlackPort {
+function approvalMessage(request: ApprovalRequest, outcome?: ApprovalOutcome) {
+  const member = request.memberName.replace(/\s+/gu, ' ').slice(0, 100);
+  const text = [
+    outcome === undefined
+      ? `${member} requests approval for ${request.tool}.`
+      : `${member} requested ${request.tool}.`,
+    request.preview,
+    outcome &&
+      ('userId' in outcome
+        ? `Request ${outcome.kind} by ${outcome.userId}.`
+        : `Request ${outcome.kind}.`),
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return {
+    text: text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;'),
+    mrkdwn: false,
+    blocks: [
+      { type: 'section', text: { type: 'plain_text', text, emoji: false } },
+      ...(outcome === undefined
+        ? [
+            {
+              type: 'actions',
+              elements: [
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: 'Approve' },
+                  action_id: APPROVE_ACTION,
+                  style: 'primary',
+                  value: request.id,
+                },
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: 'Deny' },
+                  action_id: DENY_ACTION,
+                  style: 'danger',
+                  value: request.id,
+                },
+              ],
+            },
+          ]
+        : []),
+    ],
+  };
+}
+
+export function createSlackPort(
+  options: SlackPortOptions,
+): SlackPort & ApprovalPort {
   const { api, writeApi, botId, botUserId, maxPages = 50 } = options;
   const queue = createChannelWriteQueue(options);
   const membersByName = new Map(
@@ -241,6 +301,10 @@ export function createSlackPort(options: SlackPortOptions): SlackPort {
         .filter(
           (raw) =>
             CONTENT_SUBTYPES.has(raw.subtype) &&
+            !(
+              raw.bot_id === botId &&
+              raw.metadata?.event_type === APPROVAL_EVENT
+            ) &&
             (throughTs === undefined || compareTs(raw.ts, throughTs) <= 0) &&
             // A channel council reads top-level posts and thread broadcasts only.
             (scope.threadTs !== undefined ||
@@ -317,6 +381,33 @@ export function createSlackPort(options: SlackPortOptions): SlackPort {
       return call.ok
         ? success(undefined)
         : slackFailure('chat.postMessage', call);
+    },
+
+    async postApproval(scope, request) {
+      const call = await write(scope.channel, 'chat.postMessage', {
+        ...target(scope),
+        ...approvalMessage(request),
+        unfurl_links: false,
+        unfurl_media: false,
+        metadata: {
+          event_type: APPROVAL_EVENT,
+          event_payload: { kind: 'approval' },
+        },
+      });
+      if (!call.ok) return slackFailure('chat.postMessage', call);
+      const posted = Posted.safeParse(call.value);
+      return posted.success
+        ? success({ ts: posted.data.ts })
+        : failure('E_SLACK', 'Slack chat.postMessage returned no ts');
+    },
+
+    async updateApproval(scope, ts, request, outcome) {
+      const call = await write(scope.channel, 'chat.update', {
+        channel: scope.channel,
+        ts,
+        ...approvalMessage(request, outcome),
+      });
+      return call.ok ? success(undefined) : slackFailure('chat.update', call);
     },
 
     async setReaction(channel, ts, reaction, present) {

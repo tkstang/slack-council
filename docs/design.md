@@ -186,25 +186,29 @@ produce mention grants.
 
 - `read_file`, `list_dir`, `search_files`: read-only. Every path, including each
   search hit and directory entry, is resolved with `realpath` and must be under a
-  configured root and match no deny glob. Roots have no default: the operator
+  configured root and match no deny glob. Roots have no default. The operator
   names them. Default deny globs cover env files, SSH and cloud credentials, key
-  files and keychains. Reads are size-capped.
+  files and keychains. Reads accept up to 64 KiB of UTF-8 text. Listings and
+  literal searches cap the returned entries or hits and the work per call.
 - A readable file is a quotable file. Anything under a root can end up in Slack,
   so roots should hold only what that channel's audience may see. The denylist
-  reduces accidents; it is not a boundary.
-- `slack_history`: older messages in the council's own scope.
-- MCP servers: stdio or HTTP, declared once in config, granted per member. Tool
-  names are namespaced `server__tool`.
-- Approval: each tool resolves to `auto` or `ask` from ordered policy rules.
-  Built-in read tools default to `auto`; MCP tools default to `ask`. An `ask` call
-  posts the tool name and a bounded preview of the arguments with Approve and
-  Deny buttons, and waits. The buttons carry an opaque request id bound to the
-  exact arguments, council, turn and expiry. A click is acknowledged at once,
-  checked against the council owner and `slack.allowedUsers`, and consumed once.
-  Cancellation is rechecked before the tool runs, so a click after `stop` does
-  nothing. Pending requests do not survive a restart. A denial or a timeout
-  returns an error result to the model, which continues; after two denials in a
-  turn, further `ask` calls in that turn are denied without asking.
+  reduces accidental exposure.
+- `slack_history` retrieves older messages in the council's own scope, rendered
+  like the transcript. It starts before the prompt transcript and can page backward.
+- MCP servers use stdio or HTTP. Failed startup disables the server's tools.
+  The app closes its clients on shutdown. Grants in `members.<handle>.tools`
+  include `files`, `slack_history`, `<server>` or `<server>__<tool>`.
+- Approval uses the first matching exact name or prefix ending in `*`.
+  Built-in read tools default to `auto` and MCP tools default to `ask`. An
+  `ask` call posts the member, tool and a bounded argument preview with Approve
+  and Deny buttons. The opaque request id binds the decision to the arguments,
+  council, chain, turn and expiry. The owner or a user in `slack.allowedUsers`
+  can decide once. The app acknowledges clicks immediately and updates the
+  message with the outcome and removes its buttons. Pending requests expire
+  on restart. The approval timeout defaults to five minutes. The turn timer
+  pauses while an approval is pending. `stop` and `end` cancel waits immediately.
+  Denial and expiry return tool errors to the model. After two denials, further
+  `ask` calls in the turn return a denial without posting.
 
 ## Slack layer
 
@@ -239,7 +243,8 @@ what was said.
 
 One JSON file validated with Zod. Secrets are referenced by environment variable
 name, never inlined. Sections: `providers`, `members`, `presets`, `tools`
-(`files`, `mcpServers`, `policy`), `slack` (`allowedUsers`), `limits`.
+(`files`, `mcpServers`, `policy`), `slack` (`allowedUsers`), `council`,
+and `stateDir`.
 
 ## Prototype order
 
