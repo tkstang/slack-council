@@ -219,7 +219,9 @@ tested without Slack.
 - Posting: per-channel serial queue, at least one second apart, no automatic
   retry of a write whose outcome is unknown. Every Slack call has a finite
   timeout: a write gets one attempt of 15 s, then the queue moves on; reads
-  retry at most twice. `@here`, `@channel` and `@everyone`
+  retry at most twice. A member turn is one message: text over Slack's
+  12,000-character `markdown_text` limit is truncated with a closing
+  `… (truncated)` line. `@here`, `@channel` and `@everyone`
   are neutralised in member output.
 - Progress: ⏳ on the triggering message while a chain runs.
 

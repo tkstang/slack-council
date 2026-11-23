@@ -63,83 +63,42 @@ export function renderSlackText(
     .replaceAll('&amp;', '&');
 }
 
-interface Fence {
-  readonly line: string;
-  readonly marker: string;
-}
-
+const TRUNCATED = '\n… (truncated)';
 const FENCE = /^[ \t]*(`{3,}|~{3,})/u;
 
-function updateFence(open: Fence | undefined, line: string): Fence | undefined {
-  const marker = FENCE.exec(line)?.[1];
-  if (!marker) return open;
-  if (!open) return { line, marker };
-  const closes =
-    marker[0] === open.marker[0] &&
-    marker.length >= open.marker.length &&
-    line.trim() === marker;
-  return closes ? undefined : open;
-}
-
-function hardSplit(line: string, size: number): string[] {
-  const pieces: string[] = [];
-  let rest = line;
-  while (rest.length > size) {
-    let cut = size;
-    // Never separate a surrogate pair.
-    if (/[\uD800-\uDBFF]/u.test(rest[cut - 1] ?? '')) cut -= 1;
-    pieces.push(rest.slice(0, cut));
-    rest = rest.slice(cut);
+/** The marker of a fenced block still open at the end of `text`, if any. */
+function openFence(text: string): string | undefined {
+  let open: string | undefined;
+  for (const line of text.split('\n')) {
+    const marker = FENCE.exec(line)?.[1];
+    if (!marker) continue;
+    if (open === undefined) open = marker;
+    else if (
+      marker[0] === open[0] &&
+      marker.length >= open.length &&
+      line.trim() === marker
+    ) {
+      open = undefined;
+    }
   }
-  pieces.push(rest);
-  return pieces;
+  return open;
 }
 
 /**
- * Split text into chunks of at most `limit` characters on line boundaries. A
- * fenced code block cut by a boundary is closed at the end of one chunk and
- * reopened at the start of the next. All chunks are prepared before posting.
+ * Fit text into one message of at most `limit` UTF-16 units. Longer text is cut
+ * on a code-point boundary and ends with a truncation line; a fenced block the
+ * cut lands in is closed first.
  */
-export function chunkMarkdown(
+export function truncateMarkdown(
   text: string,
   limit = MARKDOWN_TEXT_LIMIT,
-): string[] {
-  if (text.length <= limit) return [text];
-  const chunks: string[] = [];
-  let lines: string[] = [];
-  let size = 0;
-  let fresh = true;
-  let fence: Fence | undefined;
-
-  const push = (piece: string) => {
-    size += (lines.length > 0 ? 1 : 0) + piece.length;
-    lines.push(piece);
-  };
-  const flush = () => {
-    const body = lines.join('\n');
-    chunks.push(fence ? `${body}\n${fence.marker}` : body);
-    lines = [];
-    size = 0;
-    fresh = true;
-    if (fence) push(fence.line);
-  };
-
-  for (const line of text.split('\n')) {
-    // A piece must fit in a fresh chunk beside a reopened fence and its close.
-    const overhead = fence ? fence.line.length + fence.marker.length + 2 : 0;
-    for (const piece of hardSplit(line, Math.max(1, limit - overhead))) {
-      const next = updateFence(fence, piece);
-      const cost =
-        size +
-        (lines.length > 0 ? 1 : 0) +
-        piece.length +
-        (next ? next.marker.length + 1 : 0);
-      if (cost > limit && !fresh) flush();
-      push(piece);
-      fresh = false;
-      fence = next;
-    }
-  }
-  if (!fresh) chunks.push(lines.join('\n'));
-  return chunks;
+): string {
+  if (text.length <= limit) return text;
+  let end = limit - TRUNCATED.length;
+  const marker = openFence(text.slice(0, end));
+  const close = marker === undefined ? '' : `\n${marker}`;
+  end = Math.max(0, end - close.length);
+  const unit = text.charCodeAt(end - 1);
+  if (unit >= 0xd800 && unit <= 0xdbff) end -= 1;
+  return `${text.slice(0, end)}${close}${TRUNCATED}`;
 }

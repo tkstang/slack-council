@@ -5,10 +5,10 @@ import { z } from 'zod';
 
 import { callSlack, type SlackApi, type SlackCall } from './api.js';
 import {
-  chunkMarkdown,
   mentionedUserIds,
   neutraliseBroadcasts,
   renderSlackText,
+  truncateMarkdown,
 } from './text.js';
 import {
   createChannelWriteQueue,
@@ -277,34 +277,24 @@ export function createSlackPort(options: SlackPortOptions): SlackPort {
     },
 
     async postMember(scope, { member, text, chainId, turnId }) {
-      const chunks = chunkMarkdown(neutraliseBroadcasts(text));
-      const base = {
+      // One message per turn: text over the limit is truncated, never split.
+      const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),
         username: member.name,
         ...('emoji' in member.avatar
           ? { icon_emoji: member.avatar.emoji }
           : { icon_url: member.avatar.url }),
+        markdown_text: truncateMarkdown(neutraliseBroadcasts(text)),
         metadata: {
           event_type: MEMBER_POST_EVENT,
           event_payload: { member: member.id, chain: chainId, turn: turnId },
         },
-      };
-      let first: string | undefined;
-      for (const chunk of chunks) {
-        const call = await write(scope.channel, 'chat.postMessage', {
-          ...base,
-          markdown_text: chunk,
-        });
-        if (!call.ok) return slackFailure('chat.postMessage', call);
-        const posted = Posted.safeParse(call.value);
-        if (!posted.success) {
-          return failure('E_SLACK', 'Slack chat.postMessage returned no ts');
-        }
-        first ??= posted.data.ts;
-      }
-      return first === undefined
-        ? failure('E_SLACK', 'Nothing was posted')
-        : success({ ts: first });
+      });
+      if (!call.ok) return slackFailure('chat.postMessage', call);
+      const posted = Posted.safeParse(call.value);
+      return posted.success
+        ? success({ ts: posted.data.ts })
+        : failure('E_SLACK', 'Slack chat.postMessage returned no ts');
     },
 
     async postNotice(scope, text) {
