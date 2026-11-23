@@ -1,0 +1,10 @@
+# pnpm supply-chain default (since 11): hold just-published deps for 24h before install.
+# Comment this out only when a deliberately selected dependency must be consumed
+# before the maturity window closes.
+minimumReleaseAge: 1440
+
+# Lifecycle build-script allowlist (pnpm 11+ `allowBuilds`; replaces the removed
+# `onlyBuiltDependencies`): only these deps may run their install/build scripts.
+# esbuild (a vitest/tsx transitive) is trusted and ships its own prebuilt binaries.
+allowBuilds:
+  esbuild: true

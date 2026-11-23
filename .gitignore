@@ -1,0 +1,12 @@
+node_modules
+dist
+*.tsbuildinfo
+.DS_Store
+.mcp.json
+*.log
+
+# secrets and local state
+.env
+.env.*
+!.env.example
+.council/
