@@ -42,3 +42,4 @@ export type {
 } from '@council/core/types.js';
 export { buildPrompt, type PromptInput } from '@council/context/prompt.js';
 export { parseTurnOutput, type TurnOutput } from '@council/context/output.js';
+export { createJsonStore } from '@council/store/json-store.js';
