@@ -1,0 +1,284 @@
+import type { Clock, SlackPort, TurnInput } from '@council/core/ports.js';
+import { failure, success, type Result } from '@council/core/result.js';
+import type { Council, Member, Message } from '@council/core/types.js';
+import { expect, it, vi } from 'vitest';
+
+import { createChainRunner } from './chain-runner.js';
+
+const GUIDE: Member = {
+  id: 'guide',
+  name: 'Guide',
+  avatar: { emoji: ':compass:' },
+  provider: 'sample',
+  model: 'example',
+  persona: 'Guide the reader.',
+  tools: [],
+};
+const CRITIC: Member = { ...GUIDE, id: 'critic', name: 'Critic' };
+const COUNCIL: Council = {
+  id: 'council-1',
+  owner: 'U1',
+  scope: { channel: 'C1', threadTs: '1.000' },
+  roster: ['guide', 'critic'],
+  settings: {
+    rounds: 2,
+    hopBudget: 2,
+    maxTurnsPerChain: 10,
+    unaddressed: 'silent',
+    contextChars: 2_000,
+    turnTimeoutMs: 500,
+    maxSteps: 4,
+  },
+};
+
+function harness(settings: Partial<Council['settings']> = {}) {
+  const calls: {
+    input: TurnInput;
+    finish: (result: Result<string>) => void;
+  }[] = [];
+  const reactions: [string, string, boolean][] = [];
+  const writes: string[] = [];
+  const notices: string[] = [];
+  const history: Message[] = [
+    {
+      ts: '1.000',
+      author: { kind: 'human', userId: 'U1', displayName: 'Reader' },
+      text: '@council Initial question',
+    },
+  ];
+  const cutoffs: (string | undefined)[] = [];
+  const timers = new Map<() => void, number>();
+  let writeGate: Promise<Result<void>> | undefined;
+  let postNumber = 3;
+
+  const slack: SlackPort = {
+    async fetchMessages(_scope, cutoff) {
+      cutoffs.push(cutoff);
+      return success(
+        history.filter(({ ts }) => cutoff === undefined || ts <= cutoff),
+      );
+    },
+    async postMember(_scope, { text, member }) {
+      writes.push(text);
+      const result = await writeGate;
+      if (result && !result.ok) return result;
+      const ts = `${postNumber++}.000`;
+      history.push({
+        ts,
+        text,
+        author: { kind: 'member', memberId: member.id },
+      });
+      return success({ ts });
+    },
+    async postNotice(_scope, text) {
+      notices.push(text);
+      return success(undefined);
+    },
+    async setReaction(channel, ts, reaction, present) {
+      expect(reaction).toBe('hourglass_flowing_sand');
+      reactions.push([channel, ts, present]);
+      return success(undefined);
+    },
+  };
+
+  const clock: Clock = {
+    setTimeout(callback, ms) {
+      timers.set(callback, ms);
+      return () => timers.delete(callback);
+    },
+  };
+
+  const runner = createChainRunner(
+    { ...COUNCIL, settings: { ...COUNCIL.settings, ...settings } },
+    [GUIDE, CRITIC],
+    {
+      slack,
+      clock,
+      turns: {
+        runTurn(input) {
+          const task = Promise.withResolvers<Result<string>>();
+          calls.push({ input, finish: task.resolve });
+          return task.promise;
+        },
+      },
+    },
+  );
+
+  function call(index: number) {
+    const started = calls[index];
+    if (!started) throw new Error(`Turn ${index} has not started`);
+    return started;
+  }
+
+  return {
+    ...runner,
+    calls,
+    call,
+    history,
+    cutoffs,
+    notices,
+    reactions,
+    writes,
+    timers,
+    open() {
+      runner.dispatch({
+        type: 'human',
+        chainId: 'first',
+        ts: '1.000',
+        address: { kind: 'council' },
+      });
+    },
+    gateWrite() {
+      const task = Promise.withResolvers<Result<void>>();
+      writeGate = task.promise;
+      return task.resolve;
+    },
+    async waitForCalls(count: number) {
+      await vi.waitFor(() => expect(calls).toHaveLength(count), {
+        interval: 1,
+      });
+    },
+  };
+}
+
+it('uses one frozen round-one snapshot and waits for writes before reading fresh react context', async () => {
+  const h = harness();
+  h.history.push({
+    ts: '2.000',
+    author: { kind: 'notice' },
+    text: 'Later context',
+  });
+  h.open();
+  await h.waitForCalls(2);
+
+  expect(h.cutoffs).toEqual(['1.000']);
+  expect(h.reactions).toEqual([['C1', '1.000', true]]);
+  for (const { input } of h.calls) {
+    expect(input.prompt.user).toContain('Initial question');
+    expect(input.prompt.user).not.toContain('Later context');
+    expect(input).toMatchObject({
+      chainId: 'first',
+      councilId: COUNCIL.id,
+      maxSteps: 4,
+    });
+  }
+  expect(h.call(0).input.turnId).not.toBe(h.call(1).input.turnId);
+  const release = h.gateWrite();
+  h.call(0).finish(success('Opening from Guide'));
+  h.call(1).finish(success('Opening from Critic'));
+  await vi.waitFor(() => expect(h.writes).toHaveLength(2), { interval: 1 });
+  expect(h.calls).toHaveLength(2);
+  expect(h.reactions).toHaveLength(1);
+
+  release(success(undefined));
+  await h.waitForCalls(3);
+  expect(h.call(2).input.member.id).toBe('guide');
+  expect(h.call(2).input.prompt.user).toContain('Opening from Critic');
+  expect(h.call(2).input.prompt.user).toContain('Later context');
+  h.call(2).finish(success('**PASS**'));
+  await h.waitForCalls(4);
+  h.call(3).finish(success('Pass.'));
+  await h.drain();
+  expect(h.cutoffs).toEqual(['1.000', undefined, undefined]);
+  expect(h.writes).toEqual(['Opening from Guide', 'Opening from Critic']);
+  expect(h.reactions).toEqual([
+    ['C1', '1.000', true],
+    ['C1', '1.000', false],
+  ]);
+  expect(h.timers.size).toBe(0);
+});
+
+it('lets superseded turns post and freezes the new chain at its trigger while discarding old mentions', async () => {
+  const h = harness();
+  h.open();
+  await h.waitForCalls(2);
+  h.history.push({
+    ts: '2.000',
+    author: { kind: 'human', userId: 'U1', displayName: 'Reader' },
+    text: '@guide New question',
+  });
+  h.dispatch({
+    type: 'human',
+    chainId: 'second',
+    ts: '2.000',
+    address: { kind: 'members', handles: ['guide'] },
+  });
+
+  const release = h.gateWrite();
+  h.call(0).finish(success('Late answer for @critic'));
+  h.call(1).finish(success('PASS'));
+  await vi.waitFor(
+    () => expect(h.writes).toEqual(['Late answer for @critic']),
+    { interval: 1 },
+  );
+  expect(h.calls).toHaveLength(2);
+  expect(h.call(0).input.signal.aborted).toBe(false);
+
+  release(success(undefined));
+  await h.waitForCalls(3);
+  expect(h.call(2).input).toMatchObject({
+    chainId: 'second',
+    member: { id: 'guide' },
+  });
+  expect(h.call(2).input.prompt.user).toContain('New question');
+  expect(h.call(2).input.prompt.user).not.toContain('Late answer');
+  h.call(2).finish(success('New answer'));
+  await h.drain();
+  expect(h.calls).toHaveLength(3);
+  expect(h.reactions).toEqual([
+    ['C1', '1.000', true],
+    ['C1', '2.000', true],
+    ['C1', '1.000', false],
+    ['C1', '2.000', false],
+  ]);
+});
+
+it('aborts running turns on stop, reports cancellation and ignores late model responses', async () => {
+  const h = harness();
+  h.open();
+  await h.waitForCalls(2);
+  h.dispatch({ type: 'stop' });
+  await h.drain();
+  expect(h.calls.map(({ input }) => input.signal.aborted)).toEqual([
+    true,
+    true,
+  ]);
+  expect(h.notices).toEqual([
+    'Guide’s turn was cancelled.',
+    'Critic’s turn was cancelled.',
+  ]);
+  h.call(0).finish(success('Too late'));
+  h.call(1).finish(success('@guide Too late'));
+  expect(h.writes).toEqual([]);
+  expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
+});
+
+it('reports a coded turn failure, keeps other turns running and never retries', async () => {
+  const h = harness({ rounds: 1 });
+  h.open();
+  await h.waitForCalls(2);
+  h.call(0).finish(failure('E_TURN_FAILED', 'Provider information'));
+  h.call(1).finish(success('Useful answer'));
+  await h.drain();
+  expect(h.notices).toEqual(['Guide’s turn failed (E_TURN_FAILED).']);
+  expect(h.writes).toEqual(['Useful answer']);
+  expect(h.calls).toHaveLength(2);
+});
+
+it('times out an unresponsive turn even when the provider has not returned and drains cleanly', async () => {
+  const h = harness({ rounds: 1 });
+  h.dispatch({
+    type: 'human',
+    chainId: 'first',
+    ts: '1.000',
+    address: { kind: 'members', handles: ['guide'] },
+  });
+  await h.waitForCalls(1);
+  expect([...h.timers.values()]).toEqual([500]);
+  h.timers.keys().next().value?.();
+  await h.drain();
+  expect(h.call(0).input.signal.aborted).toBe(true);
+  expect(h.notices).toEqual(['Guide’s turn timed out.']);
+  expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
+  expect(h.timers.size).toBe(0);
+});
