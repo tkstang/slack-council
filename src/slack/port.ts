@@ -61,6 +61,7 @@ type RawMessage = z.infer<typeof RawMessage>;
 
 const Page = z.looseObject({
   messages: z.array(z.unknown()).default([]),
+  has_more: z.boolean().optional(),
   response_metadata: z
     .looseObject({ next_cursor: z.string().optional() })
     .optional(),
@@ -248,7 +249,11 @@ export function createSlackPort(
         if (message.success) out.push(message.data);
       }
       cursor = parsed.data.response_metadata?.next_cursor || undefined;
-      if (cursor === undefined) return success(out);
+      if (cursor === undefined) {
+        return parsed.data.has_more === true && complete
+          ? failure('E_SLACK', `Slack ${method} reported more without a cursor`)
+          : success(out);
+      }
     }
     // Replies page oldest first, so a capped read would drop the newest
     // messages, the trigger among them: fail rather than truncate.
@@ -350,13 +355,14 @@ export function createSlackPort(
 
     async postMember(scope, { member, text, chainId, turnId }) {
       // One message per turn: text over the limit is truncated, never split.
+      const posting = truncateMarkdown(neutraliseBroadcasts(text));
       const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),
         username: member.name,
         ...('emoji' in member.avatar
           ? { icon_emoji: member.avatar.emoji }
           : { icon_url: member.avatar.url }),
-        markdown_text: truncateMarkdown(neutraliseBroadcasts(text)),
+        markdown_text: posting,
         metadata: {
           event_type: MEMBER_POST_EVENT,
           event_payload: { member: member.id, chain: chainId, turn: turnId },
@@ -365,7 +371,7 @@ export function createSlackPort(
       if (!call.ok) return slackFailure('chat.postMessage', call);
       const posted = Posted.safeParse(call.value);
       return posted.success
-        ? success({ ts: posted.data.ts })
+        ? success({ ts: posted.data.ts, text: posting })
         : failure('E_SLACK', 'Slack chat.postMessage returned no ts');
     },
 

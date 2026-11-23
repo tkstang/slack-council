@@ -67,12 +67,6 @@ describe('fetchMessages', () => {
               ok: true,
               messages: [
                 {
-                  ts: '10.000003',
-                  bot_id: 'BAPP',
-                  username: 'Ada',
-                  text: 'answer',
-                },
-                {
                   ts: '10.000001',
                   user: 'U1',
                   text: '<@UAPP> question for <@U1>',
@@ -88,7 +82,16 @@ describe('fetchMessages', () => {
             }
           : {
               ok: true,
-              messages: [{ ts: '10.000004', user: 'U1', text: 'too late' }],
+              // The in-range reply sits on page two, so dropping that page fails.
+              messages: [
+                { ts: '10.000004', user: 'U1', text: 'too late' },
+                {
+                  ts: '10.000003',
+                  bot_id: 'BAPP',
+                  username: 'Ada',
+                  text: 'answer',
+                },
+              ],
             };
       },
     };

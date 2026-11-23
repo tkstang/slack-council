@@ -95,6 +95,8 @@ export function createSlackClients(
         minTimeout: 500,
         maxTimeout: 2_000,
       },
+      // A Retry-After wait can outlast the timeout and stall every reader.
+      rejectRateLimitedCalls: true,
     }),
     writer: new webApi.WebClient(token, {
       ...shared,

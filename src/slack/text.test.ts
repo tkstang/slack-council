@@ -24,10 +24,9 @@ describe('neutraliseBroadcasts', () => {
     );
   });
 
-  it('leaves code spans and fenced blocks as written', () => {
-    const code = '`@here` and\n```\n<!channel>\n```\n';
-    expect(neutraliseBroadcasts(`${code}then @here`)).toBe(
-      `${code}then @\u2060here`,
+  it('neutralises inside code too, so an unclosed fence cannot smuggle a mention', () => {
+    expect(neutraliseBroadcasts('```\n<!channel> `<@U1>`')).toBe(
+      '```\n@\u2060channel `@\u2060U1`',
     );
   });
 });
@@ -49,11 +48,7 @@ describe('truncateMarkdown', () => {
   it.each([
     ['short text', 'hello', 'hello'],
     ['plain text', 'x'.repeat(50), `${'x'.repeat(26)}\n… (truncated)`],
-    [
-      'inside a code block',
-      `\`\`\`\n${'y'.repeat(50)}`,
-      `\`\`\`\n${'y'.repeat(18)}\n\`\`\`\n… (truncated)`,
-    ],
+    ['only backticks', '`'.repeat(50), `${'`'.repeat(26)}\n… (truncated)`],
     [
       'before an emoji',
       `${'z'.repeat(25)}${'😀'.repeat(10)}`,

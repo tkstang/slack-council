@@ -24,20 +24,14 @@ function neutraliseProse(text: string): string {
     );
 }
 
-/** Fenced blocks (closed or running to the end) and inline code spans. */
-const CODE = /(```[\s\S]*?(?:```|$)|`[^`\n]+`)/u;
-
 /**
  * Break every form that would notify someone: Slack's `<!here>` markup,
  * user-group mentions, plain `@here`, `@channel` and `@everyone`, and `<@U…>`
- * user mentions, so model output cannot ping people. Code spans and fenced
- * blocks are left as written.
+ * user mentions, so model output cannot ping people. Code is not exempt: an
+ * unclosed fence or an escaped backtick would otherwise smuggle a mention out.
  */
 export function neutraliseBroadcasts(text: string): string {
-  return text
-    .split(CODE)
-    .map((part, index) => (index % 2 === 1 ? part : neutraliseProse(part)))
-    .join('');
+  return neutraliseProse(text);
 }
 
 /** User ids referenced by `<@U…>` markup. */
@@ -87,41 +81,18 @@ export function renderSlackText(
 }
 
 const TRUNCATED = '\n… (truncated)';
-const FENCE = /^[ \t]*(`{3,}|~{3,})/u;
-
-/** The marker of a fenced block still open at the end of `text`, if any. */
-function openFence(text: string): string | undefined {
-  let open: string | undefined;
-  for (const line of text.split('\n')) {
-    const marker = FENCE.exec(line)?.[1];
-    if (!marker) continue;
-    if (open === undefined) open = marker;
-    else if (
-      marker[0] === open[0] &&
-      marker.length >= open.length &&
-      line.trim() === marker
-    ) {
-      open = undefined;
-    }
-  }
-  return open;
-}
 
 /**
  * Fit text into one message of at most `limit` UTF-16 units. Longer text is cut
- * on a code-point boundary and ends with a truncation line; a fenced block the
- * cut lands in is closed first.
+ * on a code-point boundary and ends with a truncation line.
  */
 export function truncateMarkdown(
   text: string,
   limit = MARKDOWN_TEXT_LIMIT,
 ): string {
   if (text.length <= limit) return text;
-  let end = limit - TRUNCATED.length;
-  const marker = openFence(text.slice(0, end));
-  const close = marker === undefined ? '' : `\n${marker}`;
-  end = Math.max(0, end - close.length);
+  let end = Math.max(0, limit - TRUNCATED.length);
   const unit = text.charCodeAt(end - 1);
   if (unit >= 0xd800 && unit <= 0xdbff) end -= 1;
-  return `${text.slice(0, end)}${close}${TRUNCATED}`;
+  return `${text.slice(0, end)}${TRUNCATED}`;
 }

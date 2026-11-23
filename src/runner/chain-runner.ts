@@ -207,7 +207,11 @@ export function createChainRunner(
         ),
       ]);
       return posted.ok
-        ? { kind: 'posted', ts: posted.value.ts, text: output.text }
+        ? {
+            kind: 'posted',
+            ts: posted.value.ts,
+            text: posted.value.text ?? output.text,
+          }
         : failed(posted.code);
     } finally {
       cancelPostTimeout();

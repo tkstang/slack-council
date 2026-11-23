@@ -12,11 +12,15 @@ export interface SlackPort {
     scope: Scope,
     throughTs?: string,
   ): Promise<Result<readonly Message[]>>;
-  /** Post once, with turn metadata and broadcast mentions neutralised. */
+  /**
+   * Post once, with turn metadata and broadcast mentions neutralised. `text` is
+   * what was actually posted when the adapter changed it (for example by
+   * truncating), so mentions are routed from what readers can see.
+   */
   postMember(
     scope: Scope,
     post: TurnRef & { readonly member: Member; readonly text: string },
-  ): Promise<Result<{ readonly ts: string }>>;
+  ): Promise<Result<{ readonly ts: string; readonly text?: string }>>;
   postNotice(scope: Scope, text: string): Promise<Result<void>>;
   setReaction(
     channel: string,
