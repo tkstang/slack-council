@@ -74,6 +74,11 @@ export {
   selectScope,
   type InboundMessage,
 } from '@council/slack/inbound.js';
+export {
+  createPicker,
+  type Picker,
+  type PickerOptions,
+} from '@council/slack/picker.js';
 export { registerCouncilHandlers } from '@council/slack/bolt.js';
 export {
   startCouncilApp,

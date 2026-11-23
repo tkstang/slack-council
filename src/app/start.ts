@@ -9,6 +9,7 @@ import { openCouncilService } from '@council/runner/service.js';
 import { callSlack, createSlackClients } from '@council/slack/api.js';
 import { registerCouncilHandlers } from '@council/slack/bolt.js';
 import { createInboundHandler } from '@council/slack/inbound.js';
+import { createPicker } from '@council/slack/picker.js';
 import { createSlackPort } from '@council/slack/port.js';
 import { createApprovalGate } from '@council/tools/approval.js';
 import { createMcpManager } from '@council/tools/mcp.js';
@@ -136,6 +137,14 @@ export async function startCouncilApp({
   registerCouncilHandlers(app, {
     onEvent: createInboundHandler({ service, log }),
     onApproval: approvals.decide,
+    picker: createPicker({
+      config,
+      service,
+      reader,
+      writer,
+      appUserId: botUserId,
+      log,
+    }),
     log,
   });
   try {
