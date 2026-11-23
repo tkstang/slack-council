@@ -61,6 +61,21 @@ it.each([
   },
 );
 
+it.each([
+  ['public.txt', true],
+  ['../outside.txt', false],
+  ['.env', false],
+  ['escape.txt', false],
+] as const)(
+  'resolves the relative path %s against the root',
+  async (path, readable) => {
+    const { read_file } = createFileTools({ roots: [root], deny });
+    expect(
+      await read_file.execute?.({ path, startLine: 2, endLine: 2 }, options),
+    ).toEqual(readable ? { ok: true, value: 'needle' } : unavailable);
+  },
+);
+
 it.each(['search', 'listing'] as const)(
   'filters denied and escaping entries from %s',
   async (mode) => {

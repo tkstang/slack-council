@@ -115,6 +115,19 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
     return undefined;
   }
 
+  /**
+   * A model rarely knows the absolute root, so a relative path is tried under
+   * each root in order. The policy check in `allowed` still decides access.
+   */
+  async function locate(path: string): Promise<string> {
+    if (isAbsolute(path)) return resolve(path);
+    for (const { path: root } of await roots) {
+      const candidate = resolve(root, path);
+      if ((await allowed(candidate)) !== undefined) return candidate;
+    }
+    return resolve(path);
+  }
+
   async function readText(path: string) {
     const canonical = await allowed(path);
     if (canonical === undefined) return unavailable;
@@ -204,7 +217,7 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
   return {
     read_file: tool({
       description:
-        'Read a UTF-8 text file under a configured root (up to 64 KiB). Line numbers are one-based and inclusive.',
+        'Read a UTF-8 text file under a configured root (up to 64 KiB). Give a path relative to the root, or an absolute path. Line numbers are one-based and inclusive.',
       inputSchema: z.strictObject({
         path: pathSchema,
         startLine: lineNumber.optional(),
@@ -216,7 +229,7 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
             'E_INVALID_INPUT',
             'endLine must be at least startLine',
           );
-        const result = await readText(resolve(path));
+        const result = await readText(await locate(path));
         if (!result.ok || (startLine === 1 && endLine === undefined))
           return result;
         return success(
@@ -229,10 +242,10 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
     }),
     list_dir: tool({
       description:
-        'List up to 100 files and directories visible inside a configured root.',
+        'List up to 100 files and directories visible inside a configured root. Use "." for the root itself, or a path relative to it.',
       inputSchema: z.strictObject({ path: pathSchema }),
       execute: async ({ path }, { abortSignal }) => {
-        const absolute = resolve(path);
+        const absolute = await locate(path);
         const canonical = await allowed(absolute);
         if (canonical === undefined) return unavailable;
         const out: DirectoryEntry[] = [];
@@ -256,13 +269,13 @@ export function createFileTools(config: ToolsConfig['files']): FileTools {
     }),
     search_files: tool({
       description:
-        'Search text files under a directory for a literal, case-sensitive substring.',
+        'Search text files under a directory for a literal, case-sensitive substring. Use "." for the root, or a path relative to it.',
       inputSchema: z.strictObject({
         path: pathSchema,
         query: z.string().min(1).max(MAX_LINE_CHARS),
       }),
       execute: async ({ path, query }, { abortSignal }) => {
-        const absolute = resolve(path);
+        const absolute = await locate(path);
         const canonical = await allowed(absolute);
         if (canonical === undefined) return unavailable;
         const hits: SearchHit[] = [];
