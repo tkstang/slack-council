@@ -20,7 +20,7 @@ model plus an effort level, a persona and a set of tool grants.
 | Unvoiced disagreement | A member circles back to it when next given the floor. When a chain settles, silent members may raise a hand and keep a private note. Listen cadence is a council setting (`settle` by default, `every-post` later).  |
 | Context               | Slack is the memory: recent messages verbatim, the member's own private notes, and a history tool for going further back.                                                                                             |
 | Identity              | One Slack app posting under each member's name and avatar (`chat:write.customize`). Members are addressed by plain-text handles such as `@ada`.                                                                       |
-| Roster                | Members are defined in config. A picker modal with presets chooses the roster at kickoff.                                                                                                                             |
+| Roster                | Members are defined in config. A picker modal with presets chooses the roster for `/council` and the message shortcut; a mention uses the default preset.                                                             |
 | Tools                 | Read-only file tools are built in, with a path denylist. Everything else is an MCP server granted per member. Each tool is `auto` or `ask`; `ask` posts Approve and Deny buttons that only permitted users can press. |
 | Packaging             | A generic core. Nothing in code names a personal service. The operator's setup is private config.                                                                                                                     |
 | Scopes                | Both council threads and council channels.                                                                                                                                                                            |
@@ -220,7 +220,24 @@ tested without Slack.
   `bot_id`; dedupe on `channel:ts` before any await.
 - Kickoff: (a) `@council` on a message outside any council convenes the default
   preset in that message's thread; (b) the `/council` command or the "Start a
-  council" message shortcut opens the roster modal.
+  council" message shortcut opens the roster modal (`views.open` straight after
+  `ack()`, as a trigger id lasts three seconds). Only `slack.allowedUsers` get
+  the modal; the service checks again on convene. The modal has a preset select,
+  a member multi-select that overrides the preset, and a question.
+  `private_metadata` carries only the source, channel, thread and message ts,
+  user and response URL, and is size-checked and Zod-validated on return.
+  - `/council [question]` posts "Council convened by <name>: <question>" in the
+    channel as a notice and convenes in its thread.
+  - The shortcut convenes in the message's thread (`thread_ts`, else `ts`),
+    convenes first, then posts a notice line: the question when one was typed,
+    otherwise an attribution. The question line, or else the selected message,
+    is the prompt. If the line cannot be posted the council is ended again.
+  - The first round opens through `handleHumanMessage` with the prompt's ts, the
+    invoking user as author and the text `<@APPUSER>`, so dedupe, the allow-list
+    and addressing run unchanged; the prompt itself is read from history.
+  - An existing council in the scope is a modal error. Later failures, including
+    `not_in_channel`, reach the user through the response URL and are logged
+    with fixed fields only.
 - Posting: per-channel serial queue, at least one second apart, no automatic
   retry of a write whose outcome is unknown. Every Slack call has a finite
   timeout: a write gets one attempt of 15 s, then the queue moves on; reads

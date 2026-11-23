@@ -100,11 +100,29 @@ node --env-file=.env dist/cli.js start --config .council/council.config.json
 shuts down cleanly on Ctrl-C or SIGTERM. A missing variable fails with
 `E_MISSING_ENV` and names the variable.
 
-In a channel the app has joined, an allowed user writes `@council <question>`.
-On a top-level message the default preset convenes in that message's thread;
-inside a thread it convenes for that thread. Address a member with `@<handle>`,
-and use `@council stop` or `@council end`. `/council` and the message shortcut
-reply that the roster picker is not built yet.
+Only users in `slack.allowedUsers` can start a council; anyone else gets an
+ephemeral refusal. The app must have joined the channel. There are three ways
+to start one:
+
+- **Mention.** Write `@council <question>`. On a top-level message the default
+  preset convenes in that message's thread; inside a thread it convenes for
+  that thread.
+- **Slash command.** `/council [question]` in a channel opens the roster modal,
+  with any typed text as the question. On submit the app posts
+  "Council convened by <name>: <question>" in the channel and convenes in that
+  message's thread. Slack does not run slash commands inside threads.
+- **Message shortcut.** Choose **Start a council** from a message's menu. The
+  council convenes in that message's thread, or the thread it replies in. A
+  question typed in the modal is posted in the thread and becomes the prompt;
+  left empty, the selected message is the prompt.
+
+The modal offers a preset (the default preset is preselected) and a member
+list. Choosing members overrides the preset. A thread that already has a
+council is refused, and failures after the modal closes, such as the app not
+being in the channel, are reported to you ephemerally.
+
+Once convened, address a member with `@<handle>`, and use `@council stop` or
+`@council end`.
 
 ## Member tools
 
@@ -168,7 +186,9 @@ the wait immediately. Pending requests expire on restart.
 Open the service with `openCouncilService(config, { slack, turns, appUserId })`.
 Pass human messages with raw Slack-encoded text to `handleHumanMessage`. For
 mention-based kickoff, pass the resolved thread scope with `kickoff: true`.
-Convene a chosen roster or preset through `convene`. The service retains the newest 4,096
+Convene a chosen roster or preset through `convene`. `createPicker` builds
+the roster modal that `registerCouncilHandlers` serves for `/council` and the
+`council_start` shortcut. The service retains the newest 4,096
 accepted message keys across restarts. It dispatches floor grants and removes
 ended councils after saving. Both `stop` and `end` cancel active turns before
 saving so cancellation stays responsive during a slow or failed save.
