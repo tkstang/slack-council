@@ -154,7 +154,11 @@ function target(scope: Scope): Record<string, string> {
     : { channel: scope.channel, thread_ts: scope.threadTs };
 }
 
-function approvalMessage(request: ApprovalRequest, outcome?: ApprovalOutcome) {
+function approvalMessage(
+  request: ApprovalRequest,
+  outcome?: ApprovalOutcome,
+  decidedBy?: string,
+) {
   const member = request.memberName.replace(/\s+/gu, ' ').slice(0, 100);
   const text = [
     outcome === undefined
@@ -163,7 +167,7 @@ function approvalMessage(request: ApprovalRequest, outcome?: ApprovalOutcome) {
     request.preview,
     outcome &&
       ('userId' in outcome
-        ? `Request ${outcome.kind} by ${outcome.userId}.`
+        ? `Request ${outcome.kind} by ${decidedBy ?? outcome.userId}.`
         : `Request ${outcome.kind}.`),
   ]
     .filter(Boolean)
@@ -432,10 +436,19 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
     },
 
     async updateApproval(scope, ts, request, outcome) {
+      // Show who decided by name; the id is the fallback when the lookup fails.
+      let decidedBy: string | undefined;
+      if ('userId' in outcome) {
+        await resolveName(outcome.userId);
+        decidedBy = names
+          .get(outcome.userId)
+          ?.replace(/\s+/gu, ' ')
+          .slice(0, 100);
+      }
       const call = await write(scope.channel, 'chat.update', {
         channel: scope.channel,
         ts,
-        ...approvalMessage(request, outcome),
+        ...approvalMessage(request, outcome, decidedBy),
       });
       return call.ok ? success(undefined) : slackFailure('chat.update', call);
     },

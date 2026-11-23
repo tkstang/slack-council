@@ -192,6 +192,8 @@ it('posts plain-text approval buttons in scope and clears them on the outcome up
   const calls: [string, Record<string, unknown>][] = [];
   const api = {
     async apiCall(method: string, args: Record<string, unknown> = {}) {
+      if (method === 'users.info')
+        return { ok: true, user: { real_name: 'Thomas <S>' } };
       calls.push([method, args]);
       return { ok: true, ts: '2.000000' };
     },
@@ -248,11 +250,11 @@ it('posts plain-text approval buttons in scope and clears them on the outcome up
       {
         channel: 'C1',
         ts: '2.000000',
-        text: expect.stringContaining('Request denied by U1.'),
+        text: expect.stringContaining('Request denied by Thomas &lt;S&gt;.'),
         blocks: [
           plain(expect.stringContaining('read_file')),
           section,
-          plain('Request denied by U1.'),
+          plain('Request denied by Thomas <S>.'),
         ],
       },
     ],
