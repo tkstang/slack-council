@@ -87,8 +87,10 @@ export function parseHumanAddress(
     if (id === 'council' || match.groups?.['app'] === appMention) {
       council = true;
       const after = visible.slice(match.index + match[0].length);
+      // A control word counts only when it ends the line, so prose such as
+      // "@council, end users are complaining" stays an ordinary address.
       const command =
-        /^(?:[ \t]*[:,][ \t]*|[ \t]+)(end|stop)(?![\p{L}\p{N}_-])/iu
+        /^(?:[ \t]*[:,][ \t]*|[ \t]+)(end|stop)[.!]*[ \t]*(?=\r?\n|$)/iu
           .exec(after)?.[1]
           ?.toLowerCase();
       if (command === 'end') return { kind: 'end' };

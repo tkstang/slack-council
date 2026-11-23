@@ -5,7 +5,7 @@ import { parseHumanAddress, parseMemberMentions } from './addressing.js';
 const ROSTER = ['first', 'second', 'deep-review'];
 const APP = 'UAPP';
 
-it.each(['Please<@UAPP>', '@first @council'])(
+it.each(['@council', '<@UAPP>', 'Please<@UAPP>', '@first @council'])(
   'opens the whole roster for %s',
   (text) =>
     expect(parseHumanAddress(text, APP, ROSTER)).toEqual({ kind: 'council' }),
@@ -44,6 +44,9 @@ it.each([
   ['@council stop @council end.', 'end'],
   ['@council `hidden` stop', 'council'],
   ['@council stopper', 'council'],
+  ['@council, end users are complaining', 'council'],
+  ['@council stop me if I am wrong', 'council'],
+  ['@council stop\nthanks', 'stop'],
   ['@council: stop', 'stop'],
   ['@council, end', 'end'],
   ['<@UAPP>:stop', 'stop'],
