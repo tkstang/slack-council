@@ -60,6 +60,9 @@ export function createProviderModels(
   });
 }
 
+const LAST_STEP_NOTE =
+  'You have no tool calls left in this turn. Reply now with what you have found so far.';
+
 function abortFailure(signal: AbortSignal): Failure {
   return signal.reason === 'E_TURN_TIMEOUT'
     ? failure('E_TURN_TIMEOUT', 'Turn timed out')
@@ -146,9 +149,17 @@ export function createTurnRunner({
               tools,
               // The last step must be the reply: a tool call there would end
               // the turn with nothing to post after the tools already ran.
-              prepareStep: ({ stepNumber }) =>
+              // Forbidding tools is not enough: some routes then answer with
+              // nothing, so the step also says why.
+              prepareStep: ({ stepNumber, messages }) =>
                 stepNumber >= lastStep && lastStep > 0
-                  ? { toolChoice: 'none' as const }
+                  ? {
+                      toolChoice: 'none' as const,
+                      messages: [
+                        ...messages,
+                        { role: 'user' as const, content: LAST_STEP_NOTE },
+                      ],
+                    }
                   : undefined,
             }),
         ...(effort === undefined

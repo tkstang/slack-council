@@ -306,6 +306,9 @@ describe('createTurnRunner', () => {
       'auto',
       'none',
     ]);
+    expect(JSON.stringify(model.doGenerateCalls[1]?.prompt.at(-1))).toContain(
+      'no tool calls left',
+    );
   });
 });
 
