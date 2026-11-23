@@ -354,9 +354,11 @@ it('persists end, aborts the old chain and prevents its kickoff message from reo
   expect(await service.end(SCOPE, 'U1')).toBe(false);
   release(success('Too late'));
   await service.shutdown();
-  expect(f.reactions).toEqual([
-    ['1.000', true],
+  // `2.000` is the acknowledgement on the `end` message itself.
+  expect(f.reactions.toSorted()).toEqual([
     ['1.000', false],
+    ['1.000', true],
+    ['2.000', true],
   ]);
 
   const reopened = await f.open();

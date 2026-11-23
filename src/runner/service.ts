@@ -122,6 +122,14 @@ export async function openCouncilService(
     saved.acceptedMessageKeys.slice(-MAX_ACCEPTED_MESSAGES),
   );
 
+  // Every accepted message gets a visible answer. A reaction is best effort:
+  // failing to add one must not fail the message it acknowledges.
+  function acknowledge(scope: Scope, ts: string, reaction: string): void {
+    void slack
+      .setReaction(scope.channel, ts, reaction, true)
+      .catch(() => undefined);
+  }
+
   function makeEntry(
     council: Council,
     invalidCode: 'E_INVALID_STATE' | 'E_INVALID_INPUT',
@@ -375,6 +383,7 @@ export async function openCouncilService(
             );
             await save(councils(), keys, key);
             accepted = new Set(keys);
+            acknowledge(scope, message.ts, 'wave');
             return 'accepted';
           }
 
@@ -405,6 +414,15 @@ export async function openCouncilService(
 
           if (address.kind === 'end') retire(key, entry);
           else if (event) entry.runner.dispatch(event);
+          // An addressed message gets the progress reaction from its chain.
+          if (address.kind === 'end') acknowledge(scope, message.ts, 'wave');
+          else if (address.kind === 'stop')
+            acknowledge(scope, message.ts, 'octagonal_sign');
+          else if (
+            address.kind === 'unaddressed' &&
+            entry.council.settings.unaddressed === 'silent'
+          )
+            acknowledge(scope, message.ts, 'eyes');
           return 'accepted';
         });
       } finally {

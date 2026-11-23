@@ -95,6 +95,16 @@ it('refuses a council owner who is no longer on the allow-list', async () => {
   expect(await call).toMatchObject({ ok: false, code: 'E_APPROVAL_DENIED' });
 });
 
+it('shows a plain one-line argument as a readable line', async () => {
+  vi.useFakeTimers();
+  const f = fixture();
+  const call = f.call({ text: 'desktop test one' });
+  const post = await f.posted();
+  expect(post.preview).toBe('text: desktop test one');
+  f.decide(post.id, 'U1', 'deny');
+  await call;
+});
+
 it('rejects an unpermitted click, then a single owner approval runs the exact approved arguments', async () => {
   vi.useFakeTimers();
   const f = fixture();
@@ -103,7 +113,8 @@ it('rejects an unpermitted click, then a single owner approval runs the exact ap
   const call = f.call(args);
   const post = await f.posted();
   expect(post).toMatchObject({ memberName: 'Ada', tool: 'notes__write' });
-  expect(post.preview).toBe(JSON.stringify({ text: original }));
+  // A multi-line value stays JSON-quoted, so it cannot pass for extra fields.
+  expect(post.preview).toBe(`text: ${JSON.stringify(original)}`);
   args.text = 'changed after the request';
   expect(f.decide(post.id, 'U3', 'deny')).toBe('forbidden');
   expect(f.perform).not.toHaveBeenCalled();

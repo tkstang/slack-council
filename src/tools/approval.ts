@@ -23,22 +23,54 @@ interface Pending {
   finish(outcome: ApprovalOutcome | undefined): void;
 }
 
-/**
- * The exact arguments as the approver will see them. Control and invisible
- * format characters are escaped. Arguments too long to show in full yield
- * nothing: approving a cut-off preview would run fields nobody saw.
- */
-function preview(args: unknown): string | undefined {
-  const text = (JSON.stringify(args) ?? '{}').replace(
+const escapeHidden = (text: string) =>
+  text.replace(
     /[\u007f-\u009f\u2028\u2029\p{Cf}]/gu,
-    // Standard JSON escapes, one per UTF-16 unit, so the preview stays valid JSON.
+    // Standard JSON escapes, one per UTF-16 unit.
     (char) =>
       char
         .split('')
         .map((unit) => `\\u${unit.charCodeAt(0).toString(16).padStart(4, '0')}`)
         .join(''),
   );
-  return text.length <= MAX_PREVIEW ? text : undefined;
+
+// A string is shown bare only when it cannot be misread: one line, no edge
+// spaces, no backslash or invisible character, and not something that reads
+// as a number, boolean or null.
+
+const BARE_VALUE =
+  /^(?!(?:true|false|null|-?\d)\b)[^\s\p{C}\\](?:[^\p{C}\\\u2028\u2029]*[^\s\p{C}\\])?$/u;
+const BARE_KEY = /^[\w.-]+$/u;
+
+/**
+ * The exact arguments as the approver will see them: one `name: value` line
+ * per top-level field, with anything that is not a plain one-line string shown
+ * as JSON. Control and invisible format characters are escaped. Arguments too
+ * long to show in full yield nothing: approving a cut-off preview would run
+ * fields nobody saw.
+ */
+function preview(args: unknown): string | undefined {
+  const fields =
+    typeof args === 'object' && args !== null && !Array.isArray(args)
+      ? Object.entries(args)
+      : undefined;
+  const text =
+    fields === undefined
+      ? (JSON.stringify(args) ?? '{}')
+      : fields.length === 0
+        ? '(no arguments)'
+        : fields
+            .map(([key, value]) => {
+              const name = BARE_KEY.test(key) ? key : JSON.stringify(key);
+              const shown =
+                typeof value === 'string' && BARE_VALUE.test(value)
+                  ? value
+                  : (JSON.stringify(value) ?? 'null');
+              return `${name}: ${shown}`;
+            })
+            .join('\n');
+  const safe = escapeHidden(text);
+  return safe.length <= MAX_PREVIEW ? safe : undefined;
 }
 
 export function createApprovalGate(
