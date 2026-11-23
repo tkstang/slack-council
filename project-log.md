@@ -31,6 +31,14 @@ l01-d01 delivered the channel history floor, the internal transcript-label instr
 
 The user approved in advance all desktop control of the Slack client by the live-testing agent for this project, so live passes no longer wait for a per-pass approval. In effect at once.
 
+### 2026-11-23 · project · feedback · Reshape: goal and brainstorm
+
+**Category:** decision
+**Source:** reshape-20261123T220411Z-goal-ec07d5a7
+**Recorded:** 2026-11-23T22:04:11Z
+
+The goal gains the panel work (presets described at convening, optional personas, tiered reply length) and a single-approval handoff, and the planned brainstorm is dropped because the user answered the open design questions directly; decisions dr03 to dr09 record them. In effect at once. reshape-20261123T220411Z-goal-ec07d5a7
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

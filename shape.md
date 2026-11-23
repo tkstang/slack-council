@@ -27,7 +27,10 @@ shaped. The Project log section is a default, not a question.
   cache key;
 - pluggable guidance: an always-on instructions file and orientation from a
   designated "council MCP" server;
-- Switchboard handoff by note.
+- Switchboard handoff by note, behind one approval with Approve, Reject and
+  Change;
+- the panel: presets described in the convening notice, optional personas with
+  a title and instructions, and tiered reply length (added 2026-11-23).
 
 **Done means.** Each item is merged to `main` with CI green and a live-check
 log line for the behaviour it changed, or is recorded as dropped. The open
@@ -35,9 +38,9 @@ design questions are settled in `decisions.md`.
 
 **Size.** A few PRs over several days.
 
-**Out of scope.** The picker simplification, the library exports, renaming
-members to model names, and the dedicated proxy key. They go to the PJM
-backlog.
+**Out of scope.** The picker simplification, the library exports and the
+dedicated proxy key. They go to the PJM backlog. Renaming members to model
+names is now part of the user's own config, not repository work.
 
 **Proportion.** This is public code. Keep complexity scoped to what each item
 needs. Tests go where they protect something; no forests of tests (root
@@ -47,11 +50,8 @@ needs. Tests go where they protect something; no forests of tests (root
 
 <!-- Whether to brainstorm (oat-brainstorm) or run an informal discovery pass before going on, and where the result lives. Offered only after the goal is written. -->
 
-Brainstorm the guidance layers and the Switchboard handoff flow with
-`oat-brainstorm` before the brief is written. Not started; its result will be a
-reference file in this project's `brainstorming/` folder. Prompt caching and
-the three small items (floor, message numbers, stop during approval) are
-already decided and need no brainstorm.
+No brainstorm. The user answered the open design questions directly on
+2026-11-23 (`decisions.md`, dr03 to dr09), and the advisor reviews the brief.
 
 ## Documents
 
