@@ -94,6 +94,17 @@ never post or test there; live passes stay in the test channel. The app runs as
 a background process from the orchestrator's session for now.
 Source: the user (decisions S1 to S5).
 
+### dr10 · A mention can name a preset with `preset:<name>`
+
+2026-11-23. A mention that convenes a council may carry one `preset:<name>`
+token (`preset=<name>` is accepted too) to pick a configured preset; without
+it the default preset is used. An unknown name convenes nothing and the app
+replies with the configured names. The token is an explicit convention, not
+natural-language parsing.
+Source: the user asked for preset by mention and left the convention open; the
+`key:value` form is the orchestrator's choice (it mirrors Slack's search
+modifiers, and Slack's composer rewrites a leading `--`).
+
 ## Superseded
 
 _None yet._

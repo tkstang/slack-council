@@ -111,6 +111,20 @@ update ID. Filed lane reports are in `lane-reports/`.
 - effort: high
 - last_observed: 2026-11-23T22:55:40Z
 
+### l06
+
+- state: dispatched
+- dispatch: d01 open
+- next: Wait for the l06-d01 report; then review, open the PR stacked on PR 8, Opus review
+- owner: orchestrator
+- task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A5dd17709-b86f-4239-b5e3-00c87a825a75
+- branch: feat/preset-mention
+- base: 1c7517c4151dcbc93932642e015429033fb9568f
+- wake: T3 task completion
+- provider: codex_codex_proxy
+- model: gpt-6.2-sol
+- last_observed: 2026-11-23T23:40:34Z
+
 ## Closed
 
 _None._
@@ -140,3 +154,4 @@ _None._
 - u021 · 2026-11-23T22:49:09Z · l05 d01 · d01 reported (lane-reports/l05-d01.md); next: Rebase onto the caching branch head, open the PR stacked on PR 7, Opus review; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-7841f706-8afa41d67ab95c30; head: 0371b4a51933dc2af04768024cb4b8325e4b185e; placement: own-worktree; state dispatched → turn-finished
 - u022 · 2026-11-23T22:50:22Z · l05 d01 · next: Opus review of PR 8 running; then fixes, rebase after earlier PRs merge, live-check rows 20 to 22; base: 021105c138c611ec8356b0414557972db3f02422; head: 463858ccca4c1edef7f233cad85923c5e4c8c018; review_round: 1
 - u023 · 2026-11-23T22:55:40Z · l05 d01 · next: Rebase after earlier PRs merge, live-check rows 20 to 22 (needs the Switchboard token), then merge PR 8; head: 1c7517c4151dcbc93932642e015429033fb9568f; state turn-finished → work-settled
+- u024 · 2026-11-23T23:40:34Z · l06 d01 · created; d01 opened; next: Wait for the l06-d01 report; then review, open the PR stacked on PR 8, Opus review; owner: orchestrator; task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A5dd17709-b86f-4239-b5e3-00c87a825a75; branch: feat/preset-mention; base: 1c7517c4151dcbc93932642e015429033fb9568f; wake: T3 task completion; provider: codex_codex_proxy; model: gpt-6.2-sol; state dispatched

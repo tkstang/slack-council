@@ -128,8 +128,7 @@ PR has merged. A phase's live pass uses the test channel and cheap models only.
 - **Constraint:** proportionate tests (root `AGENTS.md`): extend an existing
   table before adding a suite.
 - **Constraint:** no Slack manifest or scope change without the user.
-- **Out of scope:** choosing a preset by mention (the slash command and the
-  shortcut already offer presets); a council MCP server of the project's own;
+- **Out of scope:** a council MCP server of the project's own;
   the picker simplification; library exports; a dedicated proxy key.
 
 ## Known Unknowns
@@ -186,3 +185,13 @@ server's orientation text. Prompts are not logged.
 **Exit evidence:** PR merged; a live handoff that launches a real session, and
 one pass through Change.
 **Provisional:** yes
+
+## Phase p06: Preset by mention
+
+**Intent:** A convening mention may carry `preset:<name>` (dr10). The named
+preset's panel is convened and its notice names that preset. An unknown name
+convenes nothing and gets one reply listing the configured presets. The token
+is ignored in a thread that already has a council.
+**Exit evidence:** PR merged; a live check convening by mention with a
+non-default preset, and one with an unknown name.
+**Provisional:** no
