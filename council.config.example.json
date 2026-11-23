@@ -46,6 +46,11 @@
     "listen": "settle",
     "memberMentions": "none",
     "contextChars": 24000,
+    "replyWords": {
+      "default": 120,
+      "detailed": 250,
+      "max": 1000
+    },
     "turnTimeoutMs": 60000,
     "maxSteps": 8,
     "approvalTimeoutMs": 300000

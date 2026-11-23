@@ -1,9 +1,11 @@
-import type {
-  Author,
-  Member,
-  Message,
-  PrivateNote,
-  Prompt,
+import {
+  DEFAULT_REPLY_WORDS,
+  type Author,
+  type CouncilSettings,
+  type Member,
+  type Message,
+  type PrivateNote,
+  type Prompt,
 } from '@council/core/types.js';
 import type { Grant } from '@council/engine/reducer.js';
 
@@ -17,6 +19,7 @@ interface TranscriptInput {
 export interface PromptInput extends TranscriptInput {
   readonly grant: Pick<Grant, 'kind' | 'round' | 'sourceTs'>;
   readonly privateNotes?: readonly PrivateNote[];
+  readonly replyWords?: CouncilSettings['replyWords'];
   /** Tell the member it may notify people by name. */
   readonly mentionPeople?: boolean;
 }
@@ -175,12 +178,18 @@ function assemblePrompt(
 }
 
 export function buildTurnContext(input: PromptInput) {
+  const {
+    default: normal,
+    detailed,
+    max,
+  } = input.replyWords ?? DEFAULT_REPLY_WORDS;
   const role = roleBrief(
     input,
     'Speak only when granted the floor. Opening turns give independent answers. React turns may return PASS. Mention turns must answer.',
     "Writing a colleague's plain @handle gives them the floor and obliges them to answer. Do it only when you need their answer. To refer or reply to a colleague without handing over the floor, use their name with no @.",
     'Posts tagged [new] appeared since you last spoke. Raise any disagreement with them before answering the current request.',
     'Transcript numbers such as [#3] are internal and mean nothing in Slack. Never write them in replies; refer to a post by its author and what it said.',
+    `Keep your reply within ${normal} words by default, ${detailed} words when the user asks for more detail, further explanation or examples, and ${max} words when the user asks you to go in depth. If you have more to say than the chosen limit allows, end with one short sentence saying you stopped at the limit and can go further.`,
     ...(input.mentionPeople
       ? [
           'To notify a person in this conversation, write @ followed by their name exactly as the transcript shows it. Do it only when that person needs to act.',

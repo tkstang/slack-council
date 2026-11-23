@@ -198,6 +198,7 @@ export function createChainRunner(
       messages: messages.value,
       grant,
       contextChars: settings.contextChars,
+      replyWords: settings.replyWords,
       privateNotes: shownNotes,
       mentionPeople: settings.memberMentions === 'people',
     });

@@ -19,6 +19,12 @@ export interface Member {
   readonly tools: readonly string[];
 }
 
+export const DEFAULT_REPLY_WORDS = {
+  default: 120,
+  detailed: 250,
+  max: 1_000,
+} as const;
+
 export interface CouncilSettings {
   readonly rounds: number;
   readonly hopBudget: number;
@@ -28,6 +34,11 @@ export interface CouncilSettings {
   readonly listen: 'settle' | 'off';
   readonly memberMentions: 'none' | 'people';
   readonly contextChars: number;
+  readonly replyWords: {
+    readonly default: number;
+    readonly detailed: number;
+    readonly max: number;
+  };
   readonly turnTimeoutMs: number;
   readonly approvalTimeoutMs: number;
   readonly maxSteps: number;

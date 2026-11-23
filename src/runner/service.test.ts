@@ -40,7 +40,10 @@ const CONFIG = parseConfig(
     presets: { default: ['guide'] },
     defaultPreset: 'default',
     slack: { allowedUsers: ['U1'] },
-    council: { rounds: 1 },
+    council: {
+      rounds: 1,
+      replyWords: { default: 100, detailed: 200, max: 500 },
+    },
   }),
 );
 if (!CONFIG.ok) throw new Error(CONFIG.message);
@@ -222,6 +225,9 @@ it('uses the saved channel floor in public and listening prompts', async () => {
   await vi.waitFor(() => expect(f.listens).toHaveLength(1), { interval: 1 });
   expect(f.calls[0]?.historyFromTs).toBe('2.000');
   expect(f.calls[0]?.prompt.user).toContain('Council convened');
+  expect(f.calls[0]?.prompt.user).toContain(
+    '100 words by default, 200 words when the user asks for more detail, further explanation or examples, and 500 words',
+  );
   expect(f.calls[0]?.prompt.user).not.toContain('Discussion from before');
   expect(f.listens[0]?.prompt.user).toContain('Give your view');
   expect(f.listens[0]?.prompt.user).not.toContain('Discussion from before');

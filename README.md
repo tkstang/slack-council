@@ -169,6 +169,12 @@ them to hear their point. The council saves their private notes until their
 next turn posts or passes. Set `council.listen` to `"off"` to disable this
 behavior. The default is `"settle"`.
 
+Members aim to stay within 120 words by default, 250 when asked for more
+detail, explanation or examples, and 1,000 when asked to go in depth. If a
+member has more to say, it ends with a short sentence saying it stopped at
+the limit and can go further. To change these limits, set `council.replyWords`
+to positive integers that satisfy `default <= detailed <= max`.
+
 Members cannot notify people by default: every mention in a member's post is
 written so that Slack does not deliver it. Set `council.memberMentions` to
 `"people"` to let a member write `@Name` for someone who has posted or been

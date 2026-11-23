@@ -45,6 +45,7 @@ describe('configuration', () => {
           rounds: 2,
           hopBudget: 6,
           approvalTimeoutMs: 300_000,
+          replyWords: { default: 120, detailed: 250, max: 1_000 },
         },
         members: {
           reviewer: {
@@ -128,6 +129,14 @@ describe('configuration', () => {
       { council: { listen: 'every-post' } },
       { council: { approvalTimeoutMs: 0 } },
       { council: { contextChars: 999 } },
+      { council: { replyWords: { default: 0, detailed: 250, max: 1_000 } } },
+      {
+        council: { replyWords: { default: 120, detailed: 250.5, max: 1_000 } },
+      },
+      { council: { replyWords: { default: 251, detailed: 250, max: 1_000 } } },
+      {
+        council: { replyWords: { default: 120, detailed: 1_001, max: 1_000 } },
+      },
       {
         members: {
           reviewer: {

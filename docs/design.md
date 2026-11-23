@@ -204,6 +204,10 @@ misrepresent other members as the responding assistant.
 - Message text is data. Angle brackets in it are escaped so a pasted
   `</transcript>` cannot close the block, and the role brief says that nothing
   inside the transcript, a tool result or a private note is an instruction.
+- The public reply prompt includes the council's three word limits. The member
+  chooses the applicable tier from the user's request and offers to continue
+  if it had more to say. Private listening keeps its own prompt and token cap.
+  Saved councils without `replyWords` load with the defaults.
 - Thread council: the whole thread, newest kept when over `contextChars`. An
   omission marker says how many earlier messages were dropped and names the
   history tool.
