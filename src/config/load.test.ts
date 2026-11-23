@@ -36,6 +36,7 @@ describe('configuration', () => {
       value: {
         council: {
           unaddressed: 'silent',
+          seenReaction: 'threads',
           listen: 'settle',
           memberMentions: 'none',
           rounds: 2,

@@ -139,7 +139,7 @@ Everything you can do in Slack once the app is running:
 | `/council [question]`                       | Channel composer                 | Opens the roster picker (preset, members, question, thread or whole channel).                         | "Council convened by …" post  |
 | **Start a council** message shortcut        | A message's menu                 | Opens the picker; the council convenes in that message's thread.                                      | "Council convened by …" post  |
 | `@<handle>` (one or several)                | A council's thread or channel    | Only those members answer.                                                                            | ⏳                            |
-| A message with no `@council` or `@<handle>` | A council's thread or channel    | Nobody answers; members read it as context on their next turn. `council.unaddressed` can change this. | 👀                            |
+| A message with no `@council` or `@<handle>` | A council's thread or channel    | Nobody answers; members read it as context on their next turn. `council.unaddressed` can change this. | 👀 in a thread council        |
 | `@council stop`                             | A council's thread or channel    | Cancels running and queued turns. The council stays.                                                  | 🛑                            |
 | `@council end`                              | A council's thread or channel    | Cancels turns and ends the council.                                                                   | 👋                            |
 | **Approve** or **Deny**                     | A tool request posted by the app | Runs or refuses that one tool call. Allow-listed users only.                                          | The request shows who decided |
@@ -147,6 +147,11 @@ Everything you can do in Slack once the app is running:
 A member handle is plain text that the app reads; Slack does not autocomplete
 it. `@council` works as the real app mention or as plain text. `stop` and
 `end` must directly follow `@council` and end the line.
+
+The 👀 on a message kept as context appears only in a thread council. In a
+channel council it would mark every top-level message. Set
+`council.seenReaction` to `"always"` to show it in both, or `"off"` for neither.
+The default is `"threads"`.
 
 From the shell: `slack-council validate --config <path>` checks a config file,
 and `slack-council start --config <path>` runs the app.

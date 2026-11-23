@@ -20,7 +20,7 @@ the Slack client: messages injected below the adapter do not prove it.
 | --- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | 1   | Top-level `@council <question>`, picking the app from autocomplete  | ⏳, then each member answers in the thread under its own name, then a react round               |
 | 2   | In the thread, plain-text `@<handle> <question>`                    | Only that member answers                                                                        |
-| 3   | In the thread, a message with no `@council` or handle               | 👀 and no reply                                                                                 |
+| 3   | In the thread, a message with no `@council` or handle               | 👀 and no reply (no 👀 for the same in a channel council)                                       |
 | 4   | `@<handle>`, asking whether they still hold their view              | The member addresses posts made since it last spoke                                             |
 | 5   | Wait for the hourglass to clear after a round with unseen posts     | ✋ on a post and a notice naming a member; mentioning them brings their point                   |
 | 6   | `@<a> @<b>` asking them to keep questioning each other              | Members hand each other the floor; it stops by itself or with the floor-budget notice           |

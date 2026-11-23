@@ -36,6 +36,7 @@ it('round-trips councils and dedupe order across store instances and replaces th
           hopBudget: 2,
           maxTurnsPerChain: 9,
           unaddressed: 'silent',
+          seenReaction: 'threads',
           listen: 'settle',
           memberMentions: 'none',
           contextChars: 400,

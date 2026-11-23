@@ -35,6 +35,7 @@ const COUNCIL: Council = {
     hopBudget: 2,
     maxTurnsPerChain: 10,
     unaddressed: 'silent',
+    seenReaction: 'threads',
     listen: 'off',
     memberMentions: 'none',
     contextChars: 2_000,

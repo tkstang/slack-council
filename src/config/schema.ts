@@ -49,6 +49,8 @@ export const CouncilSettingsSchema = z.strictObject({
   hopBudget: nonNegative.default(6),
   maxTurnsPerChain: positive.default(24),
   unaddressed: z.enum(['silent', 'council']).default('silent'),
+  /** Where a message kept as context gets the 👀 reaction. */
+  seenReaction: z.enum(['threads', 'always', 'off']).default('threads'),
   listen: z.enum(['settle', 'off']).default('settle'),
   /** `people` lets a member notify people the conversation has seen. */
   memberMentions: z.enum(['none', 'people']).default('none'),

@@ -263,6 +263,30 @@ it('bounds dedupe retention and serialises concurrent state writes', async () =>
   await service.shutdown();
 });
 
+it('marks a message kept as context in a thread council, not in a channel council', async () => {
+  const thread = {
+    id: 'thread',
+    scope: SCOPE,
+    owner: 'U1',
+    roster: ['guide'],
+    settings: CONFIG.value.council,
+  };
+  const channel = { ...thread, id: 'channel', scope: { channel: 'C2' } };
+  const f = fixtures({
+    councils: [thread, channel],
+    acceptedMessageKeys: [],
+    privateNotes: [],
+  });
+  const service = await f.open();
+  await service.handleHumanMessage(human('2.000', 'Context only'));
+  await service.handleHumanMessage({
+    ...human('3.000', 'Context only'),
+    scope: channel.scope,
+  });
+  await service.shutdown();
+  expect(f.reactions).toEqual([['2.000', true]]);
+});
+
 it.each([
   ['service.end', true],
   ['a top-level end message', 'accepted'],

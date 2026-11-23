@@ -21,6 +21,7 @@ export interface CouncilSettings {
   readonly hopBudget: number;
   readonly maxTurnsPerChain: number;
   readonly unaddressed: 'silent' | 'council';
+  readonly seenReaction: 'threads' | 'always' | 'off';
   readonly listen: 'settle' | 'off';
   readonly memberMentions: 'none' | 'people';
   readonly contextChars: number;

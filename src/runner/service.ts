@@ -420,7 +420,11 @@ export async function openCouncilService(
             acknowledge(scope, message.ts, 'octagonal_sign');
           else if (
             address.kind === 'unaddressed' &&
-            entry.council.settings.unaddressed === 'silent'
+            entry.council.settings.unaddressed === 'silent' &&
+            // In a channel council every top-level message would get one.
+            (entry.council.settings.seenReaction === 'always' ||
+              (entry.council.settings.seenReaction === 'threads' &&
+                scope.threadTs !== undefined))
           )
             acknowledge(scope, message.ts, 'eyes');
           return 'accepted';

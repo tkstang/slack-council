@@ -40,6 +40,7 @@
     "hopBudget": 6,
     "maxTurnsPerChain": 24,
     "unaddressed": "silent",
+    "seenReaction": "threads",
     "listen": "settle",
     "memberMentions": "none",
     "contextChars": 24000,

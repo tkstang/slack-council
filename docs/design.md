@@ -99,9 +99,11 @@ quoted lines, so quoting someone's message does not address them.
 4. `@council stop` cancels queued grants and aborts running turns. `@council end`
    does the same and ends the council. Both take precedence over everything else.
 
-Every accepted message is acknowledged: the progress reaction for an addressed
-message, 👀 for one kept as context, 🛑 for `stop` and 👋 for `end`. These
-reactions are best effort and never fail the message.
+Every command is acknowledged: the progress reaction for an addressed message,
+🛑 for `stop` and 👋 for `end`. A message kept as context gets 👀 in a thread
+council and nothing in a channel council, where it would mark every top-level
+message. Setting: `seenReaction: 'threads' | 'always' | 'off'`, default
+`threads`. These reactions are best effort and never fail the message.
 
 ### Rounds
 
