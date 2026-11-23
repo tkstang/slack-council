@@ -245,7 +245,11 @@ tested without Slack.
   the modal; the service checks again on convene. The modal has a preset select,
   a member multi-select that overrides the preset, and a question.
   `private_metadata` carries only the source, channel, thread and message ts,
-  user and response URL, and is size-checked and Zod-validated on return.
+  user and response URL, and is size-checked and Zod-validated on return. The
+  response URL must be `https://hooks.slack.com` with no credentials and is
+  fetched with redirects refused. Select options carry index ids that map back
+  to configured keys; an unknown id is invalid input. The display name and
+  question appear in the notice as escaped plain text with mentions neutralised.
   - `/council [question]` posts "Council convened by <name>: <question>" in the
     channel as a notice and convenes in its thread.
   - The shortcut posts the same notice, with the question when one was typed,

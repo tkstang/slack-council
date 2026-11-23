@@ -67,12 +67,12 @@ describe('parsePickerSubmission', () => {
   it.each([
     [
       'members override the preset',
-      submit(command, { preset: 'solo', members: ['critic'], question: 'Q' }),
+      submit(command, { preset: 'p1', members: ['m1'], question: 'Q' }),
       { roster: ['critic'], question: 'Q' },
     ],
     [
       'the chosen preset fills an empty member list',
-      submit(command, { preset: 'solo', question: ' Q ' }),
+      submit(command, { preset: 'p1', question: ' Q ' }),
       { roster: ['scout'], question: 'Q' },
     ],
     [

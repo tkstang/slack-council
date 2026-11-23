@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { callSlack, type SlackApi } from './api.js';
 import type { LogEntry } from './inbound.js';
 import type { SlackAdapterPort } from './port.js';
+import { neutraliseBroadcasts } from './text.js';
 
 export const PICKER_CALLBACK = 'council_picker';
 export const PRESET_BLOCK = 'council_preset';
@@ -31,7 +32,15 @@ const SlackTs = z.string().regex(/^\d{1,12}\.\d{1,9}$/u);
 const ResponseUrl = z
   .string()
   .max(500)
-  .refine((value) => URL.parse(value)?.origin === 'https://hooks.slack.com');
+  .refine((value) => {
+    const url = URL.parse(value);
+    return (
+      url?.protocol === 'https:' &&
+      url.host === 'hooks.slack.com' &&
+      url.username === '' &&
+      url.password === ''
+    );
+  });
 
 const Source = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -88,6 +97,16 @@ export function decodeMetadata(raw: unknown): PickerSource | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
+/**
+ * User-supplied text as plain text in an app post: mentions and broadcasts
+ * neutralised, then Markdown that could link, format or quote escaped.
+ */
+export function plainMarkdown(text: string): string {
+  return neutraliseBroadcasts(text)
+    .replace(/[\\`*_~[\]<>#|!]/gu, '\\$&')
+    .replace(/^(\s*(?:\d+)?)([-+=.)])/gmu, '$1\\$2');
+}
+
 function option(text: string, value: string) {
   return {
     text: {
@@ -99,18 +118,36 @@ function option(text: string, value: string) {
   };
 }
 
+// Options carry short index ids, so a long configured key cannot break `views.open`.
+const presetKeys = (config: PickerConfig) =>
+  Object.keys(config.presets).slice(0, OPTION_LIMIT);
+const memberKeys = (config: PickerConfig) =>
+  Object.keys(config.members).slice(0, OPTION_LIMIT);
+
+/** The configured key behind an option id, or undefined for an unknown id. */
+function fromOption(
+  keys: readonly string[],
+  prefix: string,
+  value: string,
+): string | undefined {
+  const index = value.slice(prefix.length);
+  return value.startsWith(prefix) && /^(?:0|[1-9]\d{0,2})$/u.test(index)
+    ? keys[Number(index)]
+    : undefined;
+}
+
 function buildPickerView(
   config: PickerConfig,
   source: PickerSource,
   question: string,
 ): types.ModalView {
-  const presets = Object.keys(config.presets)
-    .slice(0, OPTION_LIMIT)
-    .map((name) => option(name, name));
-  const initial = presets.find(({ value }) => value === config.defaultPreset);
-  const members = Object.entries(config.members)
-    .slice(0, OPTION_LIMIT)
-    .map(([id, member]) => option(member.name, id));
+  const presets = presetKeys(config).map((name, index) =>
+    option(name, `p${index}`),
+  );
+  const initial = presets[presetKeys(config).indexOf(config.defaultPreset)];
+  const members = memberKeys(config).map((id, index) =>
+    option(config.members[id]?.name ?? id, `m${index}`),
+  );
   const initialQuestion = question.trim().slice(0, QUESTION_LIMIT);
   return {
     type: 'modal',
@@ -246,23 +283,23 @@ export function parsePickerSubmission(
   const state = values.data;
   const errors: Record<string, string> = {};
 
-  const chosen = [
-    ...new Set(
-      (state[MEMBERS_BLOCK]?.[MEMBERS_ACTION].selected_options ?? []).map(
-        ({ value }) => value,
-      ),
-    ),
-  ];
-  let roster: readonly string[] = chosen;
-  if (chosen.some((id) => !Object.hasOwn(config.members, id))) {
+  const chosen = (
+    state[MEMBERS_BLOCK]?.[MEMBERS_ACTION].selected_options ?? []
+  ).map(({ value }) => fromOption(memberKeys(config), 'm', value));
+  let roster: readonly string[] = [...new Set(chosen)].filter(
+    (id) => id !== undefined,
+  );
+  if (chosen.includes(undefined)) {
     errors[MEMBERS_BLOCK] = 'Choose configured members only.';
-  } else if (chosen.length === 0) {
-    const preset =
-      state[PRESET_BLOCK]?.[PRESET_ACTION].selected_option?.value ??
-      config.defaultPreset;
-    const members = Object.hasOwn(config.presets, preset)
-      ? config.presets[preset]
-      : undefined;
+  } else if (roster.length === 0) {
+    const selected = state[PRESET_BLOCK]?.[PRESET_ACTION].selected_option;
+    const preset = selected
+      ? fromOption(presetKeys(config), 'p', selected.value)
+      : config.defaultPreset;
+    const members =
+      preset !== undefined && Object.hasOwn(config.presets, preset)
+        ? config.presets[preset]
+        : undefined;
     if (members) roster = members;
     else errors[PRESET_BLOCK] = 'Choose a configured preset.';
   }
@@ -361,6 +398,7 @@ export function createPicker({
           replace_original: false,
           text,
         }),
+        redirect: 'error',
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok)
@@ -394,13 +432,15 @@ export function createPicker({
     question: string | undefined,
   ): Promise<void> {
     const name = await displayName(source.user);
+    const by = plainMarkdown(name.replace(/\s+/gu, ' ').slice(0, 100));
+    // postNotice bounds the post to the markdown_text limit.
     const posted = await slack.postNotice(
       source.kind === 'command'
         ? { channel: source.channel }
         : { channel: source.channel, threadTs: source.threadTs },
       question === undefined
-        ? `Council convened by ${name}.`
-        : `Council convened by ${name}: ${question}`,
+        ? `Council convened by ${by}.`
+        : `Council convened by ${by}: ${plainMarkdown(question)}`,
     );
     if (!posted.ok) {
       fail('post', posted.code, source.channel);
