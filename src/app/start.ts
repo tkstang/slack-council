@@ -135,7 +135,7 @@ export async function startCouncilApp({
     botUserId,
   });
   registerCouncilHandlers(app, {
-    onEvent: createInboundHandler({ service, log }),
+    onEvent: createInboundHandler({ service, appUserId: botUserId, log }),
     onApproval: approvals.decide,
     picker: createPicker({
       config,

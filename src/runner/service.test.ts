@@ -263,37 +263,52 @@ it('bounds dedupe retention and serialises concurrent state writes', async () =>
   await service.shutdown();
 });
 
-it('reports a council with a missing member and keeps it in the saved state', async () => {
-  const retained = {
-    id: 'retained',
-    scope: SCOPE,
-    owner: 'U1',
-    roster: ['guide'],
-    settings: CONFIG.value.council,
-  };
-  const stale = {
-    ...retained,
-    id: 'stale',
-    scope: { channel: 'C2' },
-    roster: ['guide', 'removed'],
-  };
-  const f = fixtures({
-    councils: [stale, retained],
-    acceptedMessageKeys: [],
-    privateNotes: [],
-  });
-  const report = vi.fn();
-  const service = await f.open(report);
-  expect(report).toHaveBeenCalledExactlyOnceWith(stale, ['removed']);
-  expect(service.getCouncil(stale.scope)).toBeUndefined();
-  expect(service.getCouncil(SCOPE)).toEqual(retained);
-  expect(f.record().councils).toEqual([stale, retained]);
-  await service.handleHumanMessage(human('2.000', 'Context only'));
-  expect(f.record().councils).toEqual([retained, stale]);
-  expect(await service.end(stale.scope, 'U1')).toBe(true);
-  expect(f.record().councils).toEqual([retained]);
-  await service.shutdown();
-});
+it.each([
+  ['service.end', true],
+  ['a top-level end message', 'accepted'],
+] as const)(
+  'reports a dormant channel council, keeps it saved and removes it through %s',
+  async (path, removed) => {
+    const retained = {
+      id: 'retained',
+      scope: SCOPE,
+      owner: 'U1',
+      roster: ['guide'],
+      settings: CONFIG.value.council,
+    };
+    const stale = {
+      ...retained,
+      id: 'stale',
+      scope: { channel: 'C2' },
+      roster: ['guide', 'removed'],
+    };
+    const f = fixtures({
+      councils: [stale, retained],
+      acceptedMessageKeys: [],
+      privateNotes: [],
+    });
+    const report = vi.fn();
+    const service = await f.open(report);
+    expect(report).toHaveBeenCalledExactlyOnceWith(stale, ['removed']);
+    expect(service.getCouncil(stale.scope)).toBeUndefined();
+    expect(service.getCouncil(SCOPE)).toEqual(retained);
+    expect(f.record().councils).toEqual([stale, retained]);
+    await service.handleHumanMessage(human('2.000', 'Context only'));
+    expect(f.record().councils).toEqual([retained, stale]);
+    expect(service.isDormant(stale.scope)).toBe(true);
+    expect(
+      await (path === 'service.end'
+        ? service.end(stale.scope, 'U1')
+        : service.handleHumanMessage({
+            ...human('3.000', '<@UAPP> end'),
+            scope: stale.scope,
+          })),
+    ).toBe(removed);
+    expect(service.isDormant(stale.scope)).toBe(false);
+    expect(f.record().councils).toEqual([retained]);
+    await service.shutdown();
+  },
+);
 
 it('stops the active turn even when saving the stop message fails', async () => {
   const f = fixtures();

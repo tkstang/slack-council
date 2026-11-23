@@ -1,7 +1,11 @@
 import type { Council, Scope } from '@council/core/types.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { prefilterSlackEvent, selectScope } from './inbound.js';
+import {
+  createInboundHandler,
+  prefilterSlackEvent,
+  selectScope,
+} from './inbound.js';
 
 const base = { type: 'message', channel: 'C1', ts: '2.000000', user: 'U1' };
 
@@ -79,6 +83,13 @@ describe('selectScope', () => {
       false,
     ],
     [
+      'reply in a plain thread of a council channel',
+      reply,
+      has({ channel: 'C1' }),
+      { channel: 'C1', threadTs: '1.0' },
+      true,
+    ],
+    [
       'top-level elsewhere opens its own thread',
       top,
       has(),
@@ -87,5 +98,32 @@ describe('selectScope', () => {
     ],
   ])('%s', (_, message, getCouncil, scope, kickoff) => {
     expect(selectScope(message, getCouncil)).toEqual({ scope, kickoff });
+  });
+});
+
+describe('createInboundHandler', () => {
+  it.each([
+    ['ends a dormant channel council', '<@UAPP> end', { channel: 'C1' }, false],
+    [
+      'opens a thread beside a dormant channel council',
+      '<@UAPP> go',
+      { channel: 'C1', threadTs: '2.0' },
+      true,
+    ],
+  ])('a top-level message %s', async (_, text, scope, kickoff) => {
+    const handleHumanMessage = vi.fn(async () => 'accepted' as const);
+    const handle = createInboundHandler({
+      service: {
+        getCouncil: () => undefined,
+        isDormant: (s) => s.channel === 'C1' && s.threadTs === undefined,
+        handleHumanMessage,
+      },
+      appUserId: 'UAPP',
+      log: () => {},
+    });
+    await handle({ ...base, ts: '2.0', text });
+    expect(handleHumanMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ scope, kickoff }),
+    );
   });
 });

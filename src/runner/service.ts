@@ -60,6 +60,8 @@ export type HumanMessageResult = 'accepted' | 'duplicate' | 'ignored';
 
 export interface CouncilService {
   getCouncil(scope: Scope): Council | undefined;
+  /** True when a stored council holds the scope but cannot run under the current config. */
+  isDormant(scope: Scope): boolean;
   convene(input: ConveneInput): Promise<Council>;
   handleHumanMessage(input: HumanMessageInput): Promise<HumanMessageResult>;
   end(scope: Scope, userId: string): Promise<boolean>;
@@ -299,6 +301,10 @@ export async function openCouncilService(
   return {
     getCouncil(scope) {
       return entries.get(scopeKey(scope))?.council;
+    },
+
+    isDormant(scope) {
+      return dormant.has(scopeKey(scope));
     },
 
     async convene(input) {
