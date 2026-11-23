@@ -63,6 +63,10 @@ l03-d01 delivered council.instructions and MCP orientation on feat/guidance; reb
 
 PR 6 (guidance) Opus review was clean with four nits; the orchestrator fixed three in a378909 (distinct error codes for blank and oversized instructions files, unit named in the message, missing-orientation warning after tool listing) and the confirmation round was clean. key:log-8dbe5fa12728
 
+### 2026-11-23 · structural · orchestrator · l04-d01
+
+l04-d01 delivered prompt caching on feat/prompt-cache: a hashed per-council cache key on every request and a text-block cache boundary for Claude models. Through the live proxy the second request reported cached input tokens for both families (Luna 5,760 with the key; Haiku 9,812 with the boundary; zero without). Rebased onto the guidance branch at b4fea11, gate passed (255 tests). PR 7 opened, stacked on PR 6. key:log-1d9cf2037745
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
