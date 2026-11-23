@@ -138,7 +138,9 @@ PR has merged. A phase's live pass uses the test channel and cheap models only.
   runtime. The advisor verified the getter with an in-memory handshake
   (2026-11-23); p03 confirms it against a live server.
 - Whether the proxy forwards a cache key and reports cached tokens for both
-  model families. Settled by: p04.
+  model families. Settled 2026-11-23 (l04-d01): yes for both. GPT models hit
+  with the key alone; Claude models need a cache boundary on a text block and
+  ignore the key.
 - The exact vault write and Switchboard launch tool inputs. Settled by: p05.
 
 ## Delivery endpoint and authority
@@ -174,9 +176,9 @@ server's orientation text. Prompts are not logged.
 
 ## Phase p04: Prompt caching
 
-**Intent:** Stable-first prompt layout and a per-council cache key.
+**Intent:** A per-council cache key and a Claude cache boundary after the stable prompt prefix.
 **Exit evidence:** PR merged; cached-token counts on a second turn, per family.
-**Provisional:** yes
+**Provisional:** no
 
 ## Phase p05: Switchboard handoff
 
