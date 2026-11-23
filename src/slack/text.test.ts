@@ -50,6 +50,11 @@ describe('truncateMarkdown', () => {
     ['plain text', 'x'.repeat(50), `${'x'.repeat(26)}\n… (truncated)`],
     ['only backticks', '`'.repeat(50), `${'`'.repeat(26)}\n… (truncated)`],
     [
+      'inside a handle',
+      `${'x'.repeat(20)} @ada-2 and more text here`,
+      `${'x'.repeat(20)}\n… (truncated)`,
+    ],
+    [
       'before an emoji',
       `${'z'.repeat(25)}${'😀'.repeat(10)}`,
       `${'z'.repeat(25)}\n… (truncated)`,

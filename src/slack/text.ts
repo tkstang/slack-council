@@ -91,7 +91,14 @@ export function truncateMarkdown(
   limit = MARKDOWN_TEXT_LIMIT,
 ): string {
   if (text.length <= limit) return text;
-  let end = Math.max(0, limit - TRUNCATED.length);
+  if (limit <= TRUNCATED.length) return text.slice(0, Math.max(0, limit));
+  let end = limit - TRUNCATED.length;
+  // Cut at whitespace when one is near, so a word such as a member handle is
+  // never shortened into a different one.
+  if (!/\s/u.test(text[end] ?? ' ')) {
+    const space = text.slice(0, end).search(/\s\S*$/u);
+    if (space !== -1 && end - space <= 80) end = space;
+  }
   const unit = text.charCodeAt(end - 1);
   if (unit >= 0xd800 && unit <= 0xdbff) end -= 1;
   return `${text.slice(0, end)}${TRUNCATED}`;
