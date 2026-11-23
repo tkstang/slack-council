@@ -53,18 +53,23 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ### l03
 
-- state: dispatched
-- dispatch: d01 open
-- next: Wait for the l03-d01 report, then rebase once PRs 3 and 4 merge, open the PR and arrange the Opus review
+- state: turn-finished
+- dispatch: d01 reported
+- next: Opus review of PR 6 running; then fixes, rebase after PRs 3 and 4 merge, live pass rows 17 and 18
 - owner: orchestrator
 - task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3Ace739897-ad25-4a34-9c9c-58bb103a0d41
+- worktree: /Users/tstang/.t3/worktrees/slack-council/t3-8d9bedcc-307c87066ab44d2e
+- placement: own-worktree
 - branch: feat/guidance
-- base: ad177ae98168397e967a0006d761b09e0a09f5aa
+- base: ad13543647450426d83184349181af0a83ec05bc
+- head: f12022559506bb470f43838f9d39b0ffbcf37f6d
+- review_round: 1
+- report: lane-reports/l03-d01.md
 - wake: T3 task completion
 - provider: codex_codex_proxy
 - model: gpt-6.2-sol
 - effort: high
-- last_observed: 2026-11-23T22:16:05Z
+- last_observed: 2026-11-23T22:26:17Z
 
 ## Closed
 
@@ -84,3 +89,5 @@ _None._
 - u010 · 2026-11-23T22:16:05Z · l02 d01 · next: Opus review of PR 4 running; then fixes, rebase after PR 3 merges, live pass; review_round: 1
 - u011 · 2026-11-23T22:19:34Z · l02 d01 · next: Opus confirmation of the follow-up commit; then rebase after PR 3 merges and run the live pass; head: a5eab4857f504a72c3203cfa7820b8f28e117579
 - u012 · 2026-11-23T22:20:02Z · l02 d01 · next: Rebase onto main after PR 3 merges, live pass for the notice and reply tiers, then merge PR 4; head: ad13543647450426d83184349181af0a83ec05bc; state turn-finished → work-settled
+- u013 · 2026-11-23T22:25:01Z · l03 d01 · d01 reported (lane-reports/l03-d01.md); next: Rebase onto the panel branch head, open the PR stacked on PR 4, Opus review; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-8d9bedcc-307c87066ab44d2e; head: 94b495e3d938bd78d2086519932b424f71ab0a9e; placement: own-worktree; state dispatched → turn-finished
+- u014 · 2026-11-23T22:26:17Z · l03 d01 · next: Opus review of PR 6 running; then fixes, rebase after PRs 3 and 4 merge, live pass rows 17 and 18; base: ad13543647450426d83184349181af0a83ec05bc; head: f12022559506bb470f43838f9d39b0ffbcf37f6d; review_round: 1

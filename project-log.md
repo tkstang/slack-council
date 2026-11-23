@@ -55,6 +55,10 @@ PR 4 (panel) opened on feat/panel, stacked on PR 3. The Opus review was clean wi
 
 PR 5 merged: five deferred follow-ups recorded in the repository backlog (picker simplification, library exports, dedicated proxy key, preset by mention, splitting a long reply). Opus review found four items that misdescribed current behaviour; corrected and confirmed clean before merge. key:log-daf8cf395156
 
+### 2026-11-23 · structural · orchestrator · l03-d01
+
+l03-d01 delivered council.instructions and MCP orientation on feat/guidance; rebased by the orchestrator onto the panel branch (live-check rows renumbered to 17 and 18) at f120225, gate passed (255 tests, build). PR 6 opened, stacked on PR 4. key:log-fad84fdd26e3
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
