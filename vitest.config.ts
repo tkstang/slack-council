@@ -6,7 +6,7 @@ import { defineConfig } from 'vitest/config';
 // identically in the type-checker and the test runner). NO `@/*`, NO `../..`.
 //
 // Source imports carry `.js` extensions (NodeNext correctness; `tsc-alias`
-// rewrites them at build). In tests we resolve `@app/<name>.js` back to the
+// rewrites them at build). In tests we resolve `@council/<name>.js` back to the
 // `.ts` source, so the regex alias strips the alias prefix + the `.js` suffix.
 const srcDir = fileURLToPath(new URL('./src', import.meta.url));
 
@@ -19,8 +19,8 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: /^@app\/(.*)\.js$/, replacement: `${srcDir}/$1.ts` },
-      { find: /^@app\/(.*)$/, replacement: `${srcDir}/$1` },
+      { find: /^@council\/(.*)\.js$/, replacement: `${srcDir}/$1.ts` },
+      { find: /^@council\/(.*)$/, replacement: `${srcDir}/$1` },
     ],
   },
 });

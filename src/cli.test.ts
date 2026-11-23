@@ -1,45 +1,36 @@
-import { run } from '@app/cli.js';
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 
-describe('cli run()', () => {
-  it('emits an ok envelope for a valid inline config', async () => {
-    const { envelope, exitCode } = await run(['--config', '{"name":"my-app"}']);
-    expect(exitCode).toBe(0);
-    expect(envelope.ok).toBe(true);
-    if (envelope.ok) {
-      expect(envelope.command).toBe('parse-config');
-      expect(envelope.data).toMatchObject({ name: 'my-app', retries: 3 });
-    }
+import { run } from './cli.js';
+
+it('validates the shipped example without dumping config to stdout', async () => {
+  expect(
+    await run(['validate', '--config', 'council.config.example.json']),
+  ).toEqual({
+    exitCode: 0,
+    envelope: { ok: true, command: 'validate', data: { valid: true } },
   });
+});
 
-  it('emits a failure envelope with a code on invalid JSON (exit 1)', async () => {
-    const { envelope, exitCode } = await run(['--config', '{bad}']);
-    expect(exitCode).toBe(1);
-    expect(envelope.ok).toBe(false);
-    if (!envelope.ok) {
-      expect(envelope.code).toBe('E_INVALID_INPUT');
-    }
-  });
+it.each([[], ['validate', '--config'], ['validate', '--typo', 'a.json']])(
+  'rejects incomplete or unknown arguments %j',
+  async (...args) => {
+    expect(await run(args)).toMatchObject({
+      exitCode: 1,
+      envelope: {
+        ok: false,
+        code: 'E_INVALID_INPUT',
+        hint: expect.any(String),
+      },
+    });
+  },
+);
 
-  it('treats an unknown flag as a user error (exit 1, E_INVALID_INPUT)', async () => {
-    const { envelope, exitCode } = await run(['--nope']);
-    expect(exitCode).toBe(1);
-    expect(envelope.ok).toBe(false);
-    if (!envelope.ok) {
-      expect(envelope.code).toBe('E_INVALID_INPUT');
-      expect(envelope.hint).toBeTypeOf('string');
-    }
-  });
-
-  it('errors when no input source is provided', async () => {
-    const { envelope, exitCode } = await run([]);
-    expect(exitCode).toBe(1);
-    expect(envelope.ok).toBe(false);
-  });
-
-  it('returns an ok envelope for --help', async () => {
-    const { envelope, exitCode } = await run(['--help']);
-    expect(exitCode).toBe(0);
-    expect(envelope.ok).toBe(true);
+it('provides machine-readable help', async () => {
+  expect(await run(['--help'])).toMatchObject({
+    exitCode: 0,
+    envelope: {
+      ok: true,
+      data: { usage: expect.stringContaining('validate --config') },
+    },
   });
 });

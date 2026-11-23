@@ -2,7 +2,7 @@
   "name": "slack-council",
   "version": "0.1.0",
   "private": true,
-  "description": "Single-package TypeScript library + agent-first CLI starter (bleeding-edge house profile).",
+  "description": "Turn engine and agent-first CLI for Slack councils.",
   "license": "MIT",
   "author": "Thomas Stang",
   "bin": {

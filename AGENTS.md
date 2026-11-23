@@ -17,7 +17,7 @@ husky/lefthook) - `private: true` + MIT LICENSE.
 - **Machine-readable error codes, never string matching** on messages.
 - **Conventional Commits** on every commit, every branch.
 - **Import policy:** only same-directory relative (`./...`). For anything outside
-  the current dir use the named `@app/*` tsconfig alias (mirrored in
+  the current dir use the named `@council/*` tsconfig alias (mirrored in
   `vitest.config.ts`). Never `../..` chains, never a catch-all `@/*`.
 - **Never commit secrets** (`.mcp.json` is gitignored) or build output (`dist/`).
 - **Lean dependencies** - stdlib + native `fetch` first; a dep must earn its place.

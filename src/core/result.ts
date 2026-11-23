@@ -10,7 +10,26 @@
  * Closed set of domain error codes. Add codes here deliberately; the union is
  * the contract. Keep them machine-readable (`E_*`), never free-form strings.
  */
-export const ERROR_CODES = ['E_INVALID_INPUT', 'E_EMPTY_INPUT'] as const;
+export const ERROR_CODES = [
+  'E_INVALID_INPUT',
+  'E_EMPTY_INPUT',
+  'E_CONFIG_READ',
+  'E_INVALID_MEMBER_ID',
+  'E_UNKNOWN_MEMBER',
+  'E_UNKNOWN_PROVIDER',
+  'E_UNKNOWN_PRESET',
+  'E_FORBIDDEN',
+  'E_COUNCIL_EXISTS',
+  'E_SERVICE_CLOSED',
+  'E_INVALID_STATE',
+  'E_STORE_READ',
+  'E_STORE_WRITE',
+  'E_SLACK',
+  'E_TURN_FAILED',
+  'E_TURN_TIMEOUT',
+  'E_TURN_ABORTED',
+  'E_UNEXPECTED',
+] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
