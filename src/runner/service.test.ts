@@ -221,7 +221,7 @@ it('bounds dedupe retention and serialises concurrent state writes', async () =>
   await service.shutdown();
 });
 
-it('reports a council with a missing member and omits it on the next save', async () => {
+it('reports a council with a missing member and keeps it in the saved state', async () => {
   const retained = {
     id: 'retained',
     scope: SCOPE,
@@ -243,7 +243,7 @@ it('reports a council with a missing member and omits it on the next save', asyn
   expect(service.getCouncil(SCOPE)).toEqual(retained);
   expect(f.record().councils).toEqual([stale, retained]);
   await service.handleHumanMessage(human('2.000', 'Context only'));
-  expect(f.record().councils).toEqual([retained]);
+  expect(f.record().councils).toEqual([retained, stale]);
   await service.shutdown();
 });
 

@@ -33,7 +33,7 @@ export interface CouncilServiceOptions {
   readonly clock?: Clock;
   readonly ids?: IdSource;
   readonly onEffectFailure?: (failure: EffectFailure) => void;
-  /** Reports each stored council skipped because a member was removed from config. */
+  /** Reports each stored council left dormant because a member was removed from config. */
   readonly onSkippedCouncil?: (
     council: Council,
     missingMembers: readonly string[],
@@ -150,11 +150,15 @@ export async function openCouncilService(
     };
   }
 
+  // Councils that cannot run under the current config stay in the saved state,
+  // so restoring a removed member restores its councils.
+  const dormant = new Map<string, Council>();
   const seenIds = new Set<string>();
   for (const council of saved.councils) {
     const missing = council.roster.filter((id) => !members.has(id));
     if (missing.length > 0) {
       onSkippedCouncil?.(council, missing);
+      dormant.set(scopeKey(council.scope), council);
       continue;
     }
     const key = scopeKey(council.scope);
@@ -215,7 +219,14 @@ export async function openCouncilService(
     records: readonly Council[],
     acceptedMessageKeys = [...accepted],
   ): Promise<void> {
-    unwrap(await store.save({ councils: records, acceptedMessageKeys }));
+    // A council convened in a dormant council's scope replaces it.
+    for (const { scope } of records) dormant.delete(scopeKey(scope));
+    unwrap(
+      await store.save({
+        councils: [...records, ...dormant.values()],
+        acceptedMessageKeys,
+      }),
+    );
   }
 
   function retire(key: string, entry: Entry): void {
