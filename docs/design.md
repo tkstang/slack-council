@@ -255,6 +255,27 @@ whitespace, markdown emphasis and trailing punctuation, posts nothing.
 that returns exactly `PASS` posts nothing. Output is scanned for handles to
 produce mention grants.
 
+### Prompt caching
+
+Public replies and private listening send `prompt_cache_key` as the SHA-256
+digest of the council ID. Both put their stable role brief before the
+transcript. The role brief also travels as the system message. For model IDs
+starting with `claude-`, the user message has two text blocks and
+`cache_control: { "type": "ephemeral" }` marks the end of the role brief.
+The transcript, floor and private notes follow that boundary.
+
+The proxy probe kept the model, tool definitions and long prefix the same on
+both calls and changed the task at the end. `gpt-6-luna` reported 5,760 cached
+input tokens on the second call with a cache key. `claude-haiku-5-5` reported
+9,816 with the key and the text block boundary. These counts matched the
+proxy's raw usage. The repeated prefix must meet the provider's minimum
+length, so a short role brief may yield no hit.
+
+After a generation with positive cached input usage, stderr gets a
+`model_cache_read` JSON entry. `cached_input_tokens` sums the reported cache
+reads across the generation's model steps. The entry also includes the model,
+member, council cache key and, for public turns, the turn ID.
+
 ## Tools
 
 - `read_file`, `list_dir`, `search_files`: read-only. Every path, including each

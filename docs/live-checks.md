@@ -37,6 +37,10 @@ the Slack client: messages injected below the adapter do not prove it.
 | 16  | In a council, ask a short question, then ask the same member to go into more detail                        | The first answer is about 120 words. The second is longer, up to about 250, and says so if it stopped at the limit                                                                |
 | 17  | Load the example instructions file. In a new council, ask for the council instructions check phrase.       | The member replies with the phrase from the file. Keep the phrase out of the Slack request.                                                                                       |
 | 18  | Enable notes orientation. Ask a member with a notes grant for the notes server check phrase.               | The member replies with the phrase from the server's orientation. Keep the phrase out of the Slack request.                                                                       |
+| 19  | Ask the same member two questions in quick succession in one council. Repeat for both model families.      | The second public turn for each model logs `model_cache_read` with positive `cached_input_tokens`.                                                                                |
+
+For row 19, use `gpt-6-luna` and `claude-haiku-5-5`. Use stable guidance long
+enough to reach each model's cache minimum and keep the tool definitions fixed.
 
 With `council.memberMentions: "people"`, also ask a member to notify you by
 name and expect a real mention.

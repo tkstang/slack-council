@@ -96,7 +96,10 @@ export interface TurnInput extends TurnRef {
   readonly historyFromTs?: string;
 }
 
-export type ListenInput = Pick<TurnInput, 'member' | 'prompt' | 'signal'>;
+export type ListenInput = Pick<
+  TurnInput,
+  'councilId' | 'member' | 'prompt' | 'signal'
+>;
 
 export interface TurnRunner {
   runTurn(input: TurnInput): Promise<Result<string>>;

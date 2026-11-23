@@ -194,9 +194,11 @@ function assemblePrompt(
   transcript: string,
   task: string,
 ): Prompt {
+  const prefix = `<council_role>\n${role}\n</council_role>\n`;
   return {
     system: role,
-    user: `<council_role>\n${role}\n</council_role>\n<transcript>\n${transcript}\n</transcript>\n${task}`,
+    user: `${prefix}<transcript>\n${transcript}\n</transcript>\n${task}`,
+    cachePrefixLength: prefix.length,
   };
 }
 

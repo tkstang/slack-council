@@ -445,7 +445,13 @@ export function createChainRunner(
       async () => {
         for (const _ of [0, 1]) {
           const response = await protect(
-            () => turns.runListen({ member, prompt, signal }),
+            () =>
+              turns.runListen({
+                councilId: council.id,
+                member,
+                prompt,
+                signal,
+              }),
             'E_TURN_FAILED',
           );
           if (signal.aborted) return abortFailure(signal);

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { ProviderConfig } from '@council/config/schema.js';
 import type {
@@ -30,6 +32,13 @@ export interface TurnRunnerOptions {
   readonly models: ModelFactory;
   /** Resolve tools for each turn. Returns no tools by default. */
   readonly toolsFor?: (input: TurnInput) => ToolSet | undefined;
+  readonly onCacheRead?: (usage: {
+    readonly cacheKey: string;
+    readonly memberId: string;
+    readonly model: string;
+    readonly turnId?: string;
+    readonly cachedInputTokens: number;
+  }) => void;
 }
 
 /**
@@ -116,12 +125,13 @@ function protectToolArguments(
 export function createTurnRunner({
   models,
   toolsFor,
+  onCacheRead,
 }: TurnRunnerOptions): TurnRunner {
   async function run(
     input: ListenInput,
     turn?: TurnInput,
   ): Promise<Result<string>> {
-    const { member, prompt, signal } = input;
+    const { councilId, member, prompt, signal } = input;
     const effort = turn ? member.effort : 'low';
     if (signal.aborted) return abortFailure(signal);
     // A provider that ignores the signal must not hold the turn open.
@@ -136,11 +146,49 @@ export function createTurnRunner({
         turn && lastStep > 0
           ? protectToolArguments(toolsFor?.(turn), turn.privateNoteText)
           : undefined;
+      const cacheKey = createHash('sha256').update(councilId).digest('hex');
+      const effortOptions =
+        effort === undefined ? {} : { reasoningEffort: effort };
+      // The adapter forwards extra fields from the provider name before the first dot.
+      const [providerName = ''] = member.provider.split('.', 1);
+      const namespace = providerName.trim();
+      const { cachePrefixLength } = prompt;
       const generation = generateText({
         model: models(member.provider, member.model),
         system: prompt.system,
-        // The role brief travels in the user message: some routes ignore `system`.
-        prompt: prompt.user,
+        // Keep the role brief in the user message for routes that ignore `system`.
+        ...(member.model.startsWith('claude-') &&
+        cachePrefixLength !== undefined
+          ? {
+              messages: [
+                {
+                  role: 'user' as const,
+                  content: [
+                    {
+                      type: 'text' as const,
+                      text: prompt.user.slice(0, cachePrefixLength),
+                      providerOptions: {
+                        openaiCompatible: {
+                          cache_control: { type: 'ephemeral' },
+                        },
+                      },
+                    },
+                    {
+                      type: 'text' as const,
+                      text: prompt.user.slice(cachePrefixLength),
+                    },
+                  ],
+                },
+              ],
+            }
+          : { prompt: prompt.user }),
+        providerOptions: {
+          openaiCompatible: effortOptions,
+          [namespace]: {
+            ...(namespace === 'openaiCompatible' ? effortOptions : {}),
+            prompt_cache_key: cacheKey,
+          },
+        },
         stopWhen: isStepCount(turn?.maxSteps ?? 1),
         ...(turn ? {} : { maxOutputTokens: 600 }),
         abortSignal: signal,
@@ -166,22 +214,27 @@ export function createTurnRunner({
                     }
                   : undefined,
             }),
-        ...(effort === undefined
-          ? {}
-          : {
-              // The provider-agnostic key: a provider-name key is cut at
-              // its first dot, so `proxy.prod` would drop the effort.
-              providerOptions: {
-                openaiCompatible: { reasoningEffort: effort },
-              },
-            }),
-      }).then(({ text, finishReason }) =>
+      }).then(({ text, finishReason, totalUsage }) => {
+        const cachedInputTokens = totalUsage.inputTokenDetails.cacheReadTokens;
+        if (
+          !signal.aborted &&
+          cachedInputTokens !== undefined &&
+          cachedInputTokens > 0
+        ) {
+          onCacheRead?.({
+            cacheKey,
+            memberId: member.id,
+            model: member.model,
+            turnId: turn?.turnId,
+            cachedInputTokens,
+          });
+        }
         // A reply cut off at the output limit is not posted as if complete.
         // A listen note is private, so a short one is still useful.
-        turn && finishReason === 'length'
+        return turn && finishReason === 'length'
           ? failure('E_TURN_FAILED', 'Model reply was cut off at its limit')
-          : success(text),
-      );
+          : success(text);
+      });
       const result = await Promise.race([aborted.promise, generation]);
       if (signal.aborted) {
         generation.catch(() => undefined);

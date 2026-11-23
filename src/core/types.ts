@@ -99,4 +99,6 @@ export type FloorKind = 'round' | 'react' | 'mention';
 export interface Prompt {
   readonly system: string;
   readonly user: string;
+  /** End of the stable role brief in the user message, before the transcript. */
+  readonly cachePrefixLength?: number;
 }

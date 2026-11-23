@@ -110,7 +110,20 @@ export async function startCouncilApp({
   });
   const service = await openCouncilService(config, {
     slack,
-    turns: createTurnRunner({ models, toolsFor }),
+    turns: createTurnRunner({
+      models,
+      toolsFor,
+      onCacheRead: ({ cacheKey, memberId, model, turnId, cachedInputTokens }) =>
+        log({
+          level: 'info',
+          event: 'model_cache_read',
+          model,
+          member: memberId,
+          council_cache_key: cacheKey,
+          ...(turnId !== undefined ? { turn: turnId } : {}),
+          cached_input_tokens: cachedInputTokens,
+        }),
+    }),
     orientationFor: mcp.orientationFor,
     appUserId: botUserId,
     onSkippedCouncil: (council, missingMembers) =>
