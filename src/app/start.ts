@@ -140,6 +140,7 @@ export async function startCouncilApp({
     picker: createPicker({
       config,
       service,
+      slack,
       reader,
       writer,
       appUserId: botUserId,

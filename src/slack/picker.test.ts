@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { CliError } from '@council/core/errors.js';
+import { success } from '@council/core/result.js';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  createPicker,
   decodeMetadata,
   MEMBERS_BLOCK,
   type PickerConfig,
@@ -120,7 +123,7 @@ describe('decodeMetadata', () => {
   it.each([
     ['not JSON', '{'],
     ['not a string', 42],
-    ['oversized', JSON.stringify({ ...command, pad: 'x'.repeat(3_000) })],
+    ['oversized', JSON.stringify(command).padEnd(3_001)],
     ['an extra field', JSON.stringify({ ...command, roster: ['guide'] })],
     [
       'a foreign response url',
@@ -165,5 +168,72 @@ describe('planPickerOpen', () => {
       text: REFUSED,
     });
     expect(planPickerOpen(config, command).kind).toBe('open');
+  });
+});
+
+describe('createPicker', () => {
+  function setup(convene: () => Promise<unknown>) {
+    const accepted = new Set(['C1:1.000001']);
+    const slack = {
+      postNotice: vi.fn(async () => success({ ts: '9.000001' })),
+      deleteMessage: vi.fn(async () => success(undefined)),
+    };
+    const service = {
+      getCouncil: () => undefined,
+      convene: vi.fn(convene),
+      handleHumanMessage: vi.fn(
+        async ({
+          scope,
+          message,
+        }: {
+          scope: { channel: string };
+          message: { ts: string };
+        }) => {
+          const key = `${scope.channel}:${message.ts}`;
+          if (accepted.has(key)) return 'duplicate' as const;
+          accepted.add(key);
+          return 'accepted' as const;
+        },
+      ),
+    };
+    const fetch = vi.fn(
+      async (_url: unknown, _init?: RequestInit) => new Response('ok'),
+    );
+    const picker = createPicker({
+      config,
+      service: service as never,
+      slack,
+      reader: { apiCall: async () => ({ ok: false, error: 'x' }) },
+      writer: { apiCall: async () => ({ ok: true }) },
+      appUserId: 'UAPP',
+      log: () => {},
+      fetch,
+    });
+    const run = picker.submit('U1', {
+      id: 'V1',
+      private_metadata: JSON.stringify(shortcut),
+      state: { values: {} },
+    }).run;
+    return { run, slack, service, fetch };
+  }
+
+  it('opens a round from its own post when the selected message was accepted before', async () => {
+    const { run, service, fetch } = setup(async () => ({}));
+    await run?.();
+    await expect(
+      service.handleHumanMessage.mock.results[0]?.value,
+    ).resolves.toBe('accepted');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('deletes its post and tells the user when convening fails', async () => {
+    const { run, slack, fetch } = setup(async () => {
+      throw new CliError('E_COUNCIL_EXISTS', 'exists');
+    });
+    await run?.();
+    expect(slack.deleteMessage).toHaveBeenCalledWith('C1', '9.000001');
+    expect(String(fetch.mock.calls[0]?.[1]?.body)).toContain(
+      'This thread already has a council.',
+    );
   });
 });

@@ -112,9 +112,9 @@ to start one:
   "Council convened by <name>: <question>" in the channel and convenes in that
   message's thread. Slack does not run slash commands inside threads.
 - **Message shortcut.** Choose **Start a council** from a message's menu. The
-  council convenes in that message's thread, or the thread it replies in. A
-  question typed in the modal is posted in the thread and becomes the prompt;
-  left empty, the selected message is the prompt.
+  council convenes in that message's thread, or the thread it replies in. The
+  app posts "Council convened by <name>" in the thread, with any question typed
+  in the modal; left empty, members answer the selected message above it.
 
 The modal offers a preset (the default preset is preselected) and a member
 list. Choosing members overrides the preset. A thread that already has a

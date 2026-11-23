@@ -7,8 +7,7 @@ import { z } from 'zod';
 
 import { callSlack, type SlackApi } from './api.js';
 import type { LogEntry } from './inbound.js';
-import { NOTICE_EVENT } from './port.js';
-import { neutraliseBroadcasts } from './text.js';
+import type { SlackAdapterPort } from './port.js';
 
 export const PICKER_CALLBACK = 'council_picker';
 export const PRESET_BLOCK = 'council_preset';
@@ -25,8 +24,6 @@ const OPTION_LIMIT = 100;
 const OPTION_TEXT_LIMIT = 75;
 
 export const REFUSED = 'You are not allowed to start a council.';
-export const INVITE_APP =
-  'The app is not in this channel. Invite it with `/invite @council`, then try again.';
 
 const SlackId = z.string().regex(/^[A-Z0-9]{2,40}$/u);
 const UserId = z.string().regex(/^[UW][A-Z0-9]{1,40}$/u);
@@ -298,16 +295,19 @@ const UserInfo = z.looseObject({
   }),
 });
 
-const Posted = z.looseObject({ ts: SlackTs });
+/** Enough to outlast Slack's redelivery of one submission. */
+const CLAIM_LIMIT = 1_024;
 
 export interface PickerOptions {
   readonly config: PickerConfig;
   readonly service: Pick<
     CouncilService,
-    'getCouncil' | 'convene' | 'end' | 'handleHumanMessage'
+    'getCouncil' | 'convene' | 'handleHumanMessage'
   >;
+  /** Posts and deletes through the port's per-channel write queue. */
+  readonly slack: Pick<SlackAdapterPort, 'postNotice' | 'deleteMessage'>;
   readonly reader: SlackApi;
-  /** Opens views and posts. Must not retry: a trigger id and a post are one-shot. */
+  /** Opens views. Must not retry: a trigger id is one-shot. */
   readonly writer: SlackApi;
   readonly appUserId: string;
   readonly log: (entry: LogEntry) => void;
@@ -327,12 +327,26 @@ export interface PickerSubmit {
 export function createPicker({
   config,
   service,
+  slack,
   reader,
   writer,
   appUserId,
   log,
   fetch = globalThis.fetch,
 }: PickerOptions) {
+  const claimed = new Set<string>();
+
+  /** True the first time a view id is seen; the oldest claims age out. */
+  function claim(viewId: string): boolean {
+    if (claimed.has(viewId)) return false;
+    claimed.add(viewId);
+    if (claimed.size > CLAIM_LIMIT) {
+      const [oldest] = claimed;
+      if (oldest !== undefined) claimed.delete(oldest);
+    }
+    return true;
+  }
+
   function fail(stage: string, code: string, channel: string): void {
     log({ level: 'warn', event: 'picker_failed', stage, code, channel });
   }
@@ -369,51 +383,46 @@ export function createPicker({
     );
   }
 
-  async function post(
-    channel: string,
-    threadTs: string | undefined,
-    text: string,
-  ): Promise<{ ok: true; ts: string } | { ok: false; error: string }> {
-    const call = await callSlack(writer, 'chat.postMessage', {
-      channel,
-      ...(threadTs === undefined ? {} : { thread_ts: threadTs }),
-      markdown_text: neutraliseBroadcasts(text),
-      unfurl_links: false,
-      unfurl_media: false,
-      metadata: {
-        event_type: NOTICE_EVENT,
-        event_payload: { kind: 'notice' },
-      },
-    });
-    if (!call.ok) return call;
-    const posted = Posted.safeParse(call.value);
-    return posted.success
-      ? { ok: true, ts: posted.data.ts }
-      : { ok: false, error: 'invalid_response' };
-  }
-
-  function postFailure(source: PickerSource, error: string): Promise<void> {
-    fail('post', error, source.channel);
-    return tell(
-      source,
-      error === 'not_in_channel'
-        ? INVITE_APP
-        : 'The council could not post in this channel.',
-    );
-  }
-
-  async function convene(
+  /**
+   * Post first, then convene, then open the round from the post. The post is
+   * the app's own, so its ts is a fresh dedupe key even when the selected
+   * message was accepted before; the selected message stays in the history.
+   */
+  async function start(
     source: PickerSource,
-    scope: Scope,
     roster: readonly string[],
-  ): Promise<boolean> {
+    question: string | undefined,
+  ): Promise<void> {
+    const name = await displayName(source.user);
+    const posted = await slack.postNotice(
+      source.kind === 'command'
+        ? { channel: source.channel }
+        : { channel: source.channel, threadTs: source.threadTs },
+      question === undefined
+        ? `Council convened by ${name}.`
+        : `Council convened by ${name}: ${question}`,
+    );
+    if (!posted.ok) {
+      fail('post', posted.code, source.channel);
+      return tell(
+        source,
+        posted.hint ?? 'The council could not post in this channel.',
+      );
+    }
+    const { ts } = posted.value;
+    const scope: Scope = {
+      channel: source.channel,
+      threadTs: source.kind === 'command' ? ts : source.threadTs,
+    };
+
     try {
       await service.convene({ scope, owner: source.user, roster });
-      return true;
     } catch (error) {
       const code = isCliError(error) ? error.code : 'E_UNEXPECTED';
       fail('convene', code, source.channel);
-      await tell(
+      const removed = await slack.deleteMessage(source.channel, ts);
+      if (!removed.ok) fail('delete', removed.code, source.channel);
+      return tell(
         source,
         code === 'E_COUNCIL_EXISTS'
           ? 'This thread already has a council.'
@@ -421,57 +430,15 @@ export function createPicker({
             ? REFUSED
             : 'The council could not be convened.',
       );
-      return false;
-    }
-  }
-
-  async function start(
-    source: PickerSource,
-    roster: readonly string[],
-    question: string | undefined,
-  ): Promise<void> {
-    const name = await displayName(source.user);
-    let scope: Scope;
-    let promptTs: string;
-    if (source.kind === 'command') {
-      const root = await post(
-        source.channel,
-        undefined,
-        `Council convened by ${name}: ${question ?? ''}`,
-      );
-      if (!root.ok) return postFailure(source, root.error);
-      scope = { channel: source.channel, threadTs: root.ts };
-      promptTs = root.ts;
-      if (!(await convene(source, scope, roster))) return;
-    } else {
-      scope = { channel: source.channel, threadTs: source.threadTs };
-      if (!(await convene(source, scope, roster))) return;
-      // The line attributes the council in the thread, and fails early when the app is not a member.
-      const line = await post(
-        source.channel,
-        source.threadTs,
-        question === undefined
-          ? `Council convened by ${name}.`
-          : `${name} asks the council: ${question}`,
-      );
-      if (!line.ok) {
-        try {
-          await service.end(scope, source.user);
-        } catch {
-          fail('end', 'E_UNEXPECTED', source.channel);
-        }
-        return postFailure(source, line.error);
-      }
-      promptTs = question === undefined ? source.messageTs : line.ts;
     }
 
-    // The text only addresses the council; the prompt is read from thread history through `promptTs`.
+    // The text only addresses the council; the prompt is read from thread history up to `ts`.
     let opened: string;
     try {
       opened = await service.handleHumanMessage({
         scope,
         message: {
-          ts: promptTs,
+          ts,
           text: `<@${appUserId}>`,
           author: { kind: 'human', userId: source.user, displayName: name },
         },
@@ -539,6 +506,17 @@ export function createPicker({
           },
         };
       }
+      // A redelivered submission is acknowledged and dropped.
+      const viewId = (view as { id?: unknown }).id;
+      if (typeof viewId !== 'string') {
+        return {
+          response: {
+            response_action: 'errors',
+            errors: { [QUESTION_BLOCK]: 'This form could not be read.' },
+          },
+        };
+      }
+      if (!claim(viewId)) return {};
       return {
         run: async () => {
           try {

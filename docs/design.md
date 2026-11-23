@@ -248,13 +248,18 @@ tested without Slack.
   user and response URL, and is size-checked and Zod-validated on return.
   - `/council [question]` posts "Council convened by <name>: <question>" in the
     channel as a notice and convenes in its thread.
-  - The shortcut convenes in the message's thread (`thread_ts`, else `ts`),
-    convenes first, then posts a notice line: the question when one was typed,
-    otherwise an attribution. The question line, or else the selected message,
-    is the prompt. If the line cannot be posted the council is ended again.
-  - The first round opens through `handleHumanMessage` with the prompt's ts, the
+  - The shortcut posts the same notice, with the question when one was typed,
+    in the message's thread (`thread_ts`, else `ts`) and convenes there. Left
+    empty, the selected message stays in the history above the notice.
+  - Both post first, then convene, then open the round, all writes through the
+    port's queue. If convening fails the notice is deleted and the user told; a
+    council is never saved before its notice exists, and a failure never ends
+    whatever council holds the scope. A submission's view id is claimed once,
+    so a redelivery cannot post or convene twice.
+  - The first round opens through `handleHumanMessage` with the notice's ts, the
     invoking user as author and the text `<@APPUSER>`, so dedupe, the allow-list
-    and addressing run unchanged; the prompt itself is read from history.
+    and addressing run unchanged; the prompt itself is read from history. The
+    notice's ts is always fresh, so a message accepted before still starts one.
   - An existing council in the scope is a modal error. Later failures, including
     `not_in_channel`, reach the user through the response URL and are logged
     with fixed fields only.
