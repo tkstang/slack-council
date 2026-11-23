@@ -14,10 +14,11 @@ export interface TurnRef {
 }
 
 export interface SlackPort {
-  /** Oldest first, with an inclusive upper bound when supplied. */
+  /** Oldest first, with inclusive bounds when supplied. */
   fetchMessages(
     scope: Scope,
     throughTs?: string,
+    fromTs?: string,
   ): Promise<Result<readonly Message[]>>;
   /**
    * Post once, with turn metadata and broadcast mentions neutralised. `text` is
@@ -90,6 +91,8 @@ export interface TurnInput extends TurnRef {
   readonly privateNoteText?: readonly string[];
   /** Exclusive default cutoff for retrieving messages before the prompt. */
   readonly historyBeforeTs?: string;
+  /** Inclusive history floor for a channel council. */
+  readonly historyFromTs?: string;
 }
 
 export type ListenInput = Pick<TurnInput, 'member' | 'prompt' | 'signal'>;

@@ -315,7 +315,10 @@ describe('createPicker', () => {
       'Council convened by U1: Q',
     );
     expect(service.convene).toHaveBeenCalledWith(
-      expect.objectContaining({ scope: { channel: 'C1' } }),
+      expect.objectContaining({
+        scope: { channel: 'C1' },
+        convenedAtTs: '9.000001',
+      }),
     );
     expect(service.handleHumanMessage).toHaveBeenCalledWith(
       expect.objectContaining({ scope: { channel: 'C1' } }),

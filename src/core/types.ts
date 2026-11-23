@@ -33,6 +33,8 @@ export interface CouncilSettings {
 export interface Council {
   readonly id: string;
   readonly scope: Scope;
+  /** Slack timestamp of the notice or message that convened the council. */
+  readonly convenedAtTs?: string;
   readonly owner: string;
   readonly roster: readonly string[];
   readonly settings: CouncilSettings;

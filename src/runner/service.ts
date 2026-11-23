@@ -10,6 +10,7 @@ import type {
   TurnRunner,
 } from '@council/core/ports.js';
 import type { Result } from '@council/core/result.js';
+import { SLACK_TIMESTAMP } from '@council/core/slack-timestamp.js';
 import type {
   Council,
   HumanMessage,
@@ -43,6 +44,7 @@ export interface CouncilServiceOptions {
 export type ConveneInput = {
   readonly scope: Scope;
   readonly owner: string;
+  readonly convenedAtTs: string;
 } & (
   | { readonly roster: readonly string[]; readonly preset?: never }
   | { readonly preset?: string; readonly roster?: never }
@@ -226,6 +228,8 @@ export async function openCouncilService(
   }
 
   function makeCouncil(input: ConveneInput): Entry {
+    if (!SLACK_TIMESTAMP.test(input.convenedAtTs))
+      throw new CliError('E_INVALID_INPUT', 'Invalid convening timestamp');
     const preset = input.preset ?? config.defaultPreset;
     const roster =
       input.roster ??
@@ -241,6 +245,7 @@ export async function openCouncilService(
       {
         id: ids.next(),
         scope: { ...input.scope },
+        convenedAtTs: input.convenedAtTs,
         owner: input.owner,
         roster: [...roster],
         settings: { ...config.council },
@@ -377,7 +382,7 @@ export async function openCouncilService(
             kickoff &&
             scope.threadTs !== undefined &&
             address.kind === 'council'
-              ? makeCouncil({ scope, owner })
+              ? makeCouncil({ scope, owner, convenedAtTs: message.ts })
               : undefined;
           const entry = current ?? opening;
           if (!entry) {
