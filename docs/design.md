@@ -312,6 +312,13 @@ tested without Slack.
     invoking user as author and the text `<@APPUSER>`, so dedupe, the allow-list
     and addressing run unchanged; the prompt itself is read from history. The
     notice's ts is always fresh, so a message accepted before still starts one.
+  - A mention that starts a council posts its default panel in the thread
+    after the council is saved. The human message starts the round. A notice
+    write failure is logged and the round proceeds.
+  - The convening notice names the preset or says "custom panel" when members
+    were chosen by hand. It lists each handle, display name, model, and any
+    configured effort and persona title. The app ignores bot-authored notice
+    events, so listing a handle never grants the floor.
   - An existing council in the scope (the thread, or the channel for "This
     whole channel") is a modal error. Later failures, including
     `not_in_channel`, reach the user through the response URL and are logged

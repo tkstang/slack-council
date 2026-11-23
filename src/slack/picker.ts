@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { callSlack, type SlackApi } from './api.js';
 import type { LogEntry } from './inbound.js';
 import type { SlackAdapterPort } from './port.js';
-import { neutraliseBroadcasts, truncateMarkdown } from './text.js';
+import { plainMarkdown, truncateMarkdown } from './text.js';
 
 export const PICKER_CALLBACK = 'council_picker';
 export const PRESET_BLOCK = 'council_preset';
@@ -110,16 +110,6 @@ export function decodeMetadata(raw: unknown): PickerMetadata | undefined {
   }
   const parsed = Metadata.safeParse(json);
   return parsed.success ? parsed.data : undefined;
-}
-
-/**
- * User-supplied text as plain text in an app post: mentions and broadcasts
- * neutralised, then Markdown that could link, format or quote escaped.
- */
-export function plainMarkdown(text: string): string {
-  return neutraliseBroadcasts(text)
-    .replace(/[\\`*_~[\]<>#|!]/gu, '\\$&')
-    .replace(/^(\s*(?:\d+)?)([-+=.)])/gmu, '$1\\$2');
 }
 
 /** A bounded, escaped blockquote of a selected message for the convening notice. */
@@ -332,6 +322,8 @@ export type PickerSubmission =
       readonly ok: true;
       readonly source: PickerSource;
       readonly roster: readonly string[];
+      /** Undefined when members were picked by hand. */
+      readonly preset?: string;
       /** A new thread, or the whole channel (the command only). */
       readonly where: PickerWhere;
       /** Trimmed, or undefined when empty. */
@@ -379,11 +371,12 @@ export function parsePickerSubmission(
   let roster: readonly string[] = [...new Set(chosen)].filter(
     (id) => id !== undefined,
   );
+  let preset: string | undefined;
   if (chosen.includes(undefined)) {
     errors[MEMBERS_BLOCK] = 'Choose configured members only.';
   } else if (roster.length === 0) {
     const selected = state[PRESET_BLOCK]?.[PRESET_ACTION].selected_option;
-    const preset = selected
+    preset = selected
       ? fromOption(presetKeys(config), 'p', selected.value)
       : config.defaultPreset;
     const members =
@@ -415,9 +408,14 @@ export function parsePickerSubmission(
   if (!where) errors[WHERE_BLOCK] = 'Choose where the council meets.';
 
   if (Object.keys(errors).length > 0 || !where) return { ok: false, errors };
-  return question === ''
-    ? { ok: true, source, roster, where }
-    : { ok: true, source, roster, where, question };
+  return {
+    ok: true,
+    source,
+    roster,
+    where,
+    ...(preset === undefined ? {} : { preset }),
+    ...(question === '' ? {} : { question }),
+  };
 }
 
 const UserInfo = z.looseObject({
@@ -545,12 +543,13 @@ export function createPicker({
    * message was accepted before. The round's trigger is the post, so a blank
    * shortcut quotes the selected message in it.
    */
-  async function start(
-    source: PickerSource,
-    roster: readonly string[],
-    where: PickerWhere,
-    question: string | undefined,
-  ): Promise<void> {
+  async function start({
+    source,
+    roster,
+    preset,
+    where,
+    question,
+  }: Extract<PickerSubmission, { ok: true }>): Promise<void> {
     const name = await displayName(source.user);
     const by = plainMarkdown(name.replace(/\s+/gu, ' ').slice(0, 100));
     let text: string;
@@ -577,6 +576,7 @@ export function createPicker({
         ? { channel: source.channel }
         : { channel: source.channel, threadTs: source.threadTs },
       text,
+      { preset, roster },
     );
     if (!posted.ok) {
       fail('post', posted.code, source.channel);
@@ -668,7 +668,7 @@ export function createPicker({
         return {
           response: { response_action: 'errors', errors: parsed.errors },
         };
-      const { source, roster, where, question } = parsed;
+      const { source, where } = parsed;
       if (
         source.user !== userId ||
         !config.slack.allowedUsers.includes(userId)
@@ -714,7 +714,7 @@ export function createPicker({
         run: async () => {
           if (!claim(viewId)) return;
           try {
-            await start(source, roster, where, question);
+            await start(parsed);
           } catch {
             fail('start', 'E_UNEXPECTED', source.channel);
           }
