@@ -14,6 +14,11 @@ function neutraliseProse(text: string): string {
       (_, label: string | undefined) => `@${WORD_JOINER}${label ?? 'group'}`,
     )
     .replace(
+      /<@([UW][A-Z0-9]+)(?:\|@?([^<>]*))?>/gu,
+      (_, id: string, label: string | undefined) =>
+        `@${WORD_JOINER}${label || id}`,
+    )
+    .replace(
       /(?<![\p{L}\p{N}_])@(here|channel|everyone)(?![\p{L}\p{N}_-])/giu,
       (_, name: string) => `@${WORD_JOINER}${name}`,
     );
@@ -23,9 +28,10 @@ function neutraliseProse(text: string): string {
 const CODE = /(```[\s\S]*?(?:```|$)|`[^`\n]+`)/u;
 
 /**
- * Break every broadcast form so it cannot notify: Slack's `<!here>` markup,
- * user-group mentions and plain `@here`, `@channel` and `@everyone`. Code
- * spans and fenced blocks are left as written.
+ * Break every form that would notify someone: Slack's `<!here>` markup,
+ * user-group mentions, plain `@here`, `@channel` and `@everyone`, and `<@U…>`
+ * user mentions, so model output cannot ping people. Code spans and fenced
+ * blocks are left as written.
  */
 export function neutraliseBroadcasts(text: string): string {
   return text

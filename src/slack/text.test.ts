@@ -13,13 +13,14 @@ describe('neutraliseBroadcasts', () => {
     ['@everyone', false],
     ['<!here> and <!channel|channel>', false],
     ['<!subteam^S123|@team>', false],
+    ['ping <@U123ABC> and <@W9|pat>', false],
     ['email me at a@here.com', true],
     ['@hereafter is a word', true],
   ])('%s', (text, unchanged) => {
     const out = neutraliseBroadcasts(text);
     expect(out === text).toBe(unchanged);
     expect(out).not.toMatch(
-      /<!|(?<![\w])@(?:here|channel|everyone)\b(?!after)/u,
+      /<[!@]|(?<![\w])@(?:here|channel|everyone)\b(?!after)/u,
     );
   });
 
