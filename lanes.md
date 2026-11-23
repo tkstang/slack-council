@@ -113,9 +113,9 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ### l06
 
-- state: turn-finished
+- state: work-settled
 - dispatch: d01 reported
-- next: Opus confirmation round on PR 9; then rebase after earlier PRs merge, live-check rows 23 and 24, merge
+- next: Rebase after earlier PRs merge, live-check rows 23 and 24, then merge PR 9
 - owner: orchestrator
 - task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A5dd17709-b86f-4239-b5e3-00c87a825a75
 - worktree: /Users/tstang/.t3/worktrees/slack-council/t3-42520028-62a93b2e2182b4ed
@@ -128,7 +128,7 @@ update ID. Filed lane reports are in `lane-reports/`.
 - wake: T3 task completion
 - provider: codex_codex_proxy
 - model: gpt-6.2-sol
-- last_observed: 2026-11-23T23:50:49Z
+- last_observed: 2026-11-23T23:51:01Z
 
 ## Closed
 
@@ -162,3 +162,4 @@ _None._
 - u024 · 2026-11-23T23:40:34Z · l06 d01 · created; d01 opened; next: Wait for the l06-d01 report; then review, open the PR stacked on PR 8, Opus review; owner: orchestrator; task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A5dd17709-b86f-4239-b5e3-00c87a825a75; branch: feat/preset-mention; base: 1c7517c4151dcbc93932642e015429033fb9568f; wake: T3 task completion; provider: codex_codex_proxy; model: gpt-6.2-sol; state dispatched
 - u025 · 2026-11-23T23:46:47Z · l06 d01 · d01 reported (lane-reports/l06-d01.md); next: Opus review of PR 9 running; then fixes, rebase after earlier PRs merge, live-check rows 23 and 24; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-42520028-62a93b2e2182b4ed; head: 1d6302fb47ff5fd3cb74570621118a2490163f50; review_round: 1; placement: own-worktree; state dispatched → turn-finished
 - u026 · 2026-11-23T23:50:49Z · l06 d01 · next: Opus confirmation round on PR 9; then rebase after earlier PRs merge, live-check rows 23 and 24, merge; head: 0fa267eff3b689b0cb7007711d75babd50e21f8e; review_round: 2
+- u027 · 2026-11-23T23:51:01Z · l06 d01 · next: Rebase after earlier PRs merge, live-check rows 23 and 24, then merge PR 9; state turn-finished → work-settled
