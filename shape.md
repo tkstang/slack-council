@@ -137,8 +137,13 @@ approvals.**
 
 **Approves before it happens:** the high-level plan (the features to ship);
 open design decisions; Slack app
-manifest or scope changes; tokens and secrets; desktop control of the
-development machine; writes to the user's vault; filing feedback against OAT.
+manifest or scope changes; tokens and secrets; writes to the user's vault;
+filing feedback against OAT.
+
+**Approved in advance for this project (2026-11-23):** desktop control of the
+Slack client on the development machine by the live-testing agent, for any
+live pass the project needs. Other desktop control still needs approval, and
+the standing limits on it (no permission, password or payment dialogs) hold.
 
 **Is told:** commits, pushes, opened PRs, lane dispatches, review findings and
 their dispositions, and merges.

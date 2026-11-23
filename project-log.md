@@ -23,6 +23,14 @@ Every PR gets an independent review before merge, with no waiver for small PRs, 
 
 l01-d01 delivered the channel history floor, the internal transcript-label instruction and the approval-stop live check on feat/small-followups at be8c958; its clean-checkout gate passed (246 tests, build). key:log-b2b67cd30359
 
+### 2026-11-23 · project · feedback · Reshape: user involvement
+
+**Category:** decision
+**Source:** reshape-20261123T213804Z-involvement-5ba0bfca
+**Recorded:** 2026-11-23T21:38:04Z
+
+The user approved in advance all desktop control of the Slack client by the live-testing agent for this project, so live passes no longer wait for a per-pass approval. In effect at once.
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

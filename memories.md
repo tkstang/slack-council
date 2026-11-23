@@ -25,6 +25,10 @@ One bullet per item, each with its date and source (a dispatch ID such as
   forests of tests. We should have tests where they're useful, and they should
   be appropriately scoped." Extend an existing test before adding one. Put
   this in every implementer brief. (2026-11-23, user)
+- When a decision has several options, show the choices and their trade-offs
+  visually (inline HTML in the host app) when that conveys them more easily
+  than prose. Front-load the decisions the user must make so a long run is not
+  left waiting on them. (2026-11-23, user)
 - Sol implements and Opus reviews for now because the user has Sol usage to
   spare; expect a swap later, and treat it as a reshape. (2026-11-23, user)
 
