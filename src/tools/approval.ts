@@ -18,7 +18,6 @@ const postFailed = failure('E_SLACK', 'Could not post tool approval');
 const MAX_PREVIEW = 2_500;
 
 interface Pending {
-  readonly owner: string;
   readonly input: TurnInput;
   readonly deadline: number;
   finish(outcome: ApprovalOutcome | undefined): void;
@@ -53,7 +52,6 @@ export function createApprovalGate(
 
   function request(
     input: TurnInput,
-    owner: string,
     timeoutMs: number,
     tool: string,
     args: unknown,
@@ -83,7 +81,7 @@ export function createApprovalGate(
 
     const abort = () => finish({ kind: 'cancelled' });
     const timer = setTimeout(() => finish({ kind: 'expired' }), timeoutMs);
-    pending.set(id, { owner, input, deadline, finish });
+    pending.set(id, { input, deadline, finish });
     input.signal.addEventListener('abort', abort, { once: true });
 
     // A click or cancellation may arrive before Slack returns the message ts.
@@ -140,10 +138,10 @@ export function createApprovalGate(
           if (denials >= 2) return denied;
           if (!input.approval)
             return failure('E_TOOL_FAILED', 'Turn cannot request approval');
-          const { owner, timeoutMs, suspendTimeout } = input.approval;
+          const { timeoutMs, suspendTimeout } = input.approval;
           const resume = suspendTimeout();
           try {
-            const decision = await request(input, owner, timeoutMs, tool, args);
+            const decision = await request(input, timeoutMs, tool, args);
             // An unanswered or unpostable request counts like a denial, so a
             // member cannot hold a turn open by asking again and again.
             if (
@@ -177,7 +175,8 @@ export function createApprovalGate(
         ticket.finish({ kind: 'expired' });
         return 'expired';
       }
-      if (userId !== ticket.owner && !allowed.has(userId)) return 'forbidden';
+      // The allow-list alone decides: an owner removed from it loses approval too.
+      if (!allowed.has(userId)) return 'forbidden';
       ticket.finish({
         kind: vote === 'approve' ? 'approved' : 'denied',
         userId,

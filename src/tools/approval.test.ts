@@ -12,14 +12,17 @@ import { z } from 'zod';
 import { createApprovalGate } from './approval.js';
 import { createMemberTools } from './member-tools.js';
 
-function fixture() {
+function fixture(allowedUsers = ['U1', 'U2']) {
   const postApproval = vi.fn<ApprovalPort['postApproval']>(async () =>
     success({ ts: '2.000' }),
   );
   const updateApproval = vi.fn<ApprovalPort['updateApproval']>(async () =>
     success(undefined),
   );
-  const gate = createApprovalGate({ postApproval, updateApproval }, ['U2']);
+  const gate = createApprovalGate(
+    { postApproval, updateApproval },
+    allowedUsers,
+  );
   const controller = new AbortController();
   const input: TurnInput = {
     councilId: 'council',
@@ -81,6 +84,16 @@ function fixture() {
 }
 
 afterEach(() => vi.useRealTimers());
+
+it('refuses a council owner who is no longer on the allow-list', async () => {
+  vi.useFakeTimers();
+  const f = fixture(['U2']);
+  const call = f.call({ text: 'x' });
+  const post = await f.posted();
+  expect(f.decide(post.id, 'U1', 'approve')).toBe('forbidden');
+  expect(f.decide(post.id, 'U2', 'deny')).toBe('accepted');
+  expect(await call).toMatchObject({ ok: false, code: 'E_APPROVAL_DENIED' });
+});
 
 it('rejects an unpermitted click, then a single owner approval runs the exact approved arguments', async () => {
   vi.useFakeTimers();
