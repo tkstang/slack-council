@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "slug": "mvp-followups",
+  "scope": "synced",
+  "ref": "refs/oat/projects/mvp-followups",
+  "remote": "origin",
+  "status": "active",
+  "createdAt": "2026-11-23T21:09:30.039Z",
+  "completedAt": null
+}
