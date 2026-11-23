@@ -10,10 +10,12 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ### l01
 
-- state: turn-finished
+- state: blocked
 - dispatch: d01 reported
-- next: Opus confirmation round on the fix commit, then the live Slack pass
+- next: Run the live pass for rows 11, 12 and 15 once the screen is unlocked, then merge PR 3
 - owner: orchestrator
+- waiting_on: owner
+- blocker: Live Slack pass needs the development machine's screen unlocked
 - task: node:delegated-task:command%3Amcp%3A82b19f9f-0e96-4837-b6d3-685a582e58bd%3Adelegate-task%3Amvp-followups-l01-d01
 - thread: thread:delegated-task:command%3Amcp%3A82b19f9f-0e96-4837-b6d3-685a582e58bd%3Adelegate-task%3Amvp-followups-l01-d01
 - worktree: /Users/tstang/.t3/worktrees/slack-council/t3-08a7ca70-19d94c1cac4c0b5e
@@ -27,7 +29,22 @@ update ID. Filed lane reports are in `lane-reports/`.
 - provider: codex_codex_proxy
 - model: gpt-6.2-sol
 - effort: high
-- last_observed: 2026-11-23T21:35:42Z
+- last_observed: 2026-11-23T22:07:42Z
+
+### l02
+
+- state: dispatched
+- dispatch: d01 open
+- next: Wait for the l02-d01 report, then rebase onto main once PR 3 merges, open the PR and arrange the Opus review
+- owner: orchestrator
+- task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A472456a6-5097-46e4-93de-7544d8d64cac
+- branch: feat/panel
+- base: fe9ef10c4ef19de2987a01e717f8ea5244a73000
+- wake: T3 task completion
+- provider: codex_codex_proxy
+- model: gpt-6.2-sol
+- effort: high
+- last_observed: 2026-11-23T22:07:41Z
 
 ## Closed
 
@@ -39,3 +56,5 @@ _None._
 - u002 · 2026-11-23T21:30:19Z · l01 d01 · d01 reported (lane-reports/l01-d01.md); next: Rebase onto main after the adoption PR merges, open the PR, arrange the Opus review and the live Slack pass; head: be8c958dcecd05ef79665a781d7093b2267ad48a; state running → turn-finished
 - u003 · 2026-11-23T21:31:03Z · l01 d01 · next: Opus review of the PR, then the live Slack pass for the floor and row 15; head: 3942acab5e7040d3692933c6dc77d48b6c001794
 - u004 · 2026-11-23T21:35:42Z · l01 d01 · next: Opus confirmation round on the fix commit, then the live Slack pass; head: fe9ef10c4ef19de2987a01e717f8ea5244a73000; review_round: 1
+- u005 · 2026-11-23T22:07:41Z · l02 d01 · created; d01 opened; next: Wait for the l02-d01 report, then rebase onto main once PR 3 merges, open the PR and arrange the Opus review; owner: orchestrator; task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3A472456a6-5097-46e4-93de-7544d8d64cac; branch: feat/panel; base: fe9ef10c4ef19de2987a01e717f8ea5244a73000; wake: T3 task completion; provider: codex_codex_proxy; model: gpt-6.2-sol; effort: high; state dispatched
+- u006 · 2026-11-23T22:07:42Z · l01 d01 · next: Run the live pass for rows 11, 12 and 15 once the screen is unlocked, then merge PR 3; blocker: Live Slack pass needs the development machine's screen unlocked; waiting_on: owner; state turn-finished → blocked

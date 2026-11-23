@@ -45,6 +45,18 @@ One bullet per item, each with its date and source (a dispatch ID such as
 - This repository does not ignore `.oat/analysis`, so lane notes go under
   `$TMPDIR`, not in the checkout. (2026-11-23, orchestrator)
 
+- The Slack connector in the orchestrator's session is signed in to a different
+  workspace from the one the council app lives in. Do not create channels or
+  post through it; work in the app's workspace goes through the live-testing
+  agent or the user. (2026-11-23, orchestrator)
+- A live pass needs the development machine's screen unlocked; check before
+  dispatching the live-testing agent, and never send input to a lock screen.
+  (2026-11-23, orchestrator)
+- One app process serves both uses. The user's panel runs from their private
+  config under `~/.config/slack-council/`; a live pass restarts the app on the
+  test config in `.council/` and must switch it back afterwards.
+  (2026-11-23, orchestrator)
+
 ## Context
 
 <!-- Other facts that are still true and not obvious from the code or the documents. -->
