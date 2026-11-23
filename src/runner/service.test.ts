@@ -244,6 +244,8 @@ it('reports a council with a missing member and keeps it in the saved state', as
   expect(f.record().councils).toEqual([stale, retained]);
   await service.handleHumanMessage(human('2.000', 'Context only'));
   expect(f.record().councils).toEqual([retained, stale]);
+  expect(await service.end(stale.scope, 'U1')).toBe(true);
+  expect(f.record().councils).toEqual([retained]);
   await service.shutdown();
 });
 

@@ -155,20 +155,20 @@ export async function openCouncilService(
   const dormant = new Map<string, Council>();
   const seenIds = new Set<string>();
   for (const council of saved.councils) {
-    const missing = council.roster.filter((id) => !members.has(id));
-    if (missing.length > 0) {
-      onSkippedCouncil?.(council, missing);
-      dormant.set(scopeKey(council.scope), council);
-      continue;
-    }
     const key = scopeKey(council.scope);
-    if (entries.has(key) || seenIds.has(council.id)) {
+    if (entries.has(key) || dormant.has(key) || seenIds.has(council.id)) {
       throw new CliError(
         'E_INVALID_STATE',
         'Persisted councils contain duplicate ids or scopes',
       );
     }
     seenIds.add(council.id);
+    const missing = council.roster.filter((id) => !members.has(id));
+    if (missing.length > 0) {
+      onSkippedCouncil?.(council, missing);
+      dormant.set(key, council);
+      continue;
+    }
     entries.set(key, makeEntry(council, 'E_INVALID_STATE'));
   }
 
@@ -218,15 +218,20 @@ export async function openCouncilService(
   async function save(
     records: readonly Council[],
     acceptedMessageKeys = [...accepted],
+    endedDormant?: string,
   ): Promise<void> {
-    // A council convened in a dormant council's scope replaces it.
-    for (const { scope } of records) dormant.delete(scopeKey(scope));
+    // A council convened in a dormant council's scope replaces it. The dormant
+    // record leaves memory only once the save has succeeded.
+    const replaced = new Set(records.map(({ scope }) => scopeKey(scope)));
+    if (endedDormant !== undefined) replaced.add(endedDormant);
+    const kept = [...dormant].filter(([key]) => !replaced.has(key));
     unwrap(
       await store.save({
-        councils: [...records, ...dormant.values()],
+        councils: [...records, ...kept.map(([, council]) => council)],
         acceptedMessageKeys,
       }),
     );
+    for (const key of replaced) dormant.delete(key);
   }
 
   function retire(key: string, entry: Entry): void {
@@ -298,7 +303,15 @@ export async function openCouncilService(
               ? makeCouncil({ scope, owner })
               : undefined;
           const entry = current ?? opening;
-          if (!entry) return 'ignored';
+          if (!entry) {
+            if (address.kind !== 'end' || !dormant.has(key)) return 'ignored';
+            const keys = [...accepted, messageKey].slice(
+              -MAX_ACCEPTED_MESSAGES,
+            );
+            await save(councils(), keys, key);
+            accepted = new Set(keys);
+            return 'accepted';
+          }
 
           // Earlier queued messages may have started another chain while cancellation waited.
           if (address.kind === 'stop' || address.kind === 'end')
@@ -341,7 +354,11 @@ export async function openCouncilService(
       entries.get(key)?.runner.dispatch({ type: 'stop' });
       return writes.run(async () => {
         const entry = entries.get(key);
-        if (!entry) return false;
+        if (!entry) {
+          if (!dormant.has(key)) return false;
+          await save(councils(), undefined, key);
+          return true;
+        }
         entry.runner.dispatch({ type: 'stop' });
         await save(councils(key));
         retire(key, entry);
