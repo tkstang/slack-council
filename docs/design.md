@@ -217,7 +217,9 @@ tested without Slack.
   preset in that message's thread; (b) the `/council` command or the "Start a
   council" message shortcut opens the roster modal.
 - Posting: per-channel serial queue, at least one second apart, no automatic
-  retry of a write whose outcome is unknown. `@here`, `@channel` and `@everyone`
+  retry of a write whose outcome is unknown. Every Slack call has a finite
+  timeout: a write gets one attempt of 15 s, then the queue moves on; reads
+  retry at most twice. `@here`, `@channel` and `@everyone`
   are neutralised in member output.
 - Progress: ⏳ on the triggering message while a chain runs.
 

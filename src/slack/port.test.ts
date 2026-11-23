@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { createSlackClients } from './api.js';
 import { classifyAuthor, createSlackPort } from './port.js';
 
 const context = {
@@ -100,6 +101,7 @@ describe('fetchMessages', () => {
     };
     const port = createSlackPort({
       api,
+      writeApi: api,
       botId: 'BAPP',
       botUserId: 'UAPP',
       members: [{ id: 'ada', name: 'Ada' }],
@@ -126,5 +128,46 @@ describe('fetchMessages', () => {
       ],
     });
     expect(calls.filter((m) => m === 'users.info')).toHaveLength(1);
+  });
+});
+
+describe('writes', () => {
+  it('a write that times out releases the next write after one attempt', async () => {
+    let attempts = 0;
+    const { writer } = createSlackClients('xoxb-test', {
+      logger: undefined,
+      writeTimeoutMs: 20,
+      fetch: async (_url, init) => {
+        attempts += 1;
+        if (attempts === 1) {
+          // Stalls until the client's timeout aborts it.
+          return new Promise((_, reject) =>
+            init?.signal?.addEventListener('abort', () =>
+              reject(new Error('aborted')),
+            ),
+          );
+        }
+        return new Response(JSON.stringify({ ok: true, ts: '2.0' }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    });
+    const port = createSlackPort({
+      api: writer,
+      writeApi: writer,
+      botId: 'BAPP',
+      botUserId: 'UAPP',
+      members: [],
+      intervalMs: 0,
+    });
+    const scope = { channel: 'C1' };
+
+    const [first, second] = await Promise.all([
+      port.postNotice(scope, 'one'),
+      port.postNotice(scope, 'two'),
+    ]);
+    expect(first).toMatchObject({ ok: false, code: 'E_SLACK' });
+    expect(second).toEqual({ ok: true, value: undefined });
+    expect(attempts).toBe(2);
   });
 });

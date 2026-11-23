@@ -6,11 +6,11 @@ import {
   createTurnRunner,
 } from '@council/model/turn-runner.js';
 import { openCouncilService } from '@council/runner/service.js';
-import { callSlack, type SlackApi } from '@council/slack/api.js';
+import { callSlack, createSlackClients } from '@council/slack/api.js';
 import { registerCouncilHandlers } from '@council/slack/bolt.js';
 import { createInboundHandler } from '@council/slack/inbound.js';
 import { createSlackPort } from '@council/slack/port.js';
-import { App, webApi } from '@slack/bolt';
+import { App } from '@slack/bolt';
 import { z } from 'zod';
 
 import { createBoltLogger, createStderrLog, type Log } from './log.js';
@@ -62,13 +62,7 @@ export async function startCouncilApp({
   const models = unwrap(createProviderModels(config.providers, env));
   const logger = createBoltLogger(log);
 
-  const reader: SlackApi = new webApi.WebClient(botToken, { logger });
-  // A write whose outcome is unknown must not be sent again: no retries.
-  const writer: SlackApi = new webApi.WebClient(botToken, {
-    logger,
-    retryConfig: { retries: 0 },
-    rejectRateLimitedCalls: true,
-  });
+  const { reader, writer } = createSlackClients(botToken, { logger });
 
   const auth = await callSlack(reader, 'auth.test', {});
   const identity = auth.ok ? AuthTest.safeParse(auth.value) : undefined;

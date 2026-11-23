@@ -1,3 +1,5 @@
+import { webApi } from '@slack/bolt';
+
 /**
  * The slice of a Slack `WebClient` the adapter uses. A real client satisfies it
  * directly; tests pass a fake.
@@ -56,4 +58,49 @@ export async function callSlack(
     };
   }
   return { ok: true, value: response as Record<string, unknown> };
+}
+
+/** A write gets one attempt: its outcome is unknown after a timeout. */
+export const WRITE_TIMEOUT_MS = 15_000;
+export const READ_TIMEOUT_MS = 10_000;
+
+export interface SlackClientOptions {
+  readonly logger: webApi.WebClientOptions['logger'];
+  readonly fetch?: webApi.WebClientOptions['fetch'];
+  readonly readTimeoutMs?: number;
+  readonly writeTimeoutMs?: number;
+}
+
+/**
+ * Build the read and write clients. Both time out; reads retry twice with a
+ * short backoff, writes never retry and fail fast when rate limited.
+ */
+export function createSlackClients(
+  token: string,
+  {
+    logger,
+    fetch,
+    readTimeoutMs = READ_TIMEOUT_MS,
+    writeTimeoutMs = WRITE_TIMEOUT_MS,
+  }: SlackClientOptions,
+): { readonly reader: SlackApi; readonly writer: SlackApi } {
+  const shared = { logger, ...(fetch === undefined ? {} : { fetch }) };
+  return {
+    reader: new webApi.WebClient(token, {
+      ...shared,
+      timeout: readTimeoutMs,
+      retryConfig: {
+        retries: 2,
+        factor: 2,
+        minTimeout: 500,
+        maxTimeout: 2_000,
+      },
+    }),
+    writer: new webApi.WebClient(token, {
+      ...shared,
+      timeout: writeTimeoutMs,
+      retryConfig: { retries: 0 },
+      rejectRateLimitedCalls: true,
+    }),
+  };
 }

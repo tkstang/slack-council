@@ -21,8 +21,8 @@ export const NOTICE_EVENT = 'council_notice';
 export interface SlackPortOptions extends WriteQueueOptions {
   /** Client for reads. */
   readonly api: SlackApi;
-  /** Client for writes. It must not retry automatically. Defaults to `api`. */
-  readonly writeApi?: SlackApi;
+  /** Client for writes. It must time out and must not retry automatically. */
+  readonly writeApi: SlackApi;
   /** The app's own bot id and bot user id, from `auth.test`. */
   readonly botId: string;
   readonly botUserId: string;
@@ -140,8 +140,7 @@ function target(scope: Scope): Record<string, string> {
 }
 
 export function createSlackPort(options: SlackPortOptions): SlackPort {
-  const { api, botId, botUserId, maxPages = 50 } = options;
-  const writeApi = options.writeApi ?? api;
+  const { api, writeApi, botId, botUserId, maxPages = 50 } = options;
   const queue = createChannelWriteQueue(options);
   const membersByName = new Map(
     options.members.map(({ id, name }) => [name, id]),
