@@ -37,7 +37,7 @@ const CONFIG = parseConfig(
         provider: 'sample',
       },
     },
-    presets: { default: ['guide'] },
+    presets: { default: ['guide'], Review: ['critic'] },
     defaultPreset: 'default',
     slack: { allowedUsers: ['U1'] },
     council: {
@@ -255,17 +255,23 @@ it('uses the saved channel floor and current operator guidance in public and lis
   await reopened.shutdown();
 });
 
-it('deduplicates in-flight deliveries across scopes and retains accepted keys after restart', async () => {
+it.each([
+  ['<@UAPP> Open a council', 'default', 'guide'],
+  ['<@UAPP> Open a council preset:Review', 'Review', 'critic'],
+])('dedupes %s', async (text, preset, member) => {
   const f = fixtures();
   const service = await f.open();
   const message = {
-    ...human('1.000', '<@UAPP> Open a council'),
+    ...human('1.000', text),
     kickoff: true,
   };
   const release = f.gateSave();
   const first = service.handleHumanMessage(message);
   expect(
-    await service.handleHumanMessage({ ...message, scope: { channel: 'C1' } }),
+    await service.handleHumanMessage({
+      ...message,
+      scope: { channel: 'C1' },
+    }),
   ).toBe('duplicate');
   expect(service.getCouncil(SCOPE)).toBeUndefined();
   expect(f.calls).toHaveLength(0);
@@ -273,11 +279,12 @@ it('deduplicates in-flight deliveries across scopes and retains accepted keys af
   release(success(undefined));
   expect(await first).toBe('accepted');
   expect(service.getCouncil(SCOPE)).toMatchObject({
-    roster: ['guide'],
+    roster: [member],
     convenedAtTs: '1.000',
   });
   await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
-  expect(f.panels).toEqual([{ roster: ['guide'], preset: 'default' }]);
+  expect(f.calls[0]?.member.id).toBe(member);
+  expect(f.panels).toEqual([{ roster: [member], preset }]);
   expect(f.reactions).toContainEqual(['1.000', true]);
   await service.shutdown();
 
@@ -287,6 +294,44 @@ it('deduplicates in-flight deliveries across scopes and retains accepted keys af
   await reopened.shutdown();
   expect(f.calls).toHaveLength(1);
   expect(f.panels).toHaveLength(1);
+});
+
+it('posts one unknown preset notice across redelivery and restart', async () => {
+  const f = fixtures();
+  const service = await f.open();
+  const input = { ...human('1.000', '<@UAPP> preset:review'), kickoff: true };
+  expect(await service.handleHumanMessage(input)).toBe('accepted');
+  expect(await service.handleHumanMessage(input)).toBe('duplicate');
+  expect(service.getCouncil(SCOPE)).toBeUndefined();
+  expect(f.record().councils).toEqual([]);
+  expect(f.record().acceptedMessageKeys).toEqual(['C1:1.000']);
+  await service.shutdown();
+
+  const reopened = await f.open();
+  expect(await reopened.handleHumanMessage(input)).toBe('duplicate');
+  await reopened.shutdown();
+  expect(f.calls).toEqual([]);
+  expect(f.notices).toEqual([
+    'Unknown preset. Available presets: `default`, `Review`.',
+  ]);
+});
+
+it('keeps the convened roster and transcript when a follow-up names a preset', async () => {
+  const f = fixtures();
+  const service = await f.open();
+  await service.convene(CONVENE_THREAD);
+  const input = {
+    ...human('2.000', '<@UAPP> Compare ideas preset:Review'),
+    kickoff: true,
+  };
+  f.history.push(input.message);
+  expect(await service.handleHumanMessage(input)).toBe('accepted');
+  await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
+  expect(service.getCouncil(SCOPE)?.roster).toEqual(['guide']);
+  expect(f.calls[0]?.member.id).toBe('guide');
+  expect(f.calls[0]?.prompt.user).toContain('Compare ideas preset:Review');
+  await service.shutdown();
+  expect(f.notices).toEqual([]);
 });
 
 it('permits a retry after a failed acceptance write without launching the original attempt', async () => {

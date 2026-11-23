@@ -1,5 +1,6 @@
 export type FloorAddress =
-  | { readonly kind: 'council' | 'unaddressed' }
+  | { readonly kind: 'council'; readonly preset?: string }
+  | { readonly kind: 'unaddressed' }
   | { readonly kind: 'members'; readonly handles: readonly string[] };
 
 export type HumanAddress =
@@ -101,7 +102,14 @@ export function parseHumanAddress(
   }
 
   if (stop) return { kind: 'stop' };
-  if (council) return { kind: 'council' };
+  if (council) {
+    for (const [, preset] of visible.matchAll(/(?:^|\s)preset[:=](\S+)/giu)) {
+      // A masked link or code span cannot supply part of the name.
+      if (preset !== undefined && !preset.includes('\0'))
+        return { kind: 'council', preset };
+    }
+    return { kind: 'council' };
+  }
   if (members.size > 0) return { kind: 'members', handles: [...members] };
   return { kind: 'unaddressed' };
 }

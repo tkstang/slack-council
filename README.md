@@ -115,9 +115,14 @@ Only users in `slack.allowedUsers` can start a council; anyone else gets an
 ephemeral refusal. The app must have joined the channel. There are three ways
 to start one:
 
-- **Mention.** Write `@council <question>`. On a top-level message the default
-  preset convenes in that message's thread; inside a thread it convenes for
-  that thread. The app posts "Council convened." with the panel in the thread.
+- **Mention.** Write `@council <question>` to convene the default preset. On
+  a top-level message, the council starts in that message's thread. In a
+  reply, it starts in the existing thread. To pick a preset, add a separate
+  `preset:<name>` or `preset=<name>` token anywhere in the message. The first
+  token wins. Match the configured name exactly and leave a space after it
+  if more text follows. The app posts "Council convened." with the selected
+  panel. If the name is unknown, the app lists the available presets and
+  waits for a new mention. An existing council keeps its panel.
 - **Slash command.** `/council [question]` in a channel opens the roster modal,
   with any typed text as the question. On submit the app posts
   "Council convened by <name>: <question>" in the channel and convenes in that
