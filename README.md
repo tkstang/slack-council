@@ -275,7 +275,8 @@ source, generator and nonmutating freshness check.
 
 ## Verification policy
 
-This MVP is verified locally and has no CI. Development uses Node 26.
+CI runs the same gate on GitHub-hosted runners for every pull request and push
+to `main`, then smoke-tests the built CLI on Node 24. Development uses Node 26.
 The app runs on Node 24 and later and uses Node 24 type declarations.
 
 Run focused tests while editing. Before handoff, run `pnpm run worktree:validate`
@@ -290,7 +291,6 @@ runner, tools or approvals, run the checklist in
 
 Record the tested revision, toolchain, commands, outcomes and exclusions in the
 handoff. Reuse that evidence while the tested inputs remain unchanged.
-Any future CI must run exclusively on the owner's self-hosted runner.
 
 ## NOTES / Deviations
 
