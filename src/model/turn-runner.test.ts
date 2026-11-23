@@ -82,7 +82,7 @@ describe('createTurnRunner', () => {
     expect(call?.tools ?? []).toEqual([]);
   });
 
-  it('runs a capped listen without resolving turn tools or effort', async () => {
+  it('runs a capped listen at low effort without resolving turn tools', async () => {
     const model = textModel('PASS');
     const toolsFor = vi.fn(() => ({}));
     const runner = createTurnRunner({ models: () => model, toolsFor });
@@ -97,8 +97,10 @@ describe('createTurnRunner', () => {
     expect(model.doGenerateCalls).toHaveLength(1);
     const call = model.doGenerateCalls[0];
     expect(call?.tools ?? []).toEqual([]);
-    expect(call?.maxOutputTokens).toBe(256);
-    expect(call?.providerOptions).toBeUndefined();
+    expect(call?.maxOutputTokens).toBe(600);
+    expect(call?.providerOptions).toEqual({
+      openaiCompatible: { reasoningEffort: 'low' },
+    });
   });
 
   it('blocks a tool call containing a private note before execution', async () => {

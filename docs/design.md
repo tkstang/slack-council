@@ -144,8 +144,9 @@ or earlier listens, falling back to the member's last post when that history
 is unknown. An outstanding hand also sets a cutoff for new posts. App notices
 and the member's own posts are excluded from hand targets.
 
-A listen uses the member's model with no tools, one step, 256 output tokens,
-and up to 10 seconds or the configured turn timeout, whichever is shorter.
+A listen uses the member's model with no tools, one step, low reasoning
+effort, and up to 600 output tokens. It runs for up to 10 seconds or the
+configured turn timeout, whichever is shorter.
 The role brief and the transcript go in the user message. The model replies
 with `HAND #<n>: <note>` to disagree with a `[new]` post or add a materially
 new point. Agreement, thanks and restatements get `PASS`. The runner resolves

@@ -113,7 +113,7 @@ export function createTurnRunner({
     turn?: TurnInput,
   ): Promise<Result<string>> {
     const { member, prompt, signal } = input;
-    const effort = turn && member.effort;
+    const effort = turn ? member.effort : 'low';
     if (signal.aborted) return abortFailure(signal);
     // A provider that ignores the signal must not hold the turn open.
     const aborted = Promise.withResolvers<Failure>();
@@ -128,7 +128,7 @@ export function createTurnRunner({
         // The role brief travels in the user message: some routes ignore `system`.
         prompt: prompt.user,
         stopWhen: isStepCount(turn?.maxSteps ?? 1),
-        ...(turn ? {} : { maxOutputTokens: 256 }),
+        ...(turn ? {} : { maxOutputTokens: 600 }),
         abortSignal: signal,
         // The turn contract: nothing is retried.
         maxRetries: 0,
