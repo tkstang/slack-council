@@ -236,13 +236,13 @@ describe('configuration', () => {
   it.each([
     ['relative', '# Brief\n', undefined],
     ['absolute', '# Brief\n', undefined],
-    ['missing', undefined, 'Could not read'],
-    ['directory', undefined, 'Could not read'],
-    ['blank', ' \n', 'empty'],
-    ['oversized', 'x'.repeat(8_001), 'exceeds 8000 characters'],
+    ['missing', undefined, 'E_CONFIG_READ'],
+    ['directory', undefined, 'E_CONFIG_READ'],
+    ['blank', ' \n', 'E_EMPTY_INPUT'],
+    ['oversized', 'x'.repeat(8_001), 'E_FILE_TOO_LARGE'],
   ] as const)(
     'loads or rejects a %s instructions file',
-    async (kind, contents, error) => {
+    async (kind, contents, code) => {
       const directory = await mkdtemp(join(tmpdir(), 'council-guidance-'));
       const path = join(directory, 'config.json');
       const instructions = join(directory, 'instructions.md');
@@ -260,13 +260,9 @@ describe('configuration', () => {
           }),
         );
         expect(await loadConfig(path)).toMatchObject(
-          error === undefined
+          code === undefined
             ? { ok: true, value: { instructionsText: contents } }
-            : {
-                ok: false,
-                code: 'E_CONFIG_READ',
-                message: expect.stringContaining(error),
-              },
+            : { ok: false, code },
         );
       } finally {
         await rm(directory, { recursive: true, force: true });

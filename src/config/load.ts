@@ -143,8 +143,8 @@ export async function loadConfig(path: string): Promise<Result<LoadedConfig>> {
       instructionsText += chunk;
       if (instructionsText.length > MAX_GUIDANCE_CHARS)
         return failure(
-          'E_CONFIG_READ',
-          `council.instructions file exceeds ${MAX_GUIDANCE_CHARS} characters`,
+          'E_FILE_TOO_LARGE',
+          `council.instructions file exceeds ${MAX_GUIDANCE_CHARS} UTF-16 code units`,
         );
     }
   } catch {
@@ -155,6 +155,6 @@ export async function loadConfig(path: string): Promise<Result<LoadedConfig>> {
     );
   }
   if (!instructionsText.trim())
-    return failure('E_CONFIG_READ', 'The council.instructions file is empty');
+    return failure('E_EMPTY_INPUT', 'The council.instructions file is empty');
   return success({ ...parsed.value, instructionsText });
 }

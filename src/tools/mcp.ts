@@ -91,8 +91,6 @@ export function createMcpManager(
       const orientation = instructions?.trim()
         ? boundOrientation(instructions)
         : undefined;
-      if (config.orientation && orientation === undefined)
-        onOrientationMissing(server);
 
       const tools = [];
       const cursors = new Set<string>();
@@ -119,6 +117,8 @@ export function createMcpManager(
         tools: client.toolsFromDefinitions({ tools }),
         orientation,
       });
+      if (config.orientation && orientation === undefined)
+        onOrientationMissing(server);
     } catch {
       await client?.close().catch(() => undefined);
       if (!startup.signal.aborted) onUnavailable(server, 'E_MCP_UNAVAILABLE');

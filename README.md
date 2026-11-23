@@ -88,9 +88,9 @@ copy the example config into `.council/`, change the example path to
 `../examples/council-instructions.md` or point it at your own file. You can
 also drop the setting.
 
-Both `validate` and `start` read the file once. A missing, unreadable, blank
-or oversized file produces `E_CONFIG_READ`. The limit is 8,000 UTF-16 code
-units. Restart the app to apply edits to the file.
+Both `validate` and `start` read the file once. A missing or unreadable
+file produces `E_CONFIG_READ`, a blank one `E_EMPTY_INPUT` and an oversized one
+`E_FILE_TOO_LARGE`. The limit is 8,000 UTF-16 code units. Restart the app to apply edits to the file.
 
 Create `.env` in the repo root (gitignored):
 
