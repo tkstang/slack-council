@@ -467,6 +467,32 @@ it.each([
   },
 );
 
+it('never asks a member who has not spoken to listen to posts from before the chain', async () => {
+  const h = harness({ listen: 'settle' });
+  const reader = {
+    kind: 'human',
+    userId: 'U1',
+    displayName: 'Reader',
+  } as const;
+  h.history[0] = { ts: '0.500', author: reader, text: 'Old chatter.' };
+  h.history.push({ ts: '1.000', author: reader, text: '@guide Explain.' });
+  h.dispatch({
+    type: 'human',
+    chainId: 'solo',
+    ts: '1.000',
+    address: { kind: 'members', handles: ['guide'] },
+  });
+  await h.waitForCalls(1);
+  h.call(0).finish(success('Guide’s answer.'));
+
+  await vi.waitFor(() => expect(h.listens).toHaveLength(1), { interval: 1 });
+  expect(h.listens[0]?.input.prompt.user).toContain(
+    '[#1] Reader (human): Old chatter.\n[#2] [new] Reader (human): @guide Explain.',
+  );
+  h.listens[0]?.finish(success('PASS'));
+  await h.drain();
+});
+
 const OBSERVER: Member = { ...GUIDE, id: 'observer', name: 'Observer' };
 
 it.each([

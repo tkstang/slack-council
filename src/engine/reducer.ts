@@ -65,7 +65,7 @@ export type EngineEffect =
       readonly ts: string;
       readonly present: boolean;
     })
-  | (ChainRef & { readonly type: 'settled' })
+  | (ChainRef & { readonly type: 'settled'; readonly triggerTs: string })
   | ((TurnRef | ChainRef) & { readonly type: 'limit-notice' })
   | (TurnRef & {
       readonly type: 'turn-notice';
@@ -199,7 +199,12 @@ function advance(state: EngineState, effects: EngineEffect[]): EngineState {
   if (!first) {
     effects.push(progress(chain, false));
     if (state.settings.listen === 'settle') {
-      effects.push({ type: 'settled', chainId: chain.id, turnId: null });
+      effects.push({
+        type: 'settled',
+        chainId: chain.id,
+        turnId: null,
+        triggerTs: chain.triggerTs,
+      });
     }
     return { ...state, active: undefined };
   }

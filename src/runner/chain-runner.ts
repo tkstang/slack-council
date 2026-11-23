@@ -378,6 +378,7 @@ export function createChainRunner(
     messages: readonly Message[],
     savedNotes: readonly PrivateNote[],
     createdAtTs: string,
+    triggerTs: string,
     batchSignal: AbortSignal,
   ): Promise<{ member: Member; note?: PrivateNote } | undefined> {
     const seen = seenThrough.get(member.id);
@@ -393,7 +394,11 @@ export function createChainRunner(
     );
     const firstNew = messages.findIndex(
       ({ ts }, index) =>
-        (seen === undefined ? index > lastSpoke : isAfter(ts, seen)) &&
+        // With no record of what the member saw, never reach back before this
+        // chain: older posts may predate the council.
+        (seen === undefined
+          ? index > lastSpoke && !isAfter(triggerTs, ts)
+          : isAfter(ts, seen)) &&
         (latestNote === undefined || isAfter(ts, latestNote.createdAtTs)),
     );
     if (firstNew === -1) return;
@@ -462,7 +467,14 @@ export function createChainRunner(
     const savedNotes = notes.read();
     const results = await Promise.all(
       roster.map((member) =>
-        runListen(member, messages, savedNotes, createdAtTs, batchSignal),
+        runListen(
+          member,
+          messages,
+          savedNotes,
+          createdAtTs,
+          effect.triggerTs,
+          batchSignal,
+        ),
       ),
     );
     if (batchSignal.aborted) return;
