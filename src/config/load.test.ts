@@ -37,6 +37,7 @@ describe('configuration', () => {
         council: {
           unaddressed: 'silent',
           listen: 'settle',
+          memberMentions: 'none',
           rounds: 2,
           hopBudget: 6,
           approvalTimeoutMs: 300_000,

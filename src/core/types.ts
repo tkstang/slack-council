@@ -22,6 +22,7 @@ export interface CouncilSettings {
   readonly maxTurnsPerChain: number;
   readonly unaddressed: 'silent' | 'council';
   readonly listen: 'settle' | 'off';
+  readonly memberMentions: 'none' | 'people';
   readonly contextChars: number;
   readonly turnTimeoutMs: number;
   readonly approvalTimeoutMs: number;

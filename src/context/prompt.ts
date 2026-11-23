@@ -17,6 +17,8 @@ interface TranscriptInput {
 export interface PromptInput extends TranscriptInput {
   readonly grant: Pick<Grant, 'kind' | 'round' | 'sourceTs'>;
   readonly privateNotes?: readonly PrivateNote[];
+  /** Tell the member it may notify people by name. */
+  readonly mentionPeople?: boolean;
 }
 
 function escapeText(text: string): string {
@@ -172,6 +174,11 @@ export function buildTurnContext(input: PromptInput) {
     'Speak only when granted the floor. Opening turns give independent answers. React turns may return PASS. Mention turns must answer.',
     "Writing a colleague's plain @handle gives them the floor and obliges them to answer. Do it only when you need their answer. To refer or reply to a colleague without handing over the floor, use their name with no @.",
     'Posts tagged [new] appeared since you last spoke. Raise any disagreement with them before answering the current request.',
+    ...(input.mentionPeople
+      ? [
+          'To notify a person in this conversation, write @ followed by their name exactly as the transcript shows it. Do it only when that person needs to act.',
+        ]
+      : []),
   );
 
   const { transcript, oldestTs } = renderTranscript(input);

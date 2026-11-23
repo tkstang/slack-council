@@ -99,6 +99,10 @@ quoted lines, so quoting someone's message does not address them.
 4. `@council stop` cancels queued grants and aborts running turns. `@council end`
    does the same and ends the council. Both take precedence over everything else.
 
+Every accepted message is acknowledged: the progress reaction for an addressed
+message, 👀 for one kept as context, 🛑 for `stop` and 👋 for `end`. These
+reactions are best effort and never fail the message.
+
 ### Rounds
 
 - Round 1: every roster member answers in parallel from one frozen transcript
@@ -308,8 +312,11 @@ tested without Slack.
   timeout: a write gets one attempt of 15 s, then the queue moves on; reads
   retry at most twice. A member turn is one message: text over Slack's
   12,000-character `markdown_text` limit is truncated with a closing
-  `… (truncated)` line. `@here`, `@channel` and `@everyone`
-  are neutralised in member output outside code spans and fenced blocks.
+  `… (truncated)` line. Every mention in member output is
+  neutralised, code included. With `council.memberMentions: 'people'`, `@Name`
+  of a person seen in that channel (an author or someone mentioned) becomes a
+  real mention; names that equal a member handle are left alone. Group and
+  channel-wide mentions are neutralised in both modes.
 - Reading: a channel council reads the newest 200 messages; a thread council
   reads up to 50 pages of replies through the trigger and fails with `E_SLACK`
   rather than drop the newest replies of a longer thread.

@@ -36,6 +36,7 @@ const COUNCIL: Council = {
     maxTurnsPerChain: 10,
     unaddressed: 'silent',
     listen: 'off',
+    memberMentions: 'none',
     contextChars: 2_000,
     turnTimeoutMs: 500,
     approvalTimeoutMs: 300_000,

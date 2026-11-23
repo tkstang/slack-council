@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  linkPeopleMentions,
   neutraliseBroadcasts,
   renderSlackText,
   truncateMarkdown,
@@ -28,6 +29,32 @@ describe('neutraliseBroadcasts', () => {
     expect(neutraliseBroadcasts('```\n<!channel> `<@U1>`')).toBe(
       '```\n@\u2060channel `@\u2060U1`',
     );
+  });
+});
+
+describe('linkPeopleMentions', () => {
+  const people = new Map([
+    ['U1', 'Ann'],
+    ['U2', 'Ann Lee'],
+    ['U3', 'bo'],
+  ]);
+
+  it('links known people by whole name and leaves handles and strangers alone', () => {
+    const linked = linkPeopleMentions(
+      'Ask @ann lee, then @Ann. Not @Annabel, @bo or @Zed. mail a@ann.io',
+      people,
+      new Set(['bo']),
+    );
+    expect(linked).toBe(
+      'Ask <@U2>, then <@U1>. Not @Annabel, @bo or @Zed. mail a@ann.io',
+    );
+    // Only the linked people survive; any other mention is still broken.
+    const posted = neutraliseBroadcasts(
+      `${linked} <@U9> @here`,
+      new Set(['U1', 'U2']),
+    );
+    expect(posted).toContain('<@U2>, then <@U1>');
+    expect(posted).not.toMatch(/<@U9>|(?<!\w)@here/u);
   });
 });
 

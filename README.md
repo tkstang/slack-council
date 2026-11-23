@@ -128,14 +128,40 @@ start in its threads, and thread replies never reach the channel council.
 Messages from people outside `slack.allowedUsers` are context only, and the
 app ignores posts from bots, itself included.
 
-Once convened, address a member with `@<handle>`, and use `@council stop` or
-`@council end`.
+### Commands
+
+Everything you can do in Slack once the app is running:
+
+| You write or click                          | Where                            | What happens                                                                                          | Acknowledgement               |
+| ------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `@council <question>`                       | Channel, top level               | Convenes the default preset in that message's thread. Every member answers, then a react round runs.  | ⏳ while members work         |
+| `@council <question>`                       | A council's thread or channel    | Opens a new round for the whole roster.                                                               | ⏳                            |
+| `/council [question]`                       | Channel composer                 | Opens the roster picker (preset, members, question, thread or whole channel).                         | "Council convened by …" post  |
+| **Start a council** message shortcut        | A message's menu                 | Opens the picker; the council convenes in that message's thread.                                      | "Council convened by …" post  |
+| `@<handle>` (one or several)                | A council's thread or channel    | Only those members answer.                                                                            | ⏳                            |
+| A message with no `@council` or `@<handle>` | A council's thread or channel    | Nobody answers; members read it as context on their next turn. `council.unaddressed` can change this. | 👀                            |
+| `@council stop`                             | A council's thread or channel    | Cancels running and queued turns. The council stays.                                                  | 🛑                            |
+| `@council end`                              | A council's thread or channel    | Cancels turns and ends the council.                                                                   | 👋                            |
+| **Approve** or **Deny**                     | A tool request posted by the app | Runs or refuses that one tool call. Allow-listed users only.                                          | The request shows who decided |
+
+A member handle is plain text that the app reads; Slack does not autocomplete
+it. `@council` works as the real app mention or as plain text. `stop` and
+`end` must directly follow `@council` and end the line.
+
+From the shell: `slack-council validate --config <path>` checks a config file,
+and `slack-council start --config <path>` runs the app.
 
 After the hourglass clears, members with unseen posts can raise a hand. Look
 for a ✋ reaction on the post and a notice naming the members. Mention one of
 them to hear their point. The council saves their private notes until their
 next turn posts or passes. Set `council.listen` to `"off"` to disable this
 behavior. The default is `"settle"`.
+
+Members cannot notify people by default: every mention in a member's post is
+written so that Slack does not deliver it. Set `council.memberMentions` to
+`"people"` to let a member write `@Name` for someone who has posted or been
+mentioned in that channel's councils; it becomes a real mention. `@here`,
+`@channel`, `@everyone` and user groups never notify, whatever the setting.
 
 ## Member tools
 

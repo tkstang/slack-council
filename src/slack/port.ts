@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { callSlack, type SlackApi, type SlackCall } from './api.js';
 import {
   mentionedUserIds,
+  linkPeopleMentions,
   neutraliseBroadcasts,
   renderSlackText,
   truncateMarkdown,
@@ -224,6 +225,9 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
     options.members.map(({ id, name }) => [name, id]),
   );
   const names = new Map<string, string>();
+  // People seen in each channel: the only ones a member may notify there.
+  const seen = new Map<string, Set<string>>();
+  const handles = new Set(options.members.map(({ id }) => id));
 
   async function resolveName(userId: string): Promise<void> {
     if (names.has(userId)) return;
@@ -346,6 +350,9 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
       }
       ids.delete(botUserId);
       await Promise.all([...ids].map(resolveName));
+      const here = seen.get(scope.channel) ?? new Set<string>();
+      for (const id of ids) here.add(id);
+      seen.set(scope.channel, here);
 
       const nameOf = (userId: string) => names.get(userId) ?? userId;
       const messages: Message[] = [];
@@ -372,9 +379,21 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
       return success(messages);
     },
 
-    async postMember(scope, { member, text, chainId, turnId }) {
+    async postMember(scope, { member, text, chainId, turnId, mentionPeople }) {
+      const people = new Map<string, string>();
+      if (mentionPeople) {
+        for (const id of seen.get(scope.channel) ?? []) {
+          const name = names.get(id);
+          if (name !== undefined && name !== id) people.set(id, name);
+        }
+      }
       // One message per turn: text over the limit is truncated, never split.
-      const posting = truncateMarkdown(neutraliseBroadcasts(text));
+      const posting = truncateMarkdown(
+        neutraliseBroadcasts(
+          linkPeopleMentions(text, people, handles),
+          new Set(people.keys()),
+        ),
+      );
       const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),
         username: member.name,

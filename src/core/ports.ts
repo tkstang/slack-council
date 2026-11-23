@@ -22,11 +22,17 @@ export interface SlackPort {
   /**
    * Post once, with turn metadata and broadcast mentions neutralised. `text` is
    * what was actually posted when the adapter changed it (for example by
-   * truncating), so mentions are routed from what readers can see.
+   * truncating), so mentions are routed from what readers can see. With
+   * `mentionPeople`, `@Name` of a person seen in this channel becomes a real
+   * mention; group and channel-wide mentions stay neutralised.
    */
   postMember(
     scope: Scope,
-    post: TurnRef & { readonly member: Member; readonly text: string },
+    post: TurnRef & {
+      readonly member: Member;
+      readonly text: string;
+      readonly mentionPeople?: boolean;
+    },
   ): Promise<Result<{ readonly ts: string; readonly text?: string }>>;
   /** Post an app notice, truncated to one message, and return its ts. */
   postNotice(

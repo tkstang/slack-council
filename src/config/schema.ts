@@ -50,6 +50,8 @@ export const CouncilSettingsSchema = z.strictObject({
   maxTurnsPerChain: positive.default(24),
   unaddressed: z.enum(['silent', 'council']).default('silent'),
   listen: z.enum(['settle', 'off']).default('settle'),
+  /** `people` lets a member notify people the conversation has seen. */
+  memberMentions: z.enum(['none', 'people']).default('none'),
   contextChars: positive.default(DEFAULT_CONTEXT_CHARS),
   turnTimeoutMs: positive.max(2_147_483_647).default(60_000),
   approvalTimeoutMs: positive.max(2_147_483_647).default(300_000),

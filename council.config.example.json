@@ -41,6 +41,7 @@
     "maxTurnsPerChain": 24,
     "unaddressed": "silent",
     "listen": "settle",
+    "memberMentions": "none",
     "contextChars": 24000,
     "turnTimeoutMs": 60000,
     "maxSteps": 8,

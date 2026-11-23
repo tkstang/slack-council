@@ -196,6 +196,7 @@ export function createChainRunner(
       grant,
       contextChars: settings.contextChars,
       privateNotes: shownNotes,
+      mentionPeople: settings.memberMentions === 'people',
     });
     const firstVisible = messages.value.findIndex(({ ts }) => ts === oldestTs);
     // Everything shown counts as seen, app notices included: a round opened
@@ -336,6 +337,7 @@ export function createChainRunner(
           text: publicText,
           chainId: grant.chainId,
           turnId: grant.turnId,
+          mentionPeople: settings.memberMentions === 'people',
         }),
       'E_SLACK',
     ).finally(() => {
