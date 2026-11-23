@@ -140,7 +140,7 @@ describe('fetchMessages', () => {
     ).toMatchObject({ ok: false, code: 'E_SLACK' });
   });
 
-  it('applies an inclusive channel floor to the request and returned messages', async () => {
+  it('applies an inclusive channel floor to returned messages without sending oldest', async () => {
     const api = {
       apiCall: vi.fn(async () => ({
         ok: true,
@@ -175,10 +175,13 @@ describe('fetchMessages', () => {
       'conversations.history',
       expect.objectContaining({
         channel: 'C1',
-        oldest: '10.000000',
         latest: '10.000000',
         inclusive: true,
       }),
+    );
+    expect(api.apiCall).not.toHaveBeenCalledWith(
+      'conversations.history',
+      expect.objectContaining({ oldest: expect.anything() }),
     );
   });
 });

@@ -8,11 +8,20 @@ import { createSlackHistoryTool } from './slack-history.js';
 it.each([
   { name: 'thread before the prompt', threadTs: '1.000000' },
   { name: 'channel before the prompt', fromTs: '2.000000' },
-  { name: 'channel at the floor', fromTs: '2.000000', before: '2.0' },
-  { name: 'channel below the floor', fromTs: '2.000000', before: '1.999999' },
+  {
+    name: 'channel just above the floor',
+    fromTs: '2.000000',
+    before: '2.000001',
+  },
+  {
+    name: 'channel at the floor',
+    fromTs: '2.000000',
+    before: '2.0',
+    empty: true,
+  },
 ])(
   'reads the requested history window for $name',
-  async ({ threadTs, fromTs, before }) => {
+  async ({ threadTs, fromTs, before, empty }) => {
     const scope: Scope = { channel: 'C1', threadTs };
     const input: TurnInput = {
       councilId: 'council',
@@ -51,7 +60,7 @@ it.each([
     ]);
     const options = { toolCallId: 'history', messages: [], context: {} };
     const result = await tool.execute?.({ before, limit: 1 }, options);
-    if (before !== undefined) {
+    if (empty) {
       expect(result).toEqual(success({ transcript: '', oldestTs: undefined }));
       expect(fetchMessages).not.toHaveBeenCalled();
       return;
@@ -65,7 +74,7 @@ it.each([
     );
     expect(fetchMessages).toHaveBeenCalledExactlyOnceWith(
       scope,
-      '3.000000',
+      before ?? '3.000000',
       fromTs,
     );
   },

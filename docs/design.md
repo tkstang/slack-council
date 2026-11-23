@@ -195,7 +195,7 @@ misrepresent other members as the responding assistant.
 [#2] Ada (member): …
 [#3] You (Bo): …
 </transcript>
-<floor>Sam addressed you in #4.</floor>
+<floor>Sam addressed you in [#4].</floor>
 <private_notes>…earlier hand notes for this member, when present…</private_notes>
 ```
 
@@ -332,8 +332,8 @@ tested without Slack.
   share it, or it is or begins with a member handle, the text is left alone and
   no shorter name is tried. Group and
   channel-wide mentions are neutralised in both modes.
-- Reading: a channel council reads up to 200 messages per request, with the
-  convening post as its inclusive lower bound. A thread council
+- Reading: a channel council reads the newest 200 messages per request, back
+  to and including the convening post. A thread council
   reads up to 50 pages of replies through the trigger and fails with `E_SLACK`
   rather than drop the newest replies of a longer thread.
 - Progress: ⏳ on the triggering message while a chain runs.

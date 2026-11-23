@@ -296,13 +296,10 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
         compareSlackTimestamps(throughTs, fromTs) < 0
       )
         return success([]);
-      const bounds = {
-        ...(throughTs === undefined ? {} : { latest: throughTs }),
-        ...(fromTs === undefined ? {} : { oldest: fromTs }),
-        ...(throughTs === undefined && fromTs === undefined
-          ? {}
-          : { inclusive: true }),
-      };
+      // The floor is applied to the returned messages, never sent as `oldest`:
+      // without `latest`, Slack may page forward from `oldest` and drop the newest window.
+      const bounds =
+        throughTs === undefined ? {} : { latest: throughTs, inclusive: true };
       const read =
         scope.threadTs === undefined
           ? await readPages(
