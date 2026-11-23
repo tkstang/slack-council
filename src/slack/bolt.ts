@@ -41,7 +41,7 @@ export function registerCouncilHandlers(
         async ({ ack, action, body, respond }) => {
           await ack();
           const result = onApproval(action.value ?? '', body.user.id, vote);
-          if (result === 'accepted' || result === 'ignored') return;
+          if (result === 'accepted') return;
           try {
             await respond({
               response_type: 'ephemeral',

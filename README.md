@@ -150,15 +150,16 @@ council. The server exposes `notes__list_notes` and `notes__append_note`.
 The example allows automatic reads and asks for approval before appending.
 
 Rules in `tools.policy` match the exposed tool name, in order. Use an exact
-name or a prefix ending in `*`. The first match wins. Built-in reads default
+name or a prefix ending in `*`. The prefix is literal, so write `notes__*`
+for one server. The first match wins. Built-in reads default
 to `auto` and MCP tools default to `ask`. Approval rules apply only to
 tools already granted to the member.
 
-An `ask` call posts the member, tool and a bounded argument preview in the
-council conversation. The owner or a user in `slack.allowedUsers` can click
+An `ask` call posts the member, tool and the full arguments in the council
+conversation. Arguments too long to show in full are refused, never cut. The owner or a user in `slack.allowedUsers` can click
 **Approve** or **Deny**. Each request can be decided once. A denial, expiry
-or cancellation returns a tool error. Two denials suppress further requests
-during that turn. `council.approvalTimeoutMs` defaults to 300,000 ms.
+or cancellation returns a tool error. Two denials or expiries suppress
+further requests during that turn. Tool results over 64 KiB are refused. `council.approvalTimeoutMs` defaults to 300,000 ms.
 The turn timer pauses while waiting for approval. `stop` and `end` cancel
 the wait immediately. Pending requests expire on restart.
 

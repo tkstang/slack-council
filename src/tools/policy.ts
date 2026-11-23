@@ -1,5 +1,10 @@
 import type { ToolsConfig } from '@council/config/schema.js';
 
+/**
+ * First matching rule wins. A rule ending in `*` is a raw name prefix, so write
+ * `notes__*` for one server: `notes*` would also match a server named
+ * `notes_archive`.
+ */
 export function resolveToolPolicy(
   rules: ToolsConfig['policy'],
   name: string,

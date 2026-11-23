@@ -9,13 +9,13 @@ import type {
 import { failure, success, type Result } from '@council/core/result.js';
 
 export type ApprovalClick = 'approve' | 'deny';
-export type ApprovalReply = 'accepted' | 'ignored' | 'forbidden' | 'expired';
+export type ApprovalReply = 'accepted' | 'forbidden' | 'expired';
 
 const denied = failure('E_APPROVAL_DENIED', 'Tool approval was denied');
 const expired = failure('E_APPROVAL_EXPIRED', 'Tool approval expired');
 const cancelled = failure('E_TURN_ABORTED', 'Turn was cancelled');
 const postFailed = failure('E_SLACK', 'Could not post tool approval');
-const MAX_PREVIEW = 500;
+const MAX_PREVIEW = 2_500;
 
 interface Pending {
   readonly owner: string;
@@ -24,13 +24,17 @@ interface Pending {
   finish(outcome: ApprovalOutcome | undefined): void;
 }
 
-function preview(args: unknown): string {
+/**
+ * The exact arguments as the approver will see them. Control and invisible
+ * format characters are escaped. Arguments too long to show in full yield
+ * nothing: approving a cut-off preview would run fields nobody saw.
+ */
+function preview(args: unknown): string | undefined {
   const text = (JSON.stringify(args) ?? '{}').replace(
-    /[\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/gu,
-    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
+    /[\u007f-\u009f\u2028\u2029\p{Cf}]/gu,
+    (char) => `\\u{${(char.codePointAt(0) ?? 0).toString(16)}}`,
   );
-  if (text.length <= MAX_PREVIEW) return text;
-  return `${text.slice(0, MAX_PREVIEW - 1).replace(/[\uD800-\uDBFF]$/u, '')}…`;
+  return text.length <= MAX_PREVIEW ? text : undefined;
 }
 
 export function createApprovalGate(
@@ -40,7 +44,6 @@ export function createApprovalGate(
 ) {
   const allowed = new Set(allowedUsers);
   const pending = new Map<string, Pending>();
-  const consumed = new Set<string>();
   const writes = new Set<Promise<void>>();
 
   function request(
@@ -51,12 +54,17 @@ export function createApprovalGate(
     args: unknown,
   ): Promise<Result<void>> {
     if (input.signal.aborted) return Promise.resolve(cancelled);
+    const shown = preview(args);
+    if (shown === undefined)
+      return Promise.resolve(
+        failure('E_TOOL_FAILED', 'Arguments are too large to approve'),
+      );
     const id = randomUUID();
     const post: ApprovalRequest = {
       id,
       memberName: input.member.name,
       tool,
-      preview: preview(args),
+      preview: shown,
     };
     const outcome = Promise.withResolvers<ApprovalOutcome | undefined>();
     const deadline = performance.now() + timeoutMs;
@@ -65,8 +73,6 @@ export function createApprovalGate(
       if (!pending.delete(id)) return;
       clearTimeout(timer);
       input.signal.removeEventListener('abort', abort);
-      if (decision?.kind === 'approved' || decision?.kind === 'denied')
-        consumed.add(id);
       outcome.resolve(decision);
     }
 
@@ -133,7 +139,13 @@ export function createApprovalGate(
           const resume = suspendTimeout();
           try {
             const decision = await request(input, owner, timeoutMs, tool, args);
-            if (!decision.ok && decision.code === 'E_APPROVAL_DENIED')
+            // An unanswered request counts like a denial, so a member cannot
+            // hold a turn open by asking again and again.
+            if (
+              !decision.ok &&
+              (decision.code === 'E_APPROVAL_DENIED' ||
+                decision.code === 'E_APPROVAL_EXPIRED')
+            )
               denials += 1;
             return decision;
           } finally {
@@ -149,7 +161,6 @@ export function createApprovalGate(
     },
 
     decide(id: string, userId: string, vote: ApprovalClick): ApprovalReply {
-      if (consumed.has(id)) return 'ignored';
       const ticket = pending.get(id);
       if (!ticket) return 'expired';
       if (ticket.input.signal.aborted) {

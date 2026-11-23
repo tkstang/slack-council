@@ -14,6 +14,8 @@ import type { createMcpManager } from './mcp.js';
 import { resolveToolPolicy } from './policy.js';
 import { createSlackHistoryTool } from './slack-history.js';
 
+const MAX_RESULT_CHARS = 65_536;
+
 export function createMemberTools({
   config,
   slack,
@@ -69,10 +71,14 @@ export function createMemberTools({
             if (input.signal.aborted)
               return failure('E_TURN_ABORTED', 'Turn was cancelled');
             // The SDK already parsed the arguments with this tool’s input schema.
-            return await execute(exactArgs as never, {
+            const result: unknown = await execute(exactArgs as never, {
               ...options,
               abortSignal: input.signal,
             });
+            // A server controls its own output size; keep it out of the context.
+            return (JSON.stringify(result) ?? '').length > MAX_RESULT_CHARS
+              ? failure('E_TOOL_FAILED', 'Tool result is too large')
+              : result;
           } catch {
             return input.signal.aborted
               ? failure('E_TURN_ABORTED', 'Turn was cancelled')

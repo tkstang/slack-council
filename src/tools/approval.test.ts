@@ -91,12 +91,12 @@ it('rejects an unpermitted click, then a single owner approval runs the exact ap
   const post = await f.posted();
   expect(post).toMatchObject({ memberName: 'Ada', tool: 'notes__write' });
   expect(post.preview).toContain('\\n');
-  expect(post.preview.length).toBeLessThanOrEqual(500);
+  expect(post.preview.length).toBeLessThanOrEqual(2_500);
   args.text = 'changed after the request';
   expect(f.decide(post.id, 'U3', 'deny')).toBe('forbidden');
   expect(f.perform).not.toHaveBeenCalled();
   expect(f.decide(post.id, 'U1', 'approve')).toBe('accepted');
-  expect(f.decide(post.id, 'U2', 'approve')).toBe('ignored');
+  expect(f.decide(post.id, 'U2', 'approve')).toBe('expired');
   expect(await call).toEqual(success(original));
   expect(f.perform).toHaveBeenCalledExactlyOnceWith(
     { text: original },

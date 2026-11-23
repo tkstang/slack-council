@@ -200,15 +200,16 @@ produce mention grants.
   include `files`, `slack_history`, `<server>` or `<server>__<tool>`.
 - Approval uses the first matching exact name or prefix ending in `*`.
   Built-in read tools default to `auto` and MCP tools default to `ask`. An
-  `ask` call posts the member, tool and a bounded argument preview with Approve
-  and Deny buttons. The opaque request id binds the decision to the arguments,
+  `ask` call posts the member, tool and the full arguments with Approve and
+  Deny buttons; arguments too long to show in full are refused, never cut. The opaque request id binds the decision to the arguments,
   council, chain, turn and expiry. The owner or a user in `slack.allowedUsers`
   can decide once. The app acknowledges clicks immediately and updates the
   message with the outcome and removes its buttons. Pending requests expire
   on restart. The approval timeout defaults to five minutes. The turn timer
   pauses while an approval is pending. `stop` and `end` cancel waits immediately.
-  Denial and expiry return tool errors to the model. After two denials, further
-  `ask` calls in the turn return a denial without posting.
+  Denial and expiry return tool errors to the model. After two denials or
+  expiries, further `ask` calls in the turn return a denial without posting.
+  Deny globs match dot segments, and tool results over 64 KiB are refused.
 
 ## Slack layer
 
