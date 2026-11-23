@@ -7,23 +7,27 @@ import { expect, it, vi } from 'vitest';
 
 import { createMcpManager } from './mcp.js';
 
-it('namespaces and restricts grants, round-trips notes over stdio, and isolates a failed server', async () => {
+it('scopes tools and orientation to grants, round-trips notes over stdio, and isolates a failed server', async () => {
   const root = await mkdtemp(join(tmpdir(), 'slack-council-mcp-'));
   const diagnostic = vi.fn();
+  const missingOrientation = vi.fn();
+  const notesServer = {
+    transport: 'stdio' as const,
+    command: process.execPath,
+    args: [
+      fileURLToPath(
+        new URL('../../examples/notes-mcp-server.mjs', import.meta.url),
+      ),
+    ],
+    env: { COUNCIL_NOTES_FILE: 'TEST_NOTES' },
+  };
   const mcp = createMcpManager(
     {
-      notes: {
-        transport: 'stdio',
-        command: process.execPath,
-        args: [
-          fileURLToPath(
-            new URL('../../examples/notes-mcp-server.mjs', import.meta.url),
-          ),
-        ],
-        env: { COUNCIL_NOTES_FILE: 'TEST_NOTES' },
-      },
+      notes: { ...notesServer, orientation: true },
+      unmarked: { ...notesServer, orientation: false },
       unavailable: {
         transport: 'stdio',
+        orientation: true,
         command: join(root, 'missing-executable'),
         args: [],
         env: {},
@@ -31,6 +35,7 @@ it('namespaces and restricts grants, round-trips notes over stdio, and isolates 
     },
     { TEST_NOTES: join(root, 'notes.txt') },
     diagnostic,
+    missingOrientation,
   );
   const options = {
     toolCallId: 'notes-test',
@@ -43,6 +48,13 @@ it('namespaces and restricts grants, round-trips notes over stdio, and isolates 
       'unavailable',
       'E_MCP_UNAVAILABLE',
     );
+    expect(missingOrientation).not.toHaveBeenCalled();
+    const orientation = mcp.orientationFor(['notes']);
+    expect(orientation.get('notes')).toContain('notes server check phrase');
+    expect(mcp.orientationFor(['notes__list_notes'])).toEqual(orientation);
+    expect(
+      mcp.orientationFor(['notes__missing', 'unmarked', 'unavailable']).size,
+    ).toBe(0);
     expect(
       Object.keys(mcp.toolsFor(new Set(['notes__list_notes', 'unavailable']))),
     ).toEqual(['notes__list_notes']);

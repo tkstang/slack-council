@@ -154,6 +154,13 @@ describe('configuration', () => {
           mcpServers: { remote: { transport: 'http', command: 'mcp' } },
         },
       },
+      {
+        tools: {
+          mcpServers: {
+            local: { transport: 'stdio', command: 'mcp', orientation: 'true' },
+          },
+        },
+      },
       { tools: { policy: [{ tool: 'read_file', action: 'allow' }] } },
       { tools: { policy: [{ tool: 'read_*file', action: 'ask' }] } },
     ]) {
@@ -174,6 +181,7 @@ describe('configuration', () => {
         },
         remote: {
           transport: 'http',
+          orientation: true,
           url: 'https://mcp.example.com',
           headersEnv: { Authorization: 'REMOTE_TOKEN' },
         },
@@ -185,7 +193,15 @@ describe('configuration', () => {
     };
     expect(parseConfig(JSON.stringify({ ...config(), tools }))).toMatchObject({
       ok: true,
-      value: { tools },
+      value: {
+        tools: {
+          ...tools,
+          mcpServers: {
+            local: { ...tools.mcpServers.local, orientation: false },
+            remote: tools.mcpServers.remote,
+          },
+        },
+      },
     });
   });
 

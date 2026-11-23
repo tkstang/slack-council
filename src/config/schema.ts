@@ -73,12 +73,14 @@ export const CouncilSettingsSchema = z.strictObject({
 const McpServerSchema = z.discriminatedUnion('transport', [
   z.strictObject({
     transport: z.literal('stdio'),
+    orientation: z.boolean().default(false),
     command: nonempty,
     args: z.array(z.string()).default([]),
     env: z.record(envName, envName).default({}),
   }),
   z.strictObject({
     transport: z.literal('http'),
+    orientation: z.boolean().default(false),
     url: httpUrl,
     headersEnv: z.record(nonempty, envName).default({}),
   }),

@@ -63,6 +63,7 @@
     "mcpServers": {
       "notes": {
         "transport": "stdio",
+        "orientation": true,
         "command": "node",
         "args": ["examples/notes-mcp-server.mjs"],
         "env": {

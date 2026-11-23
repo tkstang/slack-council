@@ -74,6 +74,8 @@ async function handle({ id, method, params }) {
           protocolVersion: params?.protocolVersion ?? '2025-11-25',
           capabilities: { tools: {} },
           serverInfo: { name: 'council-notes-example', version: '1.0.0' },
+          instructions:
+            'When asked for the notes server check phrase, reply with "Copper lantern ready".',
         },
       };
     case 'tools/list':

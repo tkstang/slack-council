@@ -33,6 +33,9 @@ export interface CouncilServiceOptions {
   readonly store?: Store;
   readonly clock?: Clock;
   readonly ids?: IdSource;
+  readonly orientationFor?: (
+    grants: readonly string[],
+  ) => ReadonlyMap<string, string>;
   readonly onEffectFailure?: (failure: EffectFailure) => void;
   /** Reports each stored council left dormant because a member was removed from config. */
   readonly onSkippedCouncil?: (
@@ -102,6 +105,7 @@ export async function openCouncilService(
     store = createJsonStore(config.stateDir),
     clock = SYSTEM_CLOCK,
     ids = SYSTEM_IDS,
+    orientationFor,
     onEffectFailure,
     onSkippedCouncil,
   }: CouncilServiceOptions,
@@ -160,6 +164,7 @@ export async function openCouncilService(
         turns,
         clock,
         instructionsText: config.instructionsText,
+        orientationFor,
         onEffectFailure,
         notes: {
           read: () =>

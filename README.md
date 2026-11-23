@@ -234,6 +234,15 @@ connects at startup. A failed connection disables that server's tools and
 logs `E_MCP_UNAVAILABLE`. The CLI's `validate` command checks config without
 opening MCP connections.
 
+Set `orientation: true` on a stdio or HTTP server to trust its handshake
+instructions as operator guidance. Only members granted at least one
+compatible tool from that server receive its orientation. It appears in
+public and private listening prompts and grants no tool access on its own.
+The default is `false`. Text over 8,000 UTF-16 code units is shortened to
+fit the limit with an `[Orientation truncated]` marker. A marked server
+that supplies no text logs one `mcp_orientation_missing` warning with the
+server key.
+
 The example config uses [the notes MCP server](examples/notes-mcp-server.mjs).
 Set `COUNCIL_NOTES_FILE` in the app's environment to a file intended for the
 council. The server exposes `notes__list_notes` and `notes__append_note`.

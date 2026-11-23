@@ -65,6 +65,9 @@ interface RunnerOptions {
   readonly clock: Clock;
   readonly notes: NoteAccess;
   readonly instructionsText?: string;
+  readonly orientationFor?: (
+    grants: readonly string[],
+  ) => ReadonlyMap<string, string>;
   readonly onEffectFailure?: (failure: EffectFailure) => void;
 }
 
@@ -125,6 +128,7 @@ export function createChainRunner(
     clock,
     notes,
     instructionsText,
+    orientationFor,
     onEffectFailure,
   }: RunnerOptions,
 ) {
@@ -207,6 +211,7 @@ export function createChainRunner(
       grant,
       contextChars: settings.contextChars,
       instructionsText,
+      orientations: orientationFor?.(member.tools),
       replyWords: settings.replyWords,
       privateNotes: shownNotes,
       mentionPeople: settings.memberMentions === 'people',
@@ -425,6 +430,7 @@ export function createChainRunner(
         messages,
         contextChars: settings.contextChars,
         instructionsText,
+        orientations: orientationFor?.(member.tools),
       },
       firstNew,
     );
