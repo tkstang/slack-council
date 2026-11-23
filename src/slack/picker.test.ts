@@ -134,8 +134,15 @@ describe('parsePickerSubmission', () => {
       PRESET_BLOCK,
     ],
     [
-      'a form built from a different roster order',
-      submit(command, { question: 'Q' }, '0123456789abcdef'),
+      'a form opened before a preset changed its members',
+      submit(
+        command,
+        { question: 'Q' },
+        rosterFingerprint({
+          ...config,
+          presets: { ...config.presets, review: ['guide'] },
+        }),
+      ),
       QUESTION_BLOCK,
     ],
   ])('rejects %s', (_, result, block) => {
@@ -201,6 +208,13 @@ describe('planPickerOpen', () => {
       text: REFUSED,
     });
     expect(planPickerOpen(config, command).kind).toBe('open');
+  });
+
+  it('offers the whole-channel choice on the slash command only', () => {
+    const view = (source: PickerSource) =>
+      JSON.stringify(planPickerOpen(config, source));
+    expect(view(command)).toContain('This whole channel');
+    expect(view(shortcut)).not.toContain('This whole channel');
   });
 });
 

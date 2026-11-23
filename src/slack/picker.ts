@@ -148,12 +148,19 @@ const memberKeys = (config: PickerConfig) =>
   Object.keys(config.members).slice(0, OPTION_LIMIT);
 
 /**
- * Option ids are indexes, so a form must map back through the same keys in the
- * same order it was built from.
+ * Option ids are indexes, so a form must map back through the same presets and
+ * members it was built from: keys in order, each preset's roster, the default
+ * preset and the names shown.
  */
 export function rosterFingerprint(config: PickerConfig): string {
   return createHash('sha256')
-    .update(JSON.stringify([presetKeys(config), memberKeys(config)]))
+    .update(
+      JSON.stringify([
+        presetKeys(config).map((key) => [key, config.presets[key]]),
+        memberKeys(config).map((key) => [key, config.members[key]?.name]),
+        config.defaultPreset,
+      ]),
+    )
     .digest('hex')
     .slice(0, 16);
 }
@@ -551,9 +558,16 @@ export function createPicker({
       text = `Council convened by ${by}: ${plainMarkdown(question)}`;
     } else if (source.kind === 'shortcut') {
       const excerpt = await selectedExcerpt(source);
-      text = excerpt
-        ? `Council convened by ${by} on this message:\n${excerpt}`
-        : `Council convened by ${by} on the message above.`;
+      // Without the selected message there is no prompt, and pointing at
+      // "the message above" could name a different reply in a busy thread.
+      if (!excerpt) {
+        fail('excerpt', 'E_SLACK', source.channel);
+        return tell(
+          source,
+          'The selected message could not be read. Open the shortcut again and type a question.',
+        );
+      }
+      text = `Council convened by ${by} on this message:\n${excerpt}`;
     } else {
       text = `Council convened by ${by}.`;
     }
