@@ -26,11 +26,6 @@ describe('classifyAuthor', () => {
       { kind: 'member', memberId: 'bo' },
     ],
     [
-      'member by username fallback',
-      { bot_id: 'BAPP', username: 'Ada' },
-      { kind: 'member', memberId: 'ada' },
-    ],
-    [
       'app post as itself',
       { bot_id: 'BAPP', user: 'UAPP' },
       { kind: 'notice' },
@@ -56,11 +51,11 @@ describe('classifyAuthor', () => {
 });
 
 describe('fetchMessages', () => {
-  it('reads a thread oldest first through the bound and renders mentions', async () => {
-    const calls: string[] = [];
+  it('reads a thread in ts order through the bound and renders mentions', async () => {
+    const calls: [string, Record<string, unknown>][] = [];
     const api = {
       async apiCall(method: string, args: Record<string, unknown> = {}) {
-        calls.push(method);
+        calls.push([method, args]);
         if (method === 'users.info') {
           return {
             ok: true,
@@ -71,6 +66,12 @@ describe('fetchMessages', () => {
           ? {
               ok: true,
               messages: [
+                {
+                  ts: '10.000003',
+                  bot_id: 'BAPP',
+                  username: 'Ada',
+                  text: 'answer',
+                },
                 {
                   ts: '10.000001',
                   user: 'U1',
@@ -87,31 +88,21 @@ describe('fetchMessages', () => {
             }
           : {
               ok: true,
-              messages: [
-                {
-                  ts: '10.000003',
-                  bot_id: 'BAPP',
-                  username: 'Ada',
-                  text: 'answer',
-                },
-                { ts: '10.000004', user: 'U1', text: 'too late' },
-              ],
+              messages: [{ ts: '10.000004', user: 'U1', text: 'too late' }],
             };
       },
     };
-    const port = createSlackPort({
+    const options = {
       api,
       writeApi: api,
       botId: 'BAPP',
       botUserId: 'UAPP',
       members: [{ id: 'ada', name: 'Ada' }],
-    });
+    };
+    const scope = { channel: 'C1', threadTs: '10.000001' };
 
     expect(
-      await port.fetchMessages(
-        { channel: 'C1', threadTs: '10.000001' },
-        '10.000003',
-      ),
+      await createSlackPort(options).fetchMessages(scope, '10.000003'),
     ).toEqual({
       ok: true,
       value: [
@@ -127,7 +118,23 @@ describe('fetchMessages', () => {
         },
       ],
     });
-    expect(calls.filter((m) => m === 'users.info')).toHaveLength(1);
+    expect(calls[0]).toEqual([
+      'conversations.replies',
+      expect.objectContaining({
+        ts: '10.000001',
+        latest: '10.000003',
+        inclusive: true,
+      }),
+    ]);
+    expect(calls.filter(([m]) => m === 'users.info')).toHaveLength(1);
+
+    // A thread longer than the page cap fails instead of dropping its newest messages.
+    expect(
+      await createSlackPort({ ...options, maxPages: 1 }).fetchMessages(
+        scope,
+        '10.000003',
+      ),
+    ).toMatchObject({ ok: false, code: 'E_SLACK' });
   });
 });
 

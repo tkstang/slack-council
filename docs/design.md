@@ -223,6 +223,9 @@ tested without Slack.
   12,000-character `markdown_text` limit is truncated with a closing
   `… (truncated)` line. `@here`, `@channel` and `@everyone`
   are neutralised in member output.
+- Reading: a channel council reads the newest 200 messages; a thread council
+  reads up to 50 pages of replies through the trigger and fails with `E_SLACK`
+  rather than drop the newest replies of a longer thread.
 - Progress: ⏳ on the triggering message while a chain runs.
 
 ## State

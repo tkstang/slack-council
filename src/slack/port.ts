@@ -27,7 +27,7 @@ export interface SlackPortOptions extends WriteQueueOptions {
   readonly botId: string;
   readonly botUserId: string;
   readonly members: readonly Pick<Member, 'id' | 'name'>[];
-  /** Upper bound on pages read for one thread. */
+  /** Upper bound on pages read for one thread; a longer thread fails to read. */
   readonly maxPages?: number;
 }
 
@@ -166,6 +166,7 @@ export function createSlackPort(options: SlackPortOptions): SlackPort {
     method: string,
     args: Record<string, unknown>,
     pages: number,
+    { complete }: { readonly complete: boolean },
   ): Promise<Result<RawMessage[]>> {
     const out: RawMessage[] = [];
     let cursor: string | undefined;
@@ -187,9 +188,13 @@ export function createSlackPort(options: SlackPortOptions): SlackPort {
         if (message.success) out.push(message.data);
       }
       cursor = parsed.data.response_metadata?.next_cursor || undefined;
-      if (cursor === undefined) break;
+      if (cursor === undefined) return success(out);
     }
-    return success(out);
+    // Replies page oldest first, so a capped read would drop the newest
+    // messages, the trigger among them: fail rather than truncate.
+    return complete
+      ? failure('E_SLACK', `Slack ${method} read stopped at ${pages} pages`)
+      : success(out);
   }
 
   function write(
@@ -214,7 +219,9 @@ export function createSlackPort(options: SlackPortOptions): SlackPort {
                 include_all_metadata: true,
                 ...bound,
               },
+              // History is newest first: one page is the newest window.
               1,
+              { complete: false },
             )
           : await readPages(
               'conversations.replies',
@@ -226,6 +233,7 @@ export function createSlackPort(options: SlackPortOptions): SlackPort {
                 ...bound,
               },
               maxPages,
+              { complete: true },
             );
       if (!read.ok) return read;
 
