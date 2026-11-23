@@ -79,6 +79,9 @@ it('uses normalised author identities and marks only posts since the member last
     ].join('\n'),
   );
   expect(user).toContain('Raise any disagreement with them');
+  expect(user).toContain(
+    'Use [#N] labels internally. In replies, refer to posts by author and content.',
+  );
   expect(user).toContain('Critic (member) addressed you in #4');
 });
 
