@@ -71,6 +71,10 @@ l04-d01 delivered prompt caching on feat/prompt-cache: a hashed per-council cach
 
 PR 7 (prompt caching) Opus review found no blocking issues; the orchestrator applied two documentation fixes in 021105c (what is always sent and the failure to expect from other endpoints; live-check row 19 uses turns without tools) and the confirmation round was clean. A per-provider opt-out was not built and is left to the user. key:log-f9da521fc1e2
 
+### 2026-11-23 · structural · orchestrator · l05-d01
+
+l05-d01 delivered the single-approval handoff tool on feat/handoff (always asks; one card with Approve, Reject and Change; note written and confirmed before launch). Rebased onto the caching branch at 463858c, gate passed (273 tests). PR 8 opened, stacked on PR 7. All five phases now have an open or merged PR; PRs 3, 4, 6 and 7 are reviewed and wait on live Slack passes. key:log-9bb94e2898ad
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
