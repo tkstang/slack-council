@@ -17,7 +17,21 @@ replaced entry moves intact to the Superseded section, with
 
 ## Live
 
-_None yet._
+### dr01 · A channel council reads nothing older than the message it was convened on
+
+2026-11-23. Every council stores `convenedAtTs`. A channel council applies it as
+an inclusive lower bound to the reply prompt, the private listening snapshot and
+`slack_history`; thread councils are already bounded by their thread. A council
+saved before the field existed loads without it and keeps its old window,
+because its real start time is unknown.
+Source: the user (decision after the 2026-11-23 live pass); details l01-d01.
+
+### dr02 · Message numbers are handled by instruction only
+
+2026-11-23. Members are told the `[#N]` transcript labels are internal and to
+refer to a post by author and content. Member output is not stripped or
+rewritten.
+Source: the user ("instruction only makes sense here").
 
 ## Superseded
 

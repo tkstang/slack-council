@@ -19,6 +19,10 @@ Contract, entry grammar and roll-up: https://voxmedia.github.io/open-agent-toolk
 
 Every PR gets an independent review before merge, with no waiver for small PRs, and the orchestrator merges once the review is clean and checks are green instead of waiting for the user. The user asked for this so work inside the agreed high-level plan does not wait on them. In effect at once, including the open adoption PR.
 
+### 2026-11-23 · structural · orchestrator · l01-d01
+
+l01-d01 delivered the channel history floor, the internal transcript-label instruction and the approval-stop live check on feat/small-followups at be8c958; its clean-checkout gate passed (246 tests, build). key:log-b2b67cd30359
+
 ## End-of-run synthesis (pending — do not skip at project completion)
 
 Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.

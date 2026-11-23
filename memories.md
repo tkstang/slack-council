@@ -32,10 +32,22 @@ One bullet per item, each with its date and source (a dispatch ID such as
 
 <!-- Traps a later lane or session would otherwise fall into, and how to avoid them. -->
 
-_None yet._
+- A member reads Slack through three paths: the reply prompt, the private
+  listening snapshot taken after a chain settles, and `slack_history`. A bound
+  applied to only one leaves the others open. (2026-11-23, l01-d01)
+- A lane dispatched with a T3 worktree starts from the orchestrator's commit,
+  not `main`. Rebase it with `git rebase --onto origin/main <base>` before
+  opening its PR. (2026-11-23, l01-d01)
+- This repository does not ignore `.oat/analysis`, so lane notes go under
+  `$TMPDIR`, not in the checkout. (2026-11-23, orchestrator)
 
 ## Context
 
 <!-- Other facts that are still true and not obvious from the code or the documents. -->
 
-_None yet._
+- `lanes.md` records each lane's absolute worktree path and host thread ids,
+  and these records are public. The user was told and chose to leave it.
+  (2026-11-23, user)
+- `@council stop` invalidates a pending approval at once; the approval card
+  loses its buttons asynchronously, and a stale click cannot approve.
+  (2026-11-23, l01-d01)
