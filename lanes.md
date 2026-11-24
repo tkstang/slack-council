@@ -8,27 +8,7 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ## Active
 
-### l05
-
-- state: blocked
-- dispatch: d01 reported
-- next: When the token exists: configure handoff on the test config, live pass rows 22 to 24, merge PR 8
-- owner: orchestrator
-- waiting_on: owner
-- blocker: Live-check rows 22 to 24 need a Switchboard token minted by the owner
-- task: node:delegated-task:command%3Amcp%3Aa1c1519b-25ea-4f74-89aa-e3fe79fa2118%3Adelegate-task%3Ae99bc582-1710-4893-a7d8-59e904857c32
-- worktree: /Users/tstang/.t3/worktrees/slack-council/t3-7841f706-8afa41d67ab95c30
-- placement: own-worktree
-- branch: feat/handoff
-- base: 021105c138c611ec8356b0414557972db3f02422
-- head: f975309e876f4c2082ed87e38e6af642c8d0d6a6
-- review_round: 1
-- report: lane-reports/l05-d01.md
-- wake: T3 task completion
-- provider: codex_codex_proxy
-- model: gpt-6.2-sol
-- effort: high
-- last_observed: 2026-11-24T01:35:56Z
+_None._
 
 ## Closed
 
@@ -37,6 +17,7 @@ update ID. Filed lane reports are in `lane-reports/`.
 - l03 · merged · 2026-11-24T01:33:01Z · branch feat/guidance · head d10058e0aab1e776ae8ae03d3e5fde35d4458f31 · report lane-reports/l03-d01.md
 - l04 · merged · 2026-11-24T01:33:01Z · branch feat/prompt-cache · head 252c5980fbc484dab90a4e8aa679e5db8f8cce52 · report lane-reports/l04-d01.md
 - l06 · merged · 2026-11-24T01:35:56Z · branch feat/preset-mention · head 7d7e28c59ee1d8b155c75e86eafcdaa4bd5e5850 · report lane-reports/l06-d01.md
+- l05 · merged · 2026-11-24T03:17:44Z · branch feat/handoff · head f975309e876f4c2082ed87e38e6af642c8d0d6a6 · report lane-reports/l05-d01.md
 
 ## History
 
@@ -76,3 +57,4 @@ update ID. Filed lane reports are in `lane-reports/`.
 - u034 · 2026-11-24T01:33:02Z · l06 d01 · next: CI on the head rebased onto main (ahead of PR 8), then merge PR 9; head: 7d7e28c59ee1d8b155c75e86eafcdaa4bd5e5850
 - u035 · 2026-11-24T01:35:56Z · l06 d01 · next: None; PR 9 squash-merged; state work-settled → merged; closed
 - u036 · 2026-11-24T01:35:56Z · l05 d01 · next: When the token exists: configure handoff on the test config, live pass rows 22 to 24, merge PR 8; head: f975309e876f4c2082ed87e38e6af642c8d0d6a6; blocker: Live-check rows 22 to 24 need a Switchboard token minted by the owner; waiting_on: owner; state work-settled → blocked
+- u037 · 2026-11-24T03:17:44Z · l05 d01 · next: None; PR 8 squash-merged as 63ce8c8 after live-check rows 22 to 24 passed on f975309; state blocked → merged; waiting_on cleared; blocker cleared; closed
