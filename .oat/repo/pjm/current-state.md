@@ -28,7 +28,7 @@ copying their content here. -->
     length is tiered;
   - operator guidance from an instructions file and from an MCP server's
     initialize instructions;
-  - the stable part of each prompt is cached;
+  - the stable part of each prompt is set up for provider prompt caching;
   - a mention can pick a preset with `preset:<name>`;
   - a member can hand work off to a coding session through one approval.
 
