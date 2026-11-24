@@ -31,6 +31,9 @@ copying their content here. -->
   - the stable part of each prompt is set up for provider prompt caching;
   - a mention can pick a preset with `preset:<name>`;
   - a member can hand work off to a coding session through one approval.
+- Readable formatting (#11), 2026-11-24: the convening notice shows the panel
+  in a Slack table, and tool names and error codes appear as inline code.
+- The app has its own model proxy key (2026-11-24).
 
 ## What's Next
 
