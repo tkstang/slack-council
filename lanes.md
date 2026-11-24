@@ -10,23 +10,26 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ### l07
 
-- state: turn-finished
+- state: blocked
 - dispatch: d01 reported
-- next: push branch, open PR, review, live pass
+- next: run the live pass on 1bb714b, record it, merge PR 11
 - owner: orchestrator
+- waiting_on: owner
+- blocker: live Slack pass needs the dev machine's screen unlocked
 - task: node:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b
 - thread: thread:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b
 - worktree: /Users/tstang/.t3/worktrees/slack-council/t3-85b9feeb-7dc474124be6c698
 - placement: own-worktree
 - branch: feat/readable-slack-formatting
 - base: 9afe973
-- head: b1ff4d2f36f53ef3bfe0910a343c60765e9d9830
+- head: 1bb714baf8a205901d3ac82accb2d05c030a2698
+- review_round: 1
 - report: lane-reports/l07-d01.md
 - wake: delegate completion
 - provider: codex
 - model: gpt-6.2-sol
 - effort: high
-- last_observed: 2026-11-24T16:11:19Z
+- last_observed: 2026-11-24T16:19:53Z
 
 ## Closed
 
@@ -78,3 +81,4 @@ update ID. Filed lane reports are in `lane-reports/`.
 - u037 · 2026-11-24T03:17:44Z · l05 d01 · next: None; PR 8 squash-merged as 63ce8c8 after live-check rows 22 to 24 passed on f975309; state blocked → merged; waiting_on cleared; blocker cleared; closed
 - u038 · 2026-11-24T16:00:12Z · l07 d01 · created; d01 opened; next: Wait for the l07-d01 report, file it, open the PR, Opus review, then the live pass for the notice and approval card; owner: orchestrator; task: node:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b; thread: thread:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b; branch: feat/readable-slack-formatting; base: 9afe973; wake: delegate completion; provider: codex; model: gpt-6.2-sol; effort: high; state running
 - u039 · 2026-11-24T16:11:19Z · l07 d01 · d01 reported (lane-reports/l07-d01.md); next: push branch, open PR, review, live pass; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-85b9feeb-7dc474124be6c698; head: b1ff4d2f36f53ef3bfe0910a343c60765e9d9830; placement: own-worktree; state running → turn-finished
+- u040 · 2026-11-24T16:19:53Z · l07 d01 · next: run the live pass on 1bb714b, record it, merge PR 11; head: 1bb714baf8a205901d3ac82accb2d05c030a2698; review_round: 1; blocker: live Slack pass needs the dev machine's screen unlocked; waiting_on: owner; state turn-finished → blocked
