@@ -17,6 +17,7 @@ import {
 } from './service.js';
 
 const SCOPE: Scope = { channel: 'C1', threadTs: '1.000' };
+const CONVENE_THREAD = { scope: SCOPE, owner: 'U1', convenedAtTs: '1.000' };
 const CONFIG = parseConfig(
   JSON.stringify({
     providers: {
@@ -114,9 +115,13 @@ function fixtures(
         store,
         ids: { next: () => `id-${++nextId}` },
         slack: {
-          async fetchMessages(_scope, cutoff) {
+          async fetchMessages(_scope, cutoff, fromTs) {
             return success(
-              history.filter(({ ts }) => cutoff === undefined || ts <= cutoff),
+              history.filter(
+                ({ ts }) =>
+                  (cutoff === undefined || ts <= cutoff) &&
+                  (fromTs === undefined || ts >= fromTs),
+              ),
             );
           },
           async postMember(_scope, { member, text }) {
@@ -156,17 +161,16 @@ it('authorises convening and floor control while allowing other users’ message
   const f = fixtures();
   const service = await f.open();
   await expect(
-    service.convene({ scope: SCOPE, owner: 'U2' }),
+    service.convene({ ...CONVENE_THREAD, owner: 'U2' }),
   ).rejects.toMatchObject({ code: 'E_FORBIDDEN' });
   await expect(
-    service.convene({ scope: SCOPE, owner: 'U1', roster: ['unknown'] }),
+    service.convene({ ...CONVENE_THREAD, roster: ['unknown'] }),
   ).rejects.toMatchObject({ code: 'E_UNKNOWN_MEMBER' });
   await expect(
-    service.convene({ scope: SCOPE, owner: 'U1', preset: 'unknown' }),
+    service.convene({ ...CONVENE_THREAD, preset: 'unknown' }),
   ).rejects.toMatchObject({ code: 'E_UNKNOWN_PRESET' });
   const council = await service.convene({
-    scope: SCOPE,
-    owner: 'U1',
+    ...CONVENE_THREAD,
     roster: ['guide'],
   });
   expect(council).toMatchObject({
@@ -174,9 +178,9 @@ it('authorises convening and floor control while allowing other users’ message
     roster: ['guide'],
     owner: 'U1',
   });
-  await expect(
-    service.convene({ scope: SCOPE, owner: 'U1' }),
-  ).rejects.toMatchObject({ code: 'E_COUNCIL_EXISTS' });
+  await expect(service.convene(CONVENE_THREAD)).rejects.toMatchObject({
+    code: 'E_COUNCIL_EXISTS',
+  });
 
   const outsider = human('2.000', '@council A fact from an observer', 'U2');
   const operator = human('3.000', '@guide Explain the fact');
@@ -190,6 +194,35 @@ it('authorises convening and floor control while allowing other users’ message
   expect(f.calls[0]?.prompt.user).toContain('A fact from an observer');
   expect(f.record().acceptedMessageKeys).toEqual(['C1:3.000']);
   await service.shutdown();
+});
+
+it('uses the saved channel floor in public and listening prompts', async () => {
+  const f = fixtures();
+  const scope = { channel: 'C1' };
+  const service = await f.open();
+  await service.convene({
+    scope,
+    owner: 'U1',
+    roster: ['guide', 'critic'],
+    convenedAtTs: '2.000',
+  });
+  await service.shutdown();
+
+  const followup = human('3.000', '@guide Give your view');
+  f.history.push(
+    human('1.000', 'Discussion from before the council').message,
+    { ts: '2.000', author: { kind: 'notice' }, text: 'Council convened' },
+    followup.message,
+  );
+  const reopened = await f.open();
+  await reopened.handleHumanMessage({ ...followup, scope });
+  await vi.waitFor(() => expect(f.listens).toHaveLength(1), { interval: 1 });
+  expect(f.calls[0]?.historyFromTs).toBe('2.000');
+  expect(f.calls[0]?.prompt.user).toContain('Council convened');
+  expect(f.calls[0]?.prompt.user).not.toContain('Discussion from before');
+  expect(f.listens[0]?.prompt.user).toContain('Give your view');
+  expect(f.listens[0]?.prompt.user).not.toContain('Discussion from before');
+  await reopened.shutdown();
 });
 
 it('deduplicates in-flight deliveries across scopes and retains accepted keys after restart', async () => {
@@ -209,7 +242,10 @@ it('deduplicates in-flight deliveries across scopes and retains accepted keys af
 
   release(success(undefined));
   expect(await first).toBe('accepted');
-  expect(service.getCouncil(SCOPE)?.roster).toEqual(['guide']);
+  expect(service.getCouncil(SCOPE)).toMatchObject({
+    roster: ['guide'],
+    convenedAtTs: '1.000',
+  });
   await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
   await service.shutdown();
 
@@ -247,10 +283,10 @@ it('bounds dedupe retention and serialises concurrent state writes', async () =>
     privateNotes: [],
   });
   const service = await f.open();
-  const council = service.convene({ scope: SCOPE, owner: 'U1' });
+  const council = service.convene(CONVENE_THREAD);
   const other = service.convene({
+    ...CONVENE_THREAD,
     scope: { channel: 'C2', threadTs: '1.000' },
-    owner: 'U1',
   });
   const latest = service.handleHumanMessage(human('10001.000', 'Context only'));
   expect(await latest).toBe('accepted');
@@ -337,7 +373,7 @@ it.each([
 it('stops the active turn even when saving the stop message fails', async () => {
   const f = fixtures();
   const service = await f.open();
-  await service.convene({ scope: SCOPE, owner: 'U1' });
+  await service.convene(CONVENE_THREAD);
   const finish = f.gateModel();
   await service.handleHumanMessage(human('2.000', '@guide Explain'));
   await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
@@ -393,7 +429,7 @@ it('persists end, aborts the old chain and prevents its kickoff message from reo
 it('stops accepting work on shutdown, drains reactions and preserves the council for restart', async () => {
   const f = fixtures();
   const service = await f.open();
-  await service.convene({ scope: SCOPE, owner: 'U1' });
+  await service.convene(CONVENE_THREAD);
   const release = f.gateModel();
   await service.handleHumanMessage(human('2.000', '@guide Explain'));
   await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
@@ -415,8 +451,7 @@ it('stops accepting work on shutdown, drains reactions and preserves the council
 async function startListening(f: ReturnType<typeof fixtures>) {
   const service = await f.open();
   await service.convene({
-    scope: SCOPE,
-    owner: 'U1',
+    ...CONVENE_THREAD,
     roster: ['guide', 'critic'],
   });
   const input = human('1.000', '@guide Address the evidence.');

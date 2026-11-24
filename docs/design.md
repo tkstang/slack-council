@@ -60,7 +60,8 @@ model plus an effort level, a persona and a set of tool grants.
 
 - **Member**: `{ id, name, avatar, provider, model, effort?, persona, tools[] }`. `id` is the
   handle: lowercase, `[a-z][a-z0-9-]*`.
-- **Council**: a roster bound to a **scope**, plus an owner and settings.
+- **Council**: a roster bound to a **scope**, plus an owner, settings and
+  `convenedAtTs`, the Slack timestamp of the message or notice that started it.
 - **Scope**: `{ channel, threadTs? }`. With `threadTs` it is a thread council and
   posts go to that thread. Without it, it is a channel council: it reads recent
   top-level messages and every post (members, notices, approvals, reactions) is
@@ -194,7 +195,7 @@ misrepresent other members as the responding assistant.
 [#2] Ada (member): …
 [#3] You (Bo): …
 </transcript>
-<floor>Sam addressed you in #4.</floor>
+<floor>Sam addressed you in [#4].</floor>
 <private_notes>…earlier hand notes for this member, when present…</private_notes>
 ```
 
@@ -206,8 +207,8 @@ misrepresent other members as the responding assistant.
   omission marker says how many earlier messages were dropped and names the
   history tool.
 - Channel council: the most recent top-level messages (and thread broadcasts)
-  within the same budget, oldest first. Thread replies are left out. A round or
-  human mention reads through its triggering message (`latest` with
+  within the same budget, oldest first, starting at the convening post.
+  A round or human mention reads through its triggering message (`latest` with
   `inclusive`, then filtered client-side), so the trigger is always the newest
   row and later posts from other people stay out of that snapshot. React turns
   and member mentions read the newest window.
@@ -242,7 +243,8 @@ produce mention grants.
   so roots should hold only what that channel's audience may see. The denylist
   reduces accidental exposure.
 - `slack_history` retrieves older messages in the council's own scope, rendered
-  like the transcript. It starts before the prompt transcript and can page backward.
+  like the transcript. It starts before the prompt transcript and pages back
+  through the thread or to the channel council's convening post, inclusive.
 - MCP servers use stdio or HTTP. Failed startup disables the server's tools.
   The app closes its clients on shutdown. Grants in `members.<handle>.tools`
   include `files`, `slack_history`, `<server>` or `<server>__<tool>`.
@@ -330,7 +332,8 @@ tested without Slack.
   share it, or it is or begins with a member handle, the text is left alone and
   no shorter name is tried. Group and
   channel-wide mentions are neutralised in both modes.
-- Reading: a channel council reads the newest 200 messages; a thread council
+- Reading: a channel council reads the newest 200 messages per request, back
+  to and including the convening post. A thread council
   reads up to 50 pages of replies through the trigger and fails with `E_SLACK`
   rather than drop the newest replies of a longer thread.
 - Progress: ⏳ on the triggering message while a chain runs.
@@ -338,8 +341,9 @@ tested without Slack.
 ## State
 
 `stateDir/councils.json` holds councils, a bounded set of accepted human message
-keys, and private hand notes. The service serializes changes and writes the
-file atomically. Each note stores the council, member, target timestamp, note
+keys, and private hand notes. Channel councils saved before `convenedAtTs`
+was added keep their prior history window. The service serializes changes and
+writes the file atomically. Each note stores the council, member, target timestamp, note
 text, and latest post timestamp from the settle snapshot. The store retains
 the newest three notes per member and council, up to 500 characters each.
 A successful post or pass consumes the notes the member was shown. Ending a

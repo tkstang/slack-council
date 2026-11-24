@@ -8,6 +8,7 @@ import {
 } from '@council/config/schema.js';
 import type { Store, StoredState } from '@council/core/ports.js';
 import { failure, success, type Result } from '@council/core/result.js';
+import { SLACK_TIMESTAMP } from '@council/core/slack-timestamp.js';
 import { MAX_PRIVATE_NOTE_CHARS } from '@council/core/types.js';
 import { z } from 'zod';
 
@@ -19,6 +20,8 @@ const StoredStateSchema = z.strictObject({
     z.strictObject({
       id,
       scope: z.strictObject({ channel: id, threadTs: id.optional() }),
+      // Legacy councils lack a start time, so keep their prior history window.
+      convenedAtTs: z.string().regex(SLACK_TIMESTAMP).optional(),
       owner: id,
       roster: z.array(z.string().regex(MEMBER_HANDLE)).min(1),
       settings: CouncilSettingsSchema,

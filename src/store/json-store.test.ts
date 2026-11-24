@@ -29,6 +29,7 @@ it('round-trips councils and dedupe order across store instances and replaces th
       {
         id: 'council',
         scope: { channel: 'C1', threadTs: '10.001' },
+        convenedAtTs: '10.002',
         owner: 'U1',
         roster: ['guide', 'critic'],
         settings: {

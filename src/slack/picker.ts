@@ -595,7 +595,12 @@ export function createPicker({
           };
 
     try {
-      await service.convene({ scope, owner: source.user, roster });
+      await service.convene({
+        scope,
+        owner: source.user,
+        roster,
+        convenedAtTs: ts,
+      });
     } catch (error) {
       const code = isCliError(error) ? error.code : 'E_UNEXPECTED';
       fail('convene', code, source.channel);
@@ -615,7 +620,7 @@ export function createPicker({
       );
     }
 
-    // The text only addresses the council; the prompt is read from thread history up to `ts`.
+    // The text only addresses the council. The prompt reads its scope through `ts`.
     let opened: string;
     try {
       opened = await service.handleHumanMessage({

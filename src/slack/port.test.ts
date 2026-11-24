@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createSlackClients } from './api.js';
 import { classifyAuthor, createSlackPort } from './port.js';
@@ -138,6 +138,51 @@ describe('fetchMessages', () => {
         '10.000003',
       ),
     ).toMatchObject({ ok: false, code: 'E_SLACK' });
+  });
+
+  it('applies an inclusive channel floor to returned messages without sending oldest', async () => {
+    const api = {
+      apiCall: vi.fn(async () => ({
+        ok: true,
+        messages: [
+          { ts: '10.000001', bot_id: 'BAPP', text: 'Later' },
+          { ts: '10.000000', bot_id: 'BAPP', text: 'Council convened' },
+          { ts: '9.999999', bot_id: 'BAPP', text: 'Earlier' },
+        ],
+      })),
+    };
+    const port = createSlackPort({
+      api,
+      writeApi: api,
+      botId: 'BAPP',
+      botUserId: 'UAPP',
+      members: [],
+    });
+
+    expect(
+      await port.fetchMessages({ channel: 'C1' }, '10.000000', '10.000000'),
+    ).toEqual({
+      ok: true,
+      value: [
+        {
+          ts: '10.000000',
+          author: { kind: 'notice' },
+          text: 'Council convened',
+        },
+      ],
+    });
+    expect(api.apiCall).toHaveBeenCalledExactlyOnceWith(
+      'conversations.history',
+      expect.objectContaining({
+        channel: 'C1',
+        latest: '10.000000',
+        inclusive: true,
+      }),
+    );
+    expect(api.apiCall).not.toHaveBeenCalledWith(
+      'conversations.history',
+      expect.objectContaining({ oldest: expect.anything() }),
+    );
   });
 });
 

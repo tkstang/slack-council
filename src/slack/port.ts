@@ -5,6 +5,7 @@ import type {
   SlackPort,
 } from '@council/core/ports.js';
 import { failure, success, type Result } from '@council/core/result.js';
+import { compareSlackTimestamps } from '@council/core/slack-timestamp.js';
 import type { Author, Member, Message, Scope } from '@council/core/types.js';
 import { z } from 'zod';
 
@@ -92,14 +93,6 @@ const CONTENT_SUBTYPES = new Set([
 ]);
 
 const MEMBER_HANDLE = /^[a-z][a-z0-9-]*$/u;
-
-function compareTs(a: string, b: string): number {
-  const [aSec = '0', aFrac = ''] = a.split('.');
-  const [bSec = '0', bFrac = ''] = b.split('.');
-  const seconds = BigInt(aSec) - BigInt(bSec);
-  if (seconds !== 0n) return seconds < 0n ? -1 : 1;
-  return aFrac.padEnd(6, '0').localeCompare(bFrac.padEnd(6, '0'));
-}
 
 function slackFailure(method: string, call: SlackCall & { ok: false }) {
   return failure(
@@ -296,8 +289,16 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
   }
 
   return {
-    async fetchMessages(scope, throughTs) {
-      const bound =
+    async fetchMessages(scope, throughTs, fromTs) {
+      if (
+        fromTs !== undefined &&
+        throughTs !== undefined &&
+        compareSlackTimestamps(throughTs, fromTs) < 0
+      )
+        return success([]);
+      // The floor is applied to the returned messages, never sent as `oldest`:
+      // without `latest`, Slack may page forward from `oldest` and drop the newest window.
+      const bounds =
         throughTs === undefined ? {} : { latest: throughTs, inclusive: true };
       const read =
         scope.threadTs === undefined
@@ -307,7 +308,7 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
                 channel: scope.channel,
                 limit: 200,
                 include_all_metadata: true,
-                ...bound,
+                ...bounds,
               },
               // History is newest first: one page is the newest window.
               1,
@@ -320,7 +321,7 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
                 ts: scope.threadTs,
                 limit: 200,
                 include_all_metadata: true,
-                ...bound,
+                ...bounds,
               },
               maxPages,
               { complete: true },
@@ -335,14 +336,17 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
               raw.bot_id === botId &&
               raw.metadata?.event_type === APPROVAL_EVENT
             ) &&
-            (throughTs === undefined || compareTs(raw.ts, throughTs) <= 0) &&
+            (throughTs === undefined ||
+              compareSlackTimestamps(raw.ts, throughTs) <= 0) &&
+            (fromTs === undefined ||
+              compareSlackTimestamps(raw.ts, fromTs) >= 0) &&
             // A channel council reads top-level posts and thread broadcasts only.
             (scope.threadTs !== undefined ||
               raw.thread_ts === undefined ||
               raw.thread_ts === raw.ts ||
               raw.subtype === 'thread_broadcast'),
         )
-        .toSorted((a, b) => compareTs(a.ts, b.ts));
+        .toSorted((a, b) => compareSlackTimestamps(a.ts, b.ts));
 
       const ids = new Set<string>();
       for (const raw of raws) {

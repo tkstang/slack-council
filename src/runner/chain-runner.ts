@@ -120,6 +120,8 @@ export function createChainRunner(
   { slack, turns, clock, notes, onEffectFailure }: RunnerOptions,
 ) {
   const { scope, settings } = council;
+  const historyFromTs =
+    scope.threadTs === undefined ? council.convenedAtTs : undefined;
   const byId = new Map(roster.map((member) => [member.id, member]));
   let state = createEngineState(council.roster, settings);
   let reducing = false;
@@ -160,7 +162,7 @@ export function createChainRunner(
       // A subsequent prompt should see any notices from the preceding turn.
       await ancillary.drain();
       return protect(
-        () => slack.fetchMessages(scope, grant.throughTs),
+        () => slack.fetchMessages(scope, grant.throughTs, historyFromTs),
         'E_SLACK',
       );
     })();
@@ -215,6 +217,7 @@ export function createChainRunner(
           chainId: grant.chainId,
           turnId: grant.turnId,
           historyBeforeTs: oldestTs,
+          historyFromTs,
           ...(shownNotes.length
             ? { privateNoteText: shownNotes.map(({ note }) => note) }
             : {}),
@@ -457,7 +460,10 @@ export function createChainRunner(
         await ancillary.drain();
         return signal.aborted
           ? abortFailure(signal)
-          : protect(() => slack.fetchMessages(scope), 'E_SLACK');
+          : protect(
+              () => slack.fetchMessages(scope, undefined, historyFromTs),
+              'E_SLACK',
+            );
       },
     );
     if (signal.aborted || !snapshot.ok) return;

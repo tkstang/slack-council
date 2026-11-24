@@ -108,7 +108,8 @@ to start one:
   with any typed text as the question. On submit the app posts
   "Council convened by <name>: <question>" in the channel and convenes in that
   message's thread, or, if you choose **This whole channel** under **Where**,
-  in the channel itself. Slack does not run slash commands inside threads.
+  in the channel itself. A channel council reads from the convening post
+  onward. Slack does not run slash commands inside threads.
 - **Message shortcut.** Choose **Start a council** from a message's **More
   actions** menu, under **Connect to apps**. The
   council convenes in that message's thread, or the thread it replies in. The
@@ -182,6 +183,9 @@ gives the member no tools.
 | `<server>`         | Every compatible tool from the named MCP server.                                                                                                         |
 | `<server>__<tool>` | One tool from the named MCP server.                                                                                                                      |
 
+For channel councils, the convening post is the earliest message
+`slack_history` can return.
+
 MCP tool names use ASCII letters, digits, underscores and hyphens. Server
 names use the same characters with single underscores between segments.
 Config validation checks grants against declared server names. The server
@@ -234,7 +238,8 @@ Pass human messages with raw Slack-encoded text to `handleHumanMessage`. For
 mention-based kickoff, pass the resolved thread scope with `kickoff: true`.
 `isDormant` reports a stored council that cannot run under the current config;
 `end` and a `@council end` message in its scope remove it.
-Convene a chosen roster or preset through `convene`. `createPicker` builds
+Convene a chosen roster or preset through `convene` and pass the Slack
+timestamp of the convening post as `convenedAtTs`. `createPicker` builds
 the roster modal that `registerCouncilHandlers` serves for `/council` and the
 `council_start` shortcut. The service retains the newest 4,096
 accepted message keys across restarts. It dispatches floor grants and removes
@@ -244,7 +249,7 @@ saving so cancellation stays responsive during a slow or failed save.
 The model port provides `runTurn` for real turns and `runListen` for the
 bounded, tool-free check at settle. Both receive an abort signal.
 
-The Slack port reads oldest-to-newest history with an inclusive cutoff, posts
+The Slack port reads oldest-to-newest history with inclusive time bounds, posts
 members with chain and turn metadata, and neutralises broadcast mentions. Call
 `shutdown()` while that port is still available so outstanding writes and
 reactions can drain.
