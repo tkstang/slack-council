@@ -38,6 +38,7 @@
     "allowedUsers": ["U0123456789"]
   },
   "council": {
+    "instructions": "examples/council-instructions.md",
     "rounds": 2,
     "hopBudget": 6,
     "maxTurnsPerChain": 24,
@@ -62,6 +63,7 @@
     "mcpServers": {
       "notes": {
         "transport": "stdio",
+        "orientation": true,
         "command": "node",
         "args": ["examples/notes-mcp-server.mjs"],
         "env": {

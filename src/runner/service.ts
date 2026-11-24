@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Config } from '@council/config/schema.js';
+import type { LoadedConfig } from '@council/config/load.js';
 import { CliError } from '@council/core/errors.js';
 import type {
   Clock,
@@ -33,6 +33,9 @@ export interface CouncilServiceOptions {
   readonly store?: Store;
   readonly clock?: Clock;
   readonly ids?: IdSource;
+  readonly orientationFor?: (
+    grants: readonly string[],
+  ) => ReadonlyMap<string, string>;
   readonly onEffectFailure?: (failure: EffectFailure) => void;
   /** Reports each stored council left dormant because a member was removed from config. */
   readonly onSkippedCouncil?: (
@@ -94,7 +97,7 @@ function unwrap<T>(result: Result<T>): T {
 }
 
 export async function openCouncilService(
-  config: Config,
+  config: LoadedConfig,
   {
     slack,
     turns,
@@ -102,10 +105,12 @@ export async function openCouncilService(
     store = createJsonStore(config.stateDir),
     clock = SYSTEM_CLOCK,
     ids = SYSTEM_IDS,
+    orientationFor,
     onEffectFailure,
     onSkippedCouncil,
   }: CouncilServiceOptions,
 ): Promise<CouncilService> {
+  const { instructions: _instructionsPath, ...settings } = config.council;
   const allowedUsers = new Set(config.slack.allowedUsers);
   const members = new Map<string, Member>(
     Object.entries(config.members).map(([id, member]) => [
@@ -158,6 +163,8 @@ export async function openCouncilService(
         slack,
         turns,
         clock,
+        instructionsText: config.instructionsText,
+        orientationFor,
         onEffectFailure,
         notes: {
           read: () =>
@@ -249,7 +256,7 @@ export async function openCouncilService(
         convenedAtTs: input.convenedAtTs,
         owner: input.owner,
         roster: [...roster],
-        settings: { ...config.council },
+        settings: { ...settings },
       },
       'E_INVALID_INPUT',
     );

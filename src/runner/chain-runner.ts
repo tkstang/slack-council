@@ -64,6 +64,10 @@ interface RunnerOptions {
   readonly turns: TurnRunner;
   readonly clock: Clock;
   readonly notes: NoteAccess;
+  readonly instructionsText?: string;
+  readonly orientationFor?: (
+    grants: readonly string[],
+  ) => ReadonlyMap<string, string>;
   readonly onEffectFailure?: (failure: EffectFailure) => void;
 }
 
@@ -118,7 +122,15 @@ async function protect<T>(
 export function createChainRunner(
   council: Council,
   roster: readonly Member[],
-  { slack, turns, clock, notes, onEffectFailure }: RunnerOptions,
+  {
+    slack,
+    turns,
+    clock,
+    notes,
+    instructionsText,
+    orientationFor,
+    onEffectFailure,
+  }: RunnerOptions,
 ) {
   const { scope, settings } = council;
   const historyFromTs =
@@ -198,6 +210,8 @@ export function createChainRunner(
       messages: messages.value,
       grant,
       contextChars: settings.contextChars,
+      instructionsText,
+      orientations: orientationFor?.(member.tools),
       replyWords: settings.replyWords,
       privateNotes: shownNotes,
       mentionPeople: settings.memberMentions === 'people',
@@ -410,7 +424,14 @@ export function createChainRunner(
     );
     if (firstNew === -1) return;
     const { prompt, targets } = buildListenContext(
-      { member, roster, messages, contextChars: settings.contextChars },
+      {
+        member,
+        roster,
+        messages,
+        contextChars: settings.contextChars,
+        instructionsText,
+        orientations: orientationFor?.(member.tools),
+      },
       firstNew,
     );
     if (targets.size === 0) return;

@@ -35,6 +35,8 @@ the Slack client: messages injected below the adapter do not prove it.
 | 14  | Top-level `@council end`                                                                                   | 👋; later top-level messages get no reaction or reply                                                                                                                             |
 | 15  | Request a note append as in row 7. While approval is pending, send `@council stop` in the same scope.      | The stop message gets 🛑 and ⏳ clears. The approval card says "Request cancelled." and loses its buttons. A turn cancellation notice appears and the notes file stays unchanged. |
 | 16  | In a council, ask a short question, then ask the same member to go into more detail                        | The first answer is about 120 words. The second is longer, up to about 250, and says so if it stopped at the limit                                                                |
+| 17  | Load the example instructions file. In a new council, ask for the council instructions check phrase.       | The member replies with the phrase from the file. Keep the phrase out of the Slack request.                                                                                       |
+| 18  | Enable notes orientation. Ask a member with a notes grant for the notes server check phrase.               | The member replies with the phrase from the server's orientation. Keep the phrase out of the Slack request.                                                                       |
 
 With `council.memberMentions: "people"`, also ask a member to notify you by
 name and expect a real mention.

@@ -1,3 +1,4 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -129,6 +130,7 @@ describe('configuration', () => {
       { council: { listen: 'every-post' } },
       { council: { approvalTimeoutMs: 0 } },
       { council: { contextChars: 999 } },
+      { council: { instructions: '   ' } },
       { council: { replyWords: { default: 0, detailed: 250, max: 1_000 } } },
       {
         council: { replyWords: { default: 120, detailed: 250.5, max: 1_000 } },
@@ -152,6 +154,13 @@ describe('configuration', () => {
           mcpServers: { remote: { transport: 'http', command: 'mcp' } },
         },
       },
+      {
+        tools: {
+          mcpServers: {
+            local: { transport: 'stdio', command: 'mcp', orientation: 'true' },
+          },
+        },
+      },
       { tools: { policy: [{ tool: 'read_file', action: 'allow' }] } },
       { tools: { policy: [{ tool: 'read_*file', action: 'ask' }] } },
     ]) {
@@ -172,6 +181,7 @@ describe('configuration', () => {
         },
         remote: {
           transport: 'http',
+          orientation: true,
           url: 'https://mcp.example.com',
           headersEnv: { Authorization: 'REMOTE_TOKEN' },
         },
@@ -183,7 +193,15 @@ describe('configuration', () => {
     };
     expect(parseConfig(JSON.stringify({ ...config(), tools }))).toMatchObject({
       ok: true,
-      value: { tools },
+      value: {
+        tools: {
+          ...tools,
+          mcpServers: {
+            local: { ...tools.mcpServers.local, orientation: false },
+            remote: tools.mcpServers.remote,
+          },
+        },
+      },
     });
   });
 
@@ -214,4 +232,41 @@ describe('configuration', () => {
       await loadConfig(join(tmpdir(), 'missing-parent\0', 'config.json')),
     ).toMatchObject({ ok: false, code: 'E_CONFIG_READ' });
   });
+
+  it.each([
+    ['relative', '# Brief\n', undefined],
+    ['absolute', '# Brief\n', undefined],
+    ['missing', undefined, 'E_CONFIG_READ'],
+    ['directory', undefined, 'E_CONFIG_READ'],
+    ['blank', ' \n', 'E_EMPTY_INPUT'],
+    ['oversized', 'x'.repeat(8_001), 'E_FILE_TOO_LARGE'],
+  ] as const)(
+    'loads or rejects a %s instructions file',
+    async (kind, contents, code) => {
+      const directory = await mkdtemp(join(tmpdir(), 'council-guidance-'));
+      const path = join(directory, 'config.json');
+      const instructions = join(directory, 'instructions.md');
+      try {
+        if (kind === 'directory') await mkdir(instructions);
+        if (contents !== undefined) await writeFile(instructions, contents);
+        await writeFile(
+          path,
+          JSON.stringify({
+            ...config(),
+            council: {
+              instructions:
+                kind === 'absolute' ? instructions : 'instructions.md',
+            },
+          }),
+        );
+        expect(await loadConfig(path)).toMatchObject(
+          code === undefined
+            ? { ok: true, value: { instructionsText: contents } }
+            : { ok: false, code },
+        );
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    },
+  );
 });

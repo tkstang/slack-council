@@ -1,4 +1,8 @@
-export { loadConfig, parseConfig } from '@council/config/load.js';
+export {
+  loadConfig,
+  parseConfig,
+  type LoadedConfig,
+} from '@council/config/load.js';
 export {
   ConfigSchema,
   type Config,

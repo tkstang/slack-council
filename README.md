@@ -81,6 +81,17 @@ OpenAI-compatible endpoint.
 A member can have a `persona` with a `title` for display and `instructions`
 for the model. Leave `persona` out to give the member a neutral role.
 
+Set `council.instructions` to an optional UTF-8 Markdown file with guidance
+for every member's public replies and private listening. Relative paths start
+at the config file's directory. Absolute paths are used as written. If you
+copy the example config into `.council/`, change the example path to
+`../examples/council-instructions.md` or point it at your own file. You can
+also drop the setting.
+
+Both `validate` and `start` read the file once. A missing or unreadable
+file produces `E_CONFIG_READ`, a blank one `E_EMPTY_INPUT` and an oversized one
+`E_FILE_TOO_LARGE`. The limit is 8,000 UTF-16 code units. Restart the app to apply edits to the file.
+
 Create `.env` in the repo root (gitignored):
 
 ```sh
@@ -222,6 +233,15 @@ child variable names to variable names in the app's environment. For HTTP,
 connects at startup. A failed connection disables that server's tools and
 logs `E_MCP_UNAVAILABLE`. The CLI's `validate` command checks config without
 opening MCP connections.
+
+Set `orientation: true` on a stdio or HTTP server to trust its handshake
+instructions as operator guidance. Only members granted at least one
+compatible tool from that server receive its orientation. It appears in
+public and private listening prompts and grants no tool access on its own.
+The default is `false`. Text over 8,000 UTF-16 code units is shortened to
+fit the limit with an `[Orientation truncated]` marker. A marked server
+that supplies no text logs one `mcp_orientation_missing` warning with the
+server key.
 
 The example config uses [the notes MCP server](examples/notes-mcp-server.mjs).
 Set `COUNCIL_NOTES_FILE` in the app's environment to a file intended for the

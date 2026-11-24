@@ -73,12 +73,14 @@ export const CouncilSettingsSchema = z.strictObject({
 const McpServerSchema = z.discriminatedUnion('transport', [
   z.strictObject({
     transport: z.literal('stdio'),
+    orientation: z.boolean().default(false),
     command: nonempty,
     args: z.array(z.string()).default([]),
     env: z.record(envName, envName).default({}),
   }),
   z.strictObject({
     transport: z.literal('http'),
+    orientation: z.boolean().default(false),
     url: httpUrl,
     headersEnv: z.record(nonempty, envName).default({}),
   }),
@@ -139,6 +141,7 @@ export const ConfigSchema = z.strictObject({
   // Persisted council settings can still contain older, smaller budgets.
   council: CouncilSettingsSchema.extend({
     contextChars: positive.min(1_000).default(DEFAULT_CONTEXT_CHARS),
+    instructions: nonempty.optional(),
   }).prefault({}),
   tools: ToolsSchema.prefault({}),
   stateDir: nonempty.default('.council'),

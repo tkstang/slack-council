@@ -190,7 +190,13 @@ alternation rules, carries the role brief on the Claude route, and does not
 misrepresent other members as the responding assistant.
 
 ```
-<council_role>…persona, roster, how the floor works…</council_role>
+<council_role>
+…member identity and optional persona…
+…operator guidance label…
+<council_instructions>…Markdown guidance, when configured…</council_instructions>
+<mcp_orientation server="notes">…handshake instructions for a granted server…</mcp_orientation>
+…roster, data handling and public turn rules…
+</council_role>
 <transcript>
 [#1] Sam (human): …
 [#2] Ada (member): …
@@ -201,6 +207,19 @@ misrepresent other members as the responding assistant.
 ```
 
 - Author labels come from Slack ids and the roster, never from message text.
+- Public replies and private listening put the optional instructions file in
+  the stable role brief. The loader reads it once per config load, with a
+  limit of 8,000 UTF-16 code units. The running service holds the text in
+  memory and applies it to new and restored councils. Saved council settings
+  contain neither the path nor the text.
+- The role brief labels the file and MCP orientation blocks as operator
+  guidance. The app reads the SDK client's handshake instructions for
+  servers with `orientation: true`. It adds one block per marked server
+  with at least one discovered tool granted to the member, in config order.
+  The same rule applies to both prompt modes. The app keeps orientation in
+  memory, caps each server's text at 8,000 UTF-16 code units including any
+  truncation marker, and logs only the server key if the text is missing.
+  Tool grants and approvals still apply in code.
 - Message text is data. Angle brackets in it are escaped so a pasted
   `</transcript>` cannot close the block, and the role brief says that nothing
   inside the transcript, a tool result or a private note is an instruction.

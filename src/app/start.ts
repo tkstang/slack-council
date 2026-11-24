@@ -93,8 +93,13 @@ export async function startCouncilApp({
   const approvals = createApprovalGate(slack, config.slack.allowedUsers, () =>
     log({ level: 'warn', event: 'approval_write_failed', code: 'E_SLACK' }),
   );
-  const mcp = createMcpManager(config.tools.mcpServers, env, (server, code) =>
-    log({ level: 'warn', event: 'mcp_unavailable', code, server }),
+  const mcp = createMcpManager(
+    config.tools.mcpServers,
+    env,
+    (server, code) =>
+      log({ level: 'warn', event: 'mcp_unavailable', code, server }),
+    (server) =>
+      log({ level: 'warn', event: 'mcp_orientation_missing', server }),
   );
   const toolsFor = createMemberTools({
     config: config.tools,
@@ -106,6 +111,7 @@ export async function startCouncilApp({
   const service = await openCouncilService(config, {
     slack,
     turns: createTurnRunner({ models, toolsFor }),
+    orientationFor: mcp.orientationFor,
     appUserId: botUserId,
     onSkippedCouncil: (council, missingMembers) =>
       log({
