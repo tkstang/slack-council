@@ -20,7 +20,7 @@ model with tool grants, an optional effort level and an optional persona.
 | Unvoiced disagreement | Members can circle back on their next turn. At settle, members with unseen posts from others can raise a hand and keep a private note. Listen cadence is configurable (`settle` by default, `every-post` later).      |
 | Context               | Slack is the memory: recent messages verbatim, the member's own private notes, and a history tool for going further back.                                                                                             |
 | Identity              | One Slack app posting under each member's name and avatar (`chat:write.customize`). Members are addressed by plain-text handles such as `@ada`.                                                                       |
-| Roster                | Members are defined in config. A picker modal with presets chooses the roster for `/council` and the message shortcut; a mention uses the default preset.                                                             |
+| Roster                | Members are defined in config. A picker modal chooses the roster for `/council` and the message shortcut. A convening mention can name a preset or use the default.                                                   |
 | Tools                 | Read-only file tools are built in, with a path denylist. Everything else is an MCP server granted per member. Each tool is `auto` or `ask`; `ask` posts Approve and Deny buttons that only permitted users can press. |
 | Packaging             | A generic core. Nothing in code names a personal service. The operator's setup is private config.                                                                                                                     |
 | Scopes                | Both council threads and council channels.                                                                                                                                                                            |
@@ -324,8 +324,8 @@ tested without Slack.
   the channel council when the channel has one; a top-level `@council end` also
   goes to a dormant channel council (one whose roster names a removed member) so
   it can be removed. Otherwise a top-level `@council` opens a thread council.
-- Kickoff: (a) `@council` on a message outside any council convenes the default
-  preset in that message's thread (there is no mention kickoff for a channel
+- Kickoff: (a) `@council` on a message outside any council convenes a preset
+  in that message's thread (there is no mention kickoff for a channel
   council); (b) the `/council` command or the "Start a council" message
   shortcut opens the roster modal (`views.open` straight after `ack()`, as a
   trigger id lasts three seconds). Only `slack.allowedUsers` get the modal; the
@@ -362,9 +362,17 @@ tested without Slack.
     invoking user as author and the text `<@APPUSER>`, so dedupe, the allow-list
     and addressing run unchanged; the prompt itself is read from history. The
     notice's ts is always fresh, so a message accepted before still starts one.
-  - A mention that starts a council posts its default panel in the thread
-    after the council is saved. The human message starts the round. A notice
-    write failure is logged and the round proceeds.
+  - A convening mention uses the first plain-text token `preset:<name>` or
+    `preset=<name>`, with whitespace between the token and adjacent text.
+    The key is case-insensitive. The name ends at whitespace and must match a
+    configured key exactly. With no token, the app uses the default preset.
+    An unknown name records the message as handled and posts the available
+    names in the thread. It opens no council. If Slack rejects that notice,
+    the app logs the failure and does not retry. An existing council ignores
+    the token for roster selection and keeps the original message in the transcript.
+  - A mention that starts a council posts the selected panel in the thread
+    after the council is saved. The human message starts the round. If Slack
+    rejects the convening notice, the app logs the failure and the round proceeds.
   - The convening notice names the preset or says "custom panel" when members
     were chosen by hand. It lists each handle, display name, model, and any
     configured effort and persona title. The app ignores bot-authored notice

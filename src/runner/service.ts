@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { LoadedConfig } from '@council/config/load.js';
-import { CliError } from '@council/core/errors.js';
+import { CliError, isCliError } from '@council/core/errors.js';
 import type {
   Clock,
   IdSource,
@@ -62,6 +62,7 @@ export interface HumanMessageInput {
 }
 
 export type HumanMessageResult = 'accepted' | 'duplicate' | 'ignored';
+type MessageWriteResult = HumanMessageResult | 'unknown-preset';
 
 export interface CouncilService {
   getCouncil(scope: Scope): Council | undefined;
@@ -375,7 +376,7 @@ export async function openCouncilService(
         )
           received?.runner.cancelListening();
 
-        return await writes.run(async () => {
+        const result = await writes.run<MessageWriteResult>(async () => {
           const current = entries.get(key);
           const address =
             current === received
@@ -385,13 +386,34 @@ export async function openCouncilService(
                   appUserId,
                   current?.council.roster ?? [],
                 );
-          const opening =
+          const preset =
+            (address.kind === 'council' ? address.preset : undefined) ??
+            config.defaultPreset;
+          let opening: Entry | undefined;
+          if (
             !current &&
             kickoff &&
             scope.threadTs !== undefined &&
             address.kind === 'council'
-              ? makeCouncil({ scope, owner, convenedAtTs: message.ts })
-              : undefined;
+          ) {
+            try {
+              opening = makeCouncil({
+                scope,
+                owner,
+                convenedAtTs: message.ts,
+                preset,
+              });
+            } catch (error) {
+              if (!isCliError(error) || error.code !== 'E_UNKNOWN_PRESET')
+                throw error;
+              const keys = [...accepted, messageKey].slice(
+                -MAX_ACCEPTED_MESSAGES,
+              );
+              await save(councils(), keys);
+              accepted = new Set(keys);
+              return 'unknown-preset';
+            }
+          }
           const entry = current ?? opening;
           if (!entry) {
             if (address.kind !== 'end' || !dormant.has(key)) return 'ignored';
@@ -432,10 +454,7 @@ export async function openCouncilService(
           if (address.kind === 'end') retire(key, entry);
           else if (event) {
             if (opening)
-              opening.runner.postConveningNotice(
-                config.defaultPreset,
-                event.chainId,
-              );
+              opening.runner.postConveningNotice(preset, event.chainId);
             entry.runner.dispatch(event);
           }
           // An addressed message gets the progress reaction from its chain.
@@ -453,6 +472,19 @@ export async function openCouncilService(
             acknowledge(scope, message.ts, 'eyes');
           return 'accepted';
         });
+        if (result !== 'unknown-preset') return result;
+
+        // Inline code shows a name as written; a backtick would end it early.
+        const names = Object.keys(config.presets).map(
+          (name) => `\`${name.replaceAll('`', '')}\``,
+        );
+        unwrap(
+          await slack.postNotice(
+            scope,
+            `Unknown preset. Available presets: ${names.join(', ')}.`,
+          ),
+        );
+        return 'accepted';
       } finally {
         pendingKeys.delete(messageKey);
       }

@@ -5,11 +5,21 @@ import { parseHumanAddress, parseMemberMentions } from './addressing.js';
 const ROSTER = ['first', 'second', 'deep-review'];
 const APP = 'UAPP';
 
-it.each(['@council', '<@UAPP>', 'Please<@UAPP>', '@first @council'])(
-  'opens the whole roster for %s',
-  (text) =>
-    expect(parseHumanAddress(text, APP, ROSTER)).toEqual({ kind: 'council' }),
-);
+it.each([
+  ['@council'],
+  ['<@UAPP>'],
+  ['Please<@UAPP>'],
+  ['@first @council'],
+  ['<@UAPP> <https://example.com|reference> preset:Review next', 'Review'],
+  ['PRESET=Review\n<@UAPP> preset:later', 'Review'],
+  ['<@UAPP> mypreset:ignored https://example.com/?preset=ignored'],
+  ['<@UAPP> <https://example.com|Use preset=ignored here>'],
+  ['<@UAPP> preset:review,', 'review,'],
+])('opens the whole roster for %s', (text, preset?: string) => {
+  expect(parseHumanAddress(text, APP, ROSTER)).toEqual(
+    preset === undefined ? { kind: 'council' } : { kind: 'council', preset },
+  );
+});
 
 it('identifies unique member tokens and ignores other Slack mentions, links and partial handles', () => {
   expect(
