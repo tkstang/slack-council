@@ -34,13 +34,6 @@ export function neutraliseBroadcasts(text: string): string {
   return neutraliseProse(text);
 }
 
-/** Escape plain text for a Markdown post, with mentions neutralised. */
-export function plainMarkdown(text: string): string {
-  return neutraliseBroadcasts(text)
-    .replace(/[\\`*_~[\]<>#|!]/gu, '\\$&')
-    .replace(/^(\s*(?:\d+)?)([-+=.)])/gmu, '$1\\$2');
-}
-
 const RESERVED_NAMES = new Set(['council', 'here', 'channel', 'everyone']);
 // Spans cross lines, as the neutraliser's patterns do, so nothing it rewrites
 // is ever searched for names.

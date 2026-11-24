@@ -10,7 +10,6 @@ import { z } from 'zod';
 import { callSlack, type SlackApi } from './api.js';
 import type { LogEntry } from './inbound.js';
 import type { SlackAdapterPort } from './port.js';
-import { plainMarkdown, truncateMarkdown } from './text.js';
 
 export const PICKER_CALLBACK = 'council_picker';
 export const PRESET_BLOCK = 'council_preset';
@@ -27,8 +26,6 @@ export const METADATA_LIMIT = 3_000;
 export const QUESTION_LIMIT = 3_000;
 const OPTION_LIMIT = 100;
 const OPTION_TEXT_LIMIT = 75;
-/** How much of a selected message a blank shortcut quotes in its notice. */
-export const EXCERPT_LIMIT = 1_000;
 
 export const REFUSED = 'You are not allowed to start a council.';
 
@@ -110,14 +107,6 @@ export function decodeMetadata(raw: unknown): PickerMetadata | undefined {
   }
   const parsed = Metadata.safeParse(json);
   return parsed.success ? parsed.data : undefined;
-}
-
-/** A bounded, escaped blockquote of a selected message for the convening notice. */
-export function quoteExcerpt(text: string): string {
-  return plainMarkdown(truncateMarkdown(text.trim(), EXCERPT_LIMIT))
-    .split('\n')
-    .map((line) => `> ${line}`)
-    .join('\n');
 }
 
 function option(text: string, value: string) {
@@ -522,7 +511,7 @@ export function createPicker({
     );
   }
 
-  /** The selected message as an escaped quote, or undefined when it cannot be read. */
+  /** The selected message to quote, or undefined when it cannot be read. */
   async function selectedExcerpt(
     source: Extract<PickerSource, { kind: 'shortcut' }>,
   ): Promise<string | undefined> {
@@ -534,7 +523,7 @@ export function createPicker({
       ? read.value.find(({ ts }) => ts === source.messageTs)?.text.trim()
       : undefined;
     if (!read.ok) fail('excerpt', read.code, source.channel);
-    return text ? quoteExcerpt(text) : undefined;
+    return text || undefined;
   }
 
   /**
@@ -551,32 +540,32 @@ export function createPicker({
     question,
   }: Extract<PickerSubmission, { ok: true }>): Promise<void> {
     const name = await displayName(source.user);
-    const by = plainMarkdown(name.replace(/\s+/gu, ' ').slice(0, 100));
+    const by = name.replace(/\s+/gu, ' ').slice(0, 100);
     let text: string;
+    let quote: string | undefined;
     if (question !== undefined) {
-      text = `Council convened by ${by}: ${plainMarkdown(question)}`;
+      text = `Council convened by ${by}: ${question}`;
     } else if (source.kind === 'shortcut') {
-      const excerpt = await selectedExcerpt(source);
+      quote = await selectedExcerpt(source);
       // Without the selected message there is no prompt, and pointing at
       // "the message above" could name a different reply in a busy thread.
-      if (!excerpt) {
+      if (!quote) {
         fail('excerpt', 'E_SLACK', source.channel);
         return tell(
           source,
           'The selected message could not be read. Open the shortcut again and type a question.',
         );
       }
-      text = `Council convened by ${by} on this message:\n${excerpt}`;
+      text = `Council convened by ${by} on this message:`;
     } else {
       text = `Council convened by ${by}.`;
     }
-    // postNotice bounds the post to the markdown_text limit.
     const posted = await slack.postNotice(
       source.kind === 'command'
         ? { channel: source.channel }
         : { channel: source.channel, threadTs: source.threadTs },
       text,
-      { preset, roster },
+      { preset, roster, ...(quote === undefined ? {} : { quote }) },
     );
     if (!posted.ok) {
       fail('post', posted.code, source.channel);

@@ -8,6 +8,7 @@ import type {
 import { failure, success, type Result } from '@council/core/result.js';
 import { compareSlackTimestamps } from '@council/core/slack-timestamp.js';
 import type { Author, Member, Message, Scope } from '@council/core/types.js';
+import type { types } from '@slack/bolt';
 import { z } from 'zod';
 
 import { callSlack, type SlackApi, type SlackCall } from './api.js';
@@ -15,7 +16,6 @@ import {
   mentionedUserIds,
   linkPeopleMentions,
   neutraliseBroadcasts,
-  plainMarkdown,
   renderSlackText,
   truncateMarkdown,
 } from './text.js';
@@ -154,27 +154,137 @@ function target(scope: Scope): Record<string, string> {
     : { channel: scope.channel, thread_ts: scope.threadTs };
 }
 
-function panelLabel(text: string): string {
-  return plainMarkdown(text.trim().replace(/\s+/gu, ' '));
+function escapeSlackText(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
-function panelLine({
-  id,
-  name,
-  model,
-  effort,
-  persona,
-}: SlackPortOptions['members'][number]): string {
-  return [
-    `- \`@${id}\``,
-    panelLabel(name),
-    // Inline code shows a model id as written; escaping would add backslashes.
-    `\`${model.trim().replace(/\s+/gu, ' ').replaceAll('`', '')}\``,
-    ...(effort === undefined || effort.trim() === ''
-      ? []
-      : [`${panelLabel(effort)} effort`]),
-    ...(persona === undefined ? [] : [panelLabel(persona.title)]),
-  ].join(' · ');
+const literalText = (text: string, code = false): types.RichTextText => ({
+  type: 'text',
+  text,
+  ...(code ? { style: { code: true } } : {}),
+});
+
+const richSection = (
+  ...elements: types.RichTextText[]
+): types.RichTextSection => ({
+  type: 'rich_text_section',
+  elements,
+});
+
+const rawCell = (text: string): types.RawTextElement => ({
+  type: 'raw_text',
+  text,
+});
+
+type PanelMember = SlackPortOptions['members'][number];
+const PANEL_COLUMNS = [
+  {
+    title: 'Handle',
+    code: true,
+    value: (member: PanelMember) => `@${member.id}`,
+  },
+  { title: 'Name', value: (member: PanelMember) => member.name },
+  { title: 'Model', code: true, value: (member: PanelMember) => member.model },
+  {
+    title: 'Effort',
+    optional: true,
+    value: (member: PanelMember) => member.effort ?? '',
+  },
+  {
+    title: 'Persona',
+    optional: true,
+    value: (member: PanelMember) => member.persona?.title ?? '',
+  },
+];
+
+const TABLE_ROW_LIMIT = 100;
+const TABLE_TEXT_LIMIT = 10_000;
+const FALLBACK_TEXT_LIMIT = 40_000;
+
+const panelOmission = (count: number) => `… (${count} panel members omitted)`;
+
+function panelMessage(
+  notice: string,
+  panel: { readonly preset?: string; readonly quote?: string },
+  members: readonly PanelMember[],
+) {
+  // The picker accepts questions up to 3,000 units, plus the notice prefix.
+  const intro = truncateMarkdown(notice, 3_200);
+  const quote = panel.quote ? truncateMarkdown(panel.quote, 1_000) : undefined;
+  const label =
+    panel.preset === undefined
+      ? 'custom panel'
+      : `Preset: ${truncateMarkdown(panel.preset.trim().replace(/\s+/gu, ' '), 200)}`;
+  const fallbackIntro = escapeSlackText(
+    [intro, ...(quote ? [quote.replace(/^/gmu, '> ')] : []), '', label].join(
+      '\n',
+    ),
+  );
+  const columns = PANEL_COLUMNS.filter(
+    ({ optional, value }) =>
+      !optional || members.some((member) => value(member).trim() !== ''),
+  );
+  const headers = columns.map(({ title }) => title);
+  const table: types.TableBlock = {
+    type: 'table',
+    column_settings: columns.map(() => ({ is_wrapped: true })),
+    rows: [headers.map(rawCell)],
+  };
+  const headerLine = headers.join(' · ');
+  const fallback = [headerLine];
+  let tableChars = headers.join('').length;
+  let fallbackChars =
+    fallbackIntro.length +
+    2 +
+    headerLine.length +
+    panelOmission(members.length).length +
+    1;
+
+  for (const member of members) {
+    if (table.rows.length === TABLE_ROW_LIMIT) break;
+    const cells = columns.map(({ code, value }) => {
+      const field = value(member);
+      return { code, text: field.trim() === '' ? '—' : field };
+    });
+    const chars = cells.reduce((sum, { text }) => sum + text.length, 0);
+    if (tableChars + chars > TABLE_TEXT_LIMIT) continue;
+    const line = escapeSlackText(cells.map(({ text }) => text).join(' · '));
+    if (fallbackChars + line.length + 1 > FALLBACK_TEXT_LIMIT) continue;
+    tableChars += chars;
+    fallbackChars += line.length + 1;
+    table.rows.push(
+      cells.map(({ code, text }) =>
+        code
+          ? {
+              type: 'rich_text',
+              elements: [richSection(literalText(text, true))],
+            }
+          : rawCell(text),
+      ),
+    );
+    fallback.push(line);
+  }
+  const omitted = members.length - (table.rows.length - 1);
+  const summary = omitted > 0 ? `\n${panelOmission(omitted)}` : '';
+  const lead: types.RichTextBlock = {
+    type: 'rich_text',
+    elements: [
+      richSection(literalText(intro)),
+      ...(quote
+        ? [{ type: 'rich_text_quote' as const, elements: [literalText(quote)] }]
+        : []),
+      richSection(literalText(`\n${label}${summary}`)),
+    ],
+  };
+  return {
+    text: `${fallbackIntro}${summary}\n\n${fallback.join('\n')}`,
+    mrkdwn: false,
+    parse: 'none',
+    blocks: [lead, table],
+  };
 }
 
 function approvalMessage(
@@ -475,25 +585,18 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
     },
 
     async postNotice(scope, text, panel) {
-      const lines = [text];
-      if (panel) {
-        const { preset, roster } = panel;
-        lines.push(
-          '',
-          preset === undefined
-            ? 'custom panel'
-            : `Preset: ${panelLabel(preset)}`,
-        );
-        for (const id of roster) {
-          const member = membersById.get(id);
-          if (!member)
-            return failure('E_UNKNOWN_MEMBER', `Unknown council member: ${id}`);
-          lines.push(panelLine(member));
-        }
+      const members: PanelMember[] = [];
+      for (const id of panel?.roster ?? []) {
+        const member = membersById.get(id);
+        if (!member)
+          return failure('E_UNKNOWN_MEMBER', `Unknown council member: ${id}`);
+        members.push(member);
       }
       const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),
-        markdown_text: truncateMarkdown(neutraliseBroadcasts(lines.join('\n'))),
+        ...(panel
+          ? panelMessage(text, panel, members)
+          : { markdown_text: truncateMarkdown(neutraliseBroadcasts(text)) }),
         unfurl_links: false,
         unfurl_media: false,
         metadata: {

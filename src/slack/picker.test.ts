@@ -303,15 +303,15 @@ describe('createPicker', () => {
       service.handleHumanMessage.mock.results[0]?.value,
     ).resolves.toBe('accepted');
     expect(fetch).not.toHaveBeenCalled();
-    const text = slack.postNotice.mock.calls[0]?.[1] ?? '';
-    expect(text).toMatch(
-      /^Council convened by U1 on this message:\n> Ship \\\*it\\\* to @⁠U9 @⁠here\n> \\> quotedx+\n> … \(truncated\)$/u,
+    expect(slack.postNotice).toHaveBeenCalledWith(
+      { channel: 'C1', threadTs: '1.000001' },
+      'Council convened by U1 on this message:',
+      {
+        preset: 'review',
+        roster: ['guide', 'critic'],
+        quote: `Ship *it* to <@U9> @here\n> quoted${'x'.repeat(2_000)}`,
+      },
     );
-    expect(text.length).toBeLessThan(1_200);
-    expect(slack.postNotice.mock.calls[0]?.[2]).toEqual({
-      preset: 'review',
-      roster: ['guide', 'critic'],
-    });
   });
 
   it('convenes the whole channel from a top-level post', async () => {

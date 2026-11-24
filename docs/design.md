@@ -400,9 +400,12 @@ tested without Slack.
     after the council is saved. The human message starts the round. If Slack
     rejects the convening notice, the app logs the failure and the round proceeds.
   - The convening notice names the preset or says "custom panel" when members
-    were chosen by hand. It lists each handle, display name, model, and any
-    configured effort and persona title. The app ignores bot-authored notice
-    events, so listing a handle never grants the floor.
+    were chosen by hand. Its table shows the handle, display name, model, and
+    any configured effort and persona title. The plain-text fallback carries
+    the same rows for notifications and history. The notice shows up to 99
+    members and reports any rows omitted to meet the table or fallback limits.
+    The app ignores bot-authored notice events, so listing a handle never grants
+    the floor.
   - An existing council in the scope (the thread, or the channel for "This
     whole channel") is a modal error. Later failures, including
     `not_in_channel`, reach the user through the response URL and are logged

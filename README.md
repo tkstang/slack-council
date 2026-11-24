@@ -139,11 +139,12 @@ to start one:
 
 The modal offers a preset (the default preset is preselected) and a member
 list. Choosing members overrides the preset. The convening notice names the
-preset or says "custom panel". It lists each member's handle, display name,
-model, and any configured effort and persona title. A thread or channel that
-already has a council is refused. A form left open while the configured presets or
-members changed is refused; reopen it. Failures after the modal closes, such
-as the app not being in the channel, are reported to you ephemerally.
+preset or says "custom panel". Its Slack table shows each member's handle,
+display name, model, and any configured effort and persona title. A thread or
+channel that already has a council is refused. A form left open while the
+configured presets or members changed is refused; reopen it. Failures after
+the modal closes, such as the app not being in the channel, are reported to
+you ephemerally.
 
 A **channel council** lives in the channel: members read recent top-level
 messages and post top-level, and top-level `@<handle>`, `@council stop` and

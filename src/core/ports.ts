@@ -35,11 +35,15 @@ export interface SlackPort {
       readonly mentionPeople?: boolean;
     },
   ): Promise<Result<{ readonly ts: string; readonly text?: string }>>;
-  /** Post an app notice with an optional panel, truncated to one message, and return its ts. */
+  /** Post Markdown, or literal text with a convening panel, and return its ts. */
   postNotice(
     scope: Scope,
     text: string,
-    panel?: { readonly preset?: string; readonly roster: readonly string[] },
+    panel?: {
+      readonly preset?: string;
+      readonly roster: readonly string[];
+      readonly quote?: string;
+    },
   ): Promise<Result<{ readonly ts: string }>>;
   setReaction(
     channel: string,
