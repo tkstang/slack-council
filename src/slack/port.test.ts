@@ -469,7 +469,7 @@ it.each([
     const scope = { channel: 'C1', threadTs: '1.000000' };
     const request = {
       id: 'opaque',
-      memberName: 'Ada',
+      memberName: 'Ada *Guide* <@U9> https://example.invalid',
       tool,
       preview: `{"path":"<!here>"}${tool === 'handoff' ? '📄'.repeat(3_500) : ''}`,
     };
@@ -491,6 +491,21 @@ it.each([
       request.preview,
     );
     const literalSections = sections.map(({ text }) => plain(text.text));
+    const heading = (verb: string) => ({
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'text', text: `${request.memberName} ${verb} ` },
+            { type: 'text', text: tool, style: { code: true } },
+            { type: 'text', text: '.' },
+          ],
+        },
+      ],
+    });
+    const preview = request.preview.replace('<!here>', '&lt;!here&gt;');
+    const plainName = 'Ada *Guide* &lt;@U9&gt; https://example.invalid';
     expect(calls).toMatchObject([
       [
         'chat.postMessage',
@@ -498,9 +513,9 @@ it.each([
           channel: 'C1',
           thread_ts: '1.000000',
           mrkdwn: false,
-          text: expect.stringContaining('&lt;!here&gt;'),
+          text: `${plainName} requests approval for ${tool}.\n${preview}`,
           blocks: [
-            plain(expect.stringContaining(tool)),
+            heading('requests approval for'),
             ...literalSections,
             {
               type: 'actions',
@@ -522,9 +537,10 @@ it.each([
         {
           channel: 'C1',
           ts: '2.000000',
-          text: expect.stringContaining(`${footer} by Thomas &lt;S&gt;.`),
+          mrkdwn: false,
+          text: `${plainName} requested ${tool}.\n${preview}\n${footer} by Thomas &lt;S&gt;.`,
           blocks: [
-            plain(expect.stringContaining(tool)),
+            heading('requested'),
             ...literalSections,
             plain(`${footer} by Thomas <S>.`),
           ],

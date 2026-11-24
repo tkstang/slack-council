@@ -215,6 +215,7 @@ export function buildTurnContext(input: PromptInput) {
     "Writing a colleague's plain @handle gives them the floor and obliges them to answer. Do it only when you need their answer. To refer or reply to a colleague without handing over the floor, use their name with no @.",
     'Posts tagged [new] appeared since you last spoke. Raise any disagreement with them before answering the current request.',
     'Transcript numbers such as [#3] are internal and mean nothing in Slack. Never write them in replies; refer to a post by its author and what it said.',
+    'Put tool names, commands, file paths, identifiers and other code literals in backticks, and use fenced code blocks for multi-line code.',
     ...(input.member.tools.includes(HANDOFF_GRANT)
       ? [
           'Treat the handoff tool’s changes_requested field as the user’s instruction to revise the handoff and ask again.',

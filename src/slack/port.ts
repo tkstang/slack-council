@@ -299,10 +299,10 @@ function approvalMessage(
   const previews = handoff
     ? (request.preview.match(/[\s\S]{1,1500}/gu) ?? [])
     : [request.preview];
-  const heading =
+  const lead =
     outcome === undefined
-      ? `${member} requests approval for ${request.tool}.`
-      : `${member} requested ${request.tool}.`;
+      ? `${member} requests approval for `
+      : `${member} requested `;
   const footer: string[] = [];
   if (outcome) {
     const state =
@@ -315,17 +315,26 @@ function approvalMessage(
         : `${state}.`,
     );
   }
-  const text = [heading, request.preview, ...footer].join('\n');
+  const text = [`${lead}${request.tool}.`, request.preview, ...footer].join(
+    '\n',
+  );
 
   return {
-    text: text
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;'),
+    text: escapeSlackText(text),
     mrkdwn: false,
     // Each section holds at most 3,000 characters, so the arguments get their own.
     blocks: [
-      ...[heading, ...previews, ...footer].map((part) => ({
+      {
+        type: 'rich_text',
+        elements: [
+          richSection(
+            literalText(lead),
+            literalText(request.tool, true),
+            literalText('.'),
+          ),
+        ],
+      },
+      ...[...previews, ...footer].map((part) => ({
         type: 'section',
         text: { type: 'plain_text', text: part.slice(0, 3_000), emoji: false },
       })),

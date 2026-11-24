@@ -313,7 +313,7 @@ it('reports a coded turn failure, keeps other turns running and never reruns the
   h.call(0).finish(failure('E_TURN_FAILED', 'Provider information'));
   h.call(1).finish(success('Useful answer'));
   await h.drain();
-  expect(h.notices).toEqual(['Guide’s turn failed (E_TURN_FAILED).']);
+  expect(h.notices).toEqual(['Guide’s turn failed (`E_TURN_FAILED`).']);
   expect(h.writes).toEqual(['Useful answer']);
   expect(h.calls).toHaveLength(2);
 });
@@ -353,7 +353,7 @@ it('settles a hung Slack post with a notice and ignores its late completion', as
   expect([...h.timers.values()]).toEqual([500]);
   h.timers.keys().next().value?.();
   await h.drain();
-  expect(h.notices).toEqual(['Guide’s turn failed (E_SLACK).']);
+  expect(h.notices).toEqual(['Guide’s turn failed (`E_SLACK`).']);
   expect(h.reactions.at(-1)).toEqual(['C1', '1.000', false]);
   expect(h.listens).toEqual([]);
 
