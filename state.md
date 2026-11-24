@@ -9,6 +9,7 @@ oat_generated: false
 # Project State: mvp-followups
 
 **Started:** 2026-11-23
+**Closed:** 2026-11-24 (all lanes merged; see the end-of-run synthesis in `project-log.md`)
 
 Freestyle project: OAT keeps this project's structure and records and runs no
 lifecycle workflow, so this file carries no phase, gates or checkpoints.

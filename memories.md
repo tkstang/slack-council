@@ -14,13 +14,6 @@ One bullet per item, each with its date and source (a dispatch ID such as
 
 <!-- How the user wants things done: what they like, dislike or always ask for. -->
 
-- This project doubles as a dogfooding run. Log friction with OAT setup, the
-  freestyle workflow and the foundations scaffold in the gitignored
-  `.council/dogfood-feedback.md` as it happens. Foundations fixes may be
-  dispatched at once. Friction from user-level agent instructions belongs to
-  the machine-config repository, where they are authored. OAT and freestyle feedback is discussed with the user
-  before any issue is filed. Review the whole file with the user at wrap-up,
-  then prune this bullet. (2026-11-23, user)
 - Keep complexity scoped and tests proportionate: "We don't need to create
   forests of tests. We should have tests where they're useful, and they should
   be appropriately scoped." Extend an existing test before adding one. Put

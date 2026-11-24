@@ -8,28 +8,7 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ## Active
 
-### l07
-
-- state: blocked
-- dispatch: d01 reported
-- next: run the live pass on 1bb714b, record it, merge PR 11
-- owner: orchestrator
-- waiting_on: owner
-- blocker: live Slack pass needs the dev machine's screen unlocked
-- task: node:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b
-- thread: thread:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b
-- worktree: /Users/tstang/.t3/worktrees/slack-council/t3-85b9feeb-7dc474124be6c698
-- placement: own-worktree
-- branch: feat/readable-slack-formatting
-- base: 9afe973
-- head: 1bb714baf8a205901d3ac82accb2d05c030a2698
-- review_round: 1
-- report: lane-reports/l07-d01.md
-- wake: delegate completion
-- provider: codex
-- model: gpt-6.2-sol
-- effort: high
-- last_observed: 2026-11-24T16:19:53Z
+_None._
 
 ## Closed
 
@@ -39,6 +18,7 @@ update ID. Filed lane reports are in `lane-reports/`.
 - l04 · merged · 2026-11-24T01:33:01Z · branch feat/prompt-cache · head 252c5980fbc484dab90a4e8aa679e5db8f8cce52 · report lane-reports/l04-d01.md
 - l06 · merged · 2026-11-24T01:35:56Z · branch feat/preset-mention · head 7d7e28c59ee1d8b155c75e86eafcdaa4bd5e5850 · report lane-reports/l06-d01.md
 - l05 · merged · 2026-11-24T03:17:44Z · branch feat/handoff · head f975309e876f4c2082ed87e38e6af642c8d0d6a6 · report lane-reports/l05-d01.md
+- l07 · merged · 2026-11-24T16:46:49Z · branch feat/readable-slack-formatting · head 21f671760543c6c924918680ef236bd6189572f9 · report lane-reports/l07-d01.md
 
 ## History
 
@@ -82,3 +62,4 @@ update ID. Filed lane reports are in `lane-reports/`.
 - u038 · 2026-11-24T16:00:12Z · l07 d01 · created; d01 opened; next: Wait for the l07-d01 report, file it, open the PR, Opus review, then the live pass for the notice and approval card; owner: orchestrator; task: node:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b; thread: thread:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b; branch: feat/readable-slack-formatting; base: 9afe973; wake: delegate completion; provider: codex; model: gpt-6.2-sol; effort: high; state running
 - u039 · 2026-11-24T16:11:19Z · l07 d01 · d01 reported (lane-reports/l07-d01.md); next: push branch, open PR, review, live pass; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-85b9feeb-7dc474124be6c698; head: b1ff4d2f36f53ef3bfe0910a343c60765e9d9830; placement: own-worktree; state running → turn-finished
 - u040 · 2026-11-24T16:19:53Z · l07 d01 · next: run the live pass on 1bb714b, record it, merge PR 11; head: 1bb714baf8a205901d3ac82accb2d05c030a2698; review_round: 1; blocker: live Slack pass needs the dev machine's screen unlocked; waiting_on: owner; state turn-finished → blocked
+- u041 · 2026-11-24T16:46:49Z · l07 d01 · next cleared; head: 21f671760543c6c924918680ef236bd6189572f9; blocker cleared; waiting_on cleared; state blocked → merged; closed

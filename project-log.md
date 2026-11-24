@@ -79,6 +79,15 @@ l05-d01 delivered the single-approval handoff tool on feat/handoff (always asks;
 
 PR 8 (handoff) Opus review found no blocking issues and judged the approval boundary sound; the orchestrator fixed two should-fix findings and two nits in 1c7517c (target shown before the note, trailing-slash folder accepted, undeclared handoff servers fail at config load, README wording) and the confirmation round was clean. All five phase PRs are now reviewed; none has had its live Slack pass, which waits on the development machine's screen being unlocked. key:log-944a18df85dc
 
-## End-of-run synthesis (pending — do not skip at project completion)
+### 2026-11-24 · structural · orchestrator · PR 11
 
-Summarize the overall verdict, adopted adjustments, and entries graduated to the repo ledger or backlog. Roll up durable observations into tracked surfaces before archiving this project log.
+l07-d01 delivered the convening panel as a native Slack table and tool names in inline code on feat/readable-slack-formatting. The optional readable multi-line approval preview was left out: Slack does not document whether a preformatted block shows leading and trailing spaces. Opus review found no blockers; the orchestrator fixed five nits (rows left off the end instead of skipped, whitespace collapsed in cells, omission line pluralised, fallback accounting replaced by one well-formed cap) and the confirmation round was clean. Live pass on 1bb714b passed rows 7, 9, 10, 20 and 24, including a question and a quote with broadcast words, angle brackets, an ampersand and a URL shown as typed. PR 11 squash-merged as 2a6fba2. key:log-9afe5a43f2c0
+
+## End-of-run synthesis
+
+Closed 2026-11-24 with no retro, at the owner's direction.
+
+- **Verdict:** the project met its brief. The follow-up features merged as PRs 3, 4, 6, 7, 8 and 9, the records as PRs 2, 5 and 10, and a last lane (l07, PR 11) shipped the panel table and inline-code tool names. The shape called for an independent Opus review with one confirmation round on every PR, and a live Slack pass for changes to the Slack adapter, turn runner, tools or approvals; the passes are logged in `docs/live-checks.md`.
+- **Adopted adjustments:** lane notes and reports are written outside the repository, because it does not ignore `.oat/analysis`. A live pass is planned around the dev machine's screen being unlocked. The orchestrator branch moved to `main` once the working branch had merged.
+- **Graduated:** repository decisions are in `.oat/repo/reference/decisions/` and open follow-ups are in the repository backlog. Friction with OAT and the freestyle workflow went to the OAT maintainer's own thread rather than this log. One addition from the close: OAT has no command that closes a freestyle project, so closing meant this synthesis, a state note and clearing the active project by hand.
+- **Not done:** rendering multi-line approval arguments with real line breaks. Slack does not document whether a preformatted block shows leading and trailing spaces, so the card keeps the quoted single-line form that shows the exact value.
