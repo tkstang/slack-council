@@ -139,11 +139,12 @@ to start one:
 
 The modal offers a preset (the default preset is preselected) and a member
 list. Choosing members overrides the preset. The convening notice names the
-preset or says "custom panel". It lists each member's handle, display name,
-model, and any configured effort and persona title. A thread or channel that
-already has a council is refused. A form left open while the configured presets or
-members changed is refused; reopen it. Failures after the modal closes, such
-as the app not being in the channel, are reported to you ephemerally.
+preset or says "custom panel". Its Slack table shows each member's handle,
+display name, model, and any configured effort and persona title. A thread or
+channel that already has a council is refused. A form left open while the
+configured presets or members changed is refused; reopen it. Failures after
+the modal closes, such as the app not being in the channel, are reported to
+you ephemerally.
 
 A **channel council** lives in the channel: members read recent top-level
 messages and post top-level, and top-level `@<handle>`, `@council stop` and
@@ -262,8 +263,11 @@ to `auto` and MCP tools default to `ask`. Approval rules apply only to
 tools already granted to the member.
 
 An `ask` call posts the member, tool and the full arguments in the council
-conversation. Each argument is a `name: value` line; a string is shown without quotes only when it is one plain line that is not itself JSON, and invisible characters are escaped. Arguments too long to show in full are refused, never cut. Any user in `slack.allowedUsers` can click
-**Approve** or **Deny**. Each request can be decided once. A denial, expiry
+conversation. The heading shows the tool name in inline code. Each argument
+is a `name: value` line. The card shows a string without quotes only when it
+is one plain line that is not itself JSON, and escapes invisible characters.
+The app refuses arguments too long to show in full. Any user in
+`slack.allowedUsers` can click **Approve** or **Deny**. Each request can be decided once. A denial, expiry
 or cancellation returns a tool error. Two denials or expiries suppress
 further requests during that turn. Tool results over 64 KiB are refused. `council.approvalTimeoutMs` defaults to 300,000 ms.
 The turn timer pauses while waiting for approval. `stop` and `end` cancel

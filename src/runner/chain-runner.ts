@@ -593,17 +593,18 @@ export function createChainRunner(
   function notice(
     effect: Extract<EngineEffect, { type: 'turn-notice' }>,
   ): string {
-    const member = (byId.get(effect.memberId)?.name ?? effect.memberId).replace(
-      /\s+/gu,
-      ' ',
-    );
+    const member =
+      byId
+        .get(effect.memberId)
+        ?.name.replace(/\s+/gu, ' ')
+        .replace(/[\\`]/gu, '\\$&') ?? `\`${effect.memberId}\``;
     switch (effect.code) {
       case 'E_TURN_TIMEOUT':
         return `${member}’s turn timed out.`;
       case 'E_TURN_ABORTED':
         return `${member}’s turn was cancelled.`;
       default:
-        return `${member}’s turn failed (${effect.code}).`;
+        return `${member}’s turn failed (\`${effect.code}\`).`;
     }
   }
 

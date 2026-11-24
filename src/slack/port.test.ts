@@ -72,7 +72,7 @@ describe('fetchMessages', () => {
                   text: '<@UAPP> question for <@U1>',
                 },
                 {
-                  ts: '10.000002',
+                  ts: '10.0000019',
                   subtype: 'channel_join',
                   user: 'U2',
                   text: 'joined',
@@ -85,6 +85,13 @@ describe('fetchMessages', () => {
               // The in-range reply sits on page two, so dropping that page fails.
               messages: [
                 { ts: '10.000004', user: 'U1', text: 'too late' },
+                {
+                  ts: '10.000002',
+                  bot_id: 'BAPP',
+                  metadata: { event_type: NOTICE_EVENT },
+                  text: 'Council convened.\n@ada · Ada &lt;@U9&gt; · model',
+                  blocks: [{ type: 'table', rows: [] }],
+                },
                 {
                   ts: '10.000003',
                   bot_id: 'BAPP',
@@ -113,6 +120,11 @@ describe('fetchMessages', () => {
           ts: '10.000001',
           author: { kind: 'human', userId: 'U1', displayName: 'Jane' },
           text: '@council question for @Jane',
+        },
+        {
+          ts: '10.000002',
+          author: { kind: 'notice' },
+          text: 'Council convened.\n@ada · Ada <@U9> · model',
         },
         {
           ts: '10.000003',
@@ -227,61 +239,193 @@ describe('writes', () => {
   });
 });
 
-it.each([
-  [
-    { preset: 'review', roster: ['guide', 'critic'] },
-    [
-      'Preset: review',
-      '- `@guide` · Guide\\_1 · `claude_haiku-5.5`',
-      '- `@critic` · Critic · `gpt-6-luna` · medium effort · Sceptical reviewer',
-    ],
+const codeCell = (text: string) => ({
+  type: 'rich_text',
+  elements: [
+    {
+      type: 'rich_text_section',
+      elements: [{ type: 'text', text, style: { code: true } }],
+    },
   ],
-  [
-    { roster: ['critic'] },
-    [
-      'custom panel',
-      '- `@critic` · Critic · `gpt-6-luna` · medium effort · Sceptical reviewer',
-    ],
-  ],
-] as const)('posts a convening notice with panel %j', async (panel, lines) => {
-  const api = { apiCall: vi.fn(async () => ({ ok: true, ts: '2.0' })) };
-  const slack = createSlackPort({
-    api,
-    writeApi: api,
-    botId: 'BAPP',
-    botUserId: 'UAPP',
-    members: [
-      { id: 'guide', name: 'Guide_1', model: 'claude_haiku-5.5', effort: ' ' },
-      {
-        id: 'critic',
-        name: 'Critic',
-        model: 'gpt-6-luna',
-        effort: 'medium',
-        persona: {
-          title: 'Sceptical reviewer',
-          instructions: 'Check assumptions.',
-        },
-      },
-    ],
-    intervalMs: 0,
-  });
-  await slack.postNotice(
-    { channel: 'C1' },
-    'Council convened by Sam: What should we review?',
-    panel,
-  );
-  expect(api.apiCall).toHaveBeenCalledWith(
-    'chat.postMessage',
-    expect.objectContaining({
-      markdown_text: [
-        'Council convened by Sam: What should we review?',
-        '',
-        ...lines,
-      ].join('\n'),
-      metadata: { event_type: NOTICE_EVENT, event_payload: { kind: 'notice' } },
-    }),
-  );
 });
+const rawCell = (text: string) => ({ type: 'raw_text', text });
+
+it.each([
+  {
+    panel: {
+      preset: 'review',
+      roster: ['guide', 'critic'],
+      quote: 'Ship *it* to <!here>',
+    },
+    label: 'Preset: review',
+    rows: [
+      ['Handle', 'Name', 'Model', 'Effort', 'Persona'].map(rawCell),
+      [
+        codeCell('@guide'),
+        rawCell('Guide_1'),
+        codeCell('family:one` v2'),
+        rawCell('—'),
+        rawCell('—'),
+      ],
+      [
+        codeCell('@critic'),
+        rawCell('Critic <!here>'),
+        codeCell('gpt-6-luna'),
+        rawCell('*medium* @here'),
+        rawCell('Review <@U9>'),
+      ],
+    ],
+    fallback: [
+      '&gt; Ship *it* to &lt;!here&gt;',
+      '',
+      'Preset: review',
+      '',
+      'Handle · Name · Model · Effort · Persona',
+      '@guide · Guide_1 · family:one` v2 · — · —',
+      '@critic · Critic &lt;!here&gt; · gpt-6-luna · *medium* @here · Review &lt;@U9&gt;',
+    ],
+  },
+  {
+    panel: { roster: ['guide'] },
+    label: 'custom panel',
+    rows: [
+      ['Handle', 'Name', 'Model'].map(rawCell),
+      [codeCell('@guide'), rawCell('Guide_1'), codeCell('family:one` v2')],
+    ],
+    fallback: [
+      '',
+      'custom panel',
+      '',
+      'Handle · Name · Model',
+      '@guide · Guide_1 · family:one` v2',
+    ],
+  },
+])(
+  'posts a convening notice with $label',
+  async ({ panel, label, rows, fallback }) => {
+    const api = {
+      apiCall: vi.fn(
+        async (_method: string, _args?: Record<string, unknown>) => ({
+          ok: true,
+          ts: '2.0',
+        }),
+      ),
+    };
+    const slack = createSlackPort({
+      api,
+      writeApi: api,
+      botId: 'BAPP',
+      botUserId: 'UAPP',
+      members: [
+        { id: 'guide', name: 'Guide_1', model: 'family:one`  v2', effort: ' ' },
+        {
+          id: 'critic',
+          name: 'Critic <!here>',
+          model: 'gpt-6-luna',
+          effort: '*medium* @here',
+          persona: {
+            title: 'Review <@U9>',
+            instructions: 'Check assumptions.',
+          },
+        },
+      ],
+      intervalMs: 0,
+    });
+    const intro = 'Council convened by Sam.';
+    expect(
+      await slack.postNotice({ channel: 'C1' }, intro, panel),
+    ).toMatchObject({ ok: true });
+    expect(api.apiCall).toHaveBeenCalledWith(
+      'chat.postMessage',
+      expect.objectContaining({
+        text: [intro, ...fallback].join('\n'),
+        mrkdwn: false,
+        parse: 'none',
+        blocks: [
+          {
+            type: 'rich_text',
+            elements: [
+              {
+                type: 'rich_text_section',
+                elements: [{ type: 'text', text: intro }],
+              },
+              ...(panel.quote
+                ? [
+                    {
+                      type: 'rich_text_quote',
+                      elements: [{ type: 'text', text: panel.quote }],
+                    },
+                  ]
+                : []),
+              {
+                type: 'rich_text_section',
+                elements: [{ type: 'text', text: `\n${label}` }],
+              },
+            ],
+          },
+          expect.objectContaining({ type: 'table', rows }),
+        ],
+        metadata: {
+          event_type: NOTICE_EVENT,
+          event_payload: { kind: 'notice' },
+        },
+      }),
+    );
+    expect(api.apiCall.mock.calls[0]?.[1]).not.toHaveProperty('markdown_text');
+  },
+);
+
+it.each([
+  ['row limit', 'Member', 102, 99],
+  ['cell text limit', 'x'.repeat(2_000), 7, 4],
+] as const)(
+  'bounds a convening notice at the %s',
+  async (_limit, name, count, shown) => {
+    const api = {
+      apiCall: vi.fn(
+        async (_method: string, _args?: Record<string, unknown>) => ({
+          ok: true,
+          ts: '2.0',
+        }),
+      ),
+    };
+    const members = Array.from({ length: count }, (_, index) => ({
+      id: `m${index}`,
+      name,
+      model: 'model',
+    }));
+    const slack = createSlackPort({
+      api,
+      writeApi: api,
+      botId: 'BAPP',
+      botUserId: 'UAPP',
+      members,
+      intervalMs: 0,
+    });
+    const scope = { channel: 'C1' };
+    const roster = members.map(({ id }) => id);
+    const quote = 'q'.repeat(1_100);
+    expect(
+      await slack.postNotice(scope, 'Council convened.', { roster, quote }),
+    ).toMatchObject({ ok: true });
+    const post = api.apiCall.mock.calls[0]?.[1];
+    const blocks = post?.['blocks'] as { rows?: unknown[][] }[];
+    const fallback = String(post?.['text']);
+    expect(blocks[1]?.rows).toHaveLength(shown + 1);
+    expect(fallback.match(/^@m/gmu)).toHaveLength(shown);
+    const omitted = `… (${count - shown} panel members omitted)`;
+    expect(fallback).toContain(omitted);
+    expect(JSON.stringify(blocks[0])).toContain(omitted);
+    expect(fallback).toContain('&gt; … (truncated)');
+    expect(fallback).not.toContain(quote);
+    expect(
+      await slack.postNotice(scope, 'Council convened.', {
+        roster: [...roster, 'missing'],
+      }),
+    ).toMatchObject({ ok: false, code: 'E_UNKNOWN_MEMBER' });
+    expect(api.apiCall).toHaveBeenCalledTimes(1);
+  },
+);
 
 // The arguments sit alone in their own section so they are shown in full.
 const plain = (text: unknown) => ({
@@ -325,7 +469,7 @@ it.each([
     const scope = { channel: 'C1', threadTs: '1.000000' };
     const request = {
       id: 'opaque',
-      memberName: 'Ada',
+      memberName: 'Ada *Guide* <@U9> https://example.invalid',
       tool,
       preview: `{"path":"<!here>"}${tool === 'handoff' ? '📄'.repeat(3_500) : ''}`,
     };
@@ -347,6 +491,21 @@ it.each([
       request.preview,
     );
     const literalSections = sections.map(({ text }) => plain(text.text));
+    const heading = (verb: string) => ({
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_section',
+          elements: [
+            { type: 'text', text: `${request.memberName} ${verb} ` },
+            { type: 'text', text: tool, style: { code: true } },
+            { type: 'text', text: '.' },
+          ],
+        },
+      ],
+    });
+    const preview = request.preview.replace('<!here>', '&lt;!here&gt;');
+    const plainName = 'Ada *Guide* &lt;@U9&gt; https://example.invalid';
     expect(calls).toMatchObject([
       [
         'chat.postMessage',
@@ -354,9 +513,9 @@ it.each([
           channel: 'C1',
           thread_ts: '1.000000',
           mrkdwn: false,
-          text: expect.stringContaining('&lt;!here&gt;'),
+          text: `${plainName} requests approval for ${tool}.\n${preview}`,
           blocks: [
-            plain(expect.stringContaining(tool)),
+            heading('requests approval for'),
             ...literalSections,
             {
               type: 'actions',
@@ -378,9 +537,10 @@ it.each([
         {
           channel: 'C1',
           ts: '2.000000',
-          text: expect.stringContaining(`${footer} by Thomas &lt;S&gt;.`),
+          mrkdwn: false,
+          text: `${plainName} requested ${tool}.\n${preview}\n${footer} by Thomas &lt;S&gt;.`,
           blocks: [
-            plain(expect.stringContaining(tool)),
+            heading('requested'),
             ...literalSections,
             plain(`${footer} by Thomas <S>.`),
           ],
