@@ -403,7 +403,7 @@ tested without Slack.
     were chosen by hand. Its table shows the handle, display name, model, and
     any configured effort and persona title. The plain-text fallback carries
     the same rows for notifications and history. The notice shows up to 99
-    members and reports any rows omitted to meet the table or fallback limits.
+    members and reports how many it left off the end to meet the table limits.
     The app ignores bot-authored notice events, so listing a handle never grants
     the floor.
   - An existing council in the scope (the thread, or the channel for "This

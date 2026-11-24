@@ -263,7 +263,7 @@ it.each([
       [
         codeCell('@guide'),
         rawCell('Guide_1'),
-        codeCell('family:one`  v2'),
+        codeCell('family:one` v2'),
         rawCell('—'),
         rawCell('—'),
       ],
@@ -281,7 +281,7 @@ it.each([
       'Preset: review',
       '',
       'Handle · Name · Model · Effort · Persona',
-      '@guide · Guide_1 · family:one`  v2 · — · —',
+      '@guide · Guide_1 · family:one` v2 · — · —',
       '@critic · Critic &lt;!here&gt; · gpt-6-luna · *medium* @here · Review &lt;@U9&gt;',
     ],
   },
@@ -290,14 +290,14 @@ it.each([
     label: 'custom panel',
     rows: [
       ['Handle', 'Name', 'Model'].map(rawCell),
-      [codeCell('@guide'), rawCell('Guide_1'), codeCell('family:one`  v2')],
+      [codeCell('@guide'), rawCell('Guide_1'), codeCell('family:one` v2')],
     ],
     fallback: [
       '',
       'custom panel',
       '',
       'Handle · Name · Model',
-      '@guide · Guide_1 · family:one`  v2',
+      '@guide · Guide_1 · family:one` v2',
     ],
   },
 ])(
@@ -378,7 +378,6 @@ it.each([
 it.each([
   ['row limit', 'Member', 102, 99],
   ['cell text limit', 'x'.repeat(2_000), 7, 4],
-  ['fallback limit after escaping', '&'.repeat(2_000), 7, 3],
 ] as const)(
   'bounds a convening notice at the %s',
   async (_limit, name, count, shown) => {
@@ -413,9 +412,10 @@ it.each([
     const blocks = post?.['blocks'] as { rows?: unknown[][] }[];
     const fallback = String(post?.['text']);
     expect(blocks[1]?.rows).toHaveLength(shown + 1);
-    expect(fallback.length).toBeLessThanOrEqual(40_000);
     expect(fallback.match(/^@m/gmu)).toHaveLength(shown);
-    expect(fallback).toContain(`… (${count - shown} panel members omitted)`);
+    const omitted = `… (${count - shown} panel members omitted)`;
+    expect(fallback).toContain(omitted);
+    expect(JSON.stringify(blocks[0])).toContain(omitted);
     expect(fallback).toContain('&gt; … (truncated)');
     expect(fallback).not.toContain(quote);
     expect(

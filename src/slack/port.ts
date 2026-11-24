@@ -204,7 +204,8 @@ const TABLE_ROW_LIMIT = 100;
 const TABLE_TEXT_LIMIT = 10_000;
 const FALLBACK_TEXT_LIMIT = 40_000;
 
-const panelOmission = (count: number) => `… (${count} panel members omitted)`;
+const panelOmission = (count: number) =>
+  `… (${count} panel ${count === 1 ? 'member' : 'members'} omitted)`;
 
 function panelMessage(
   notice: string,
@@ -236,25 +237,18 @@ function panelMessage(
   const headerLine = headers.join(' · ');
   const fallback = [headerLine];
   let tableChars = headers.join('').length;
-  let fallbackChars =
-    fallbackIntro.length +
-    2 +
-    headerLine.length +
-    panelOmission(members.length).length +
-    1;
 
   for (const member of members) {
     if (table.rows.length === TABLE_ROW_LIMIT) break;
-    const cells = columns.map(({ code, value }) => {
-      const field = value(member);
-      return { code, text: field.trim() === '' ? '—' : field };
-    });
+    // One line per value, so a row stays one line in the fallback.
+    const cells = columns.map(({ code, value }) => ({
+      code,
+      text: value(member).trim().replace(/\s+/gu, ' ') || '—',
+    }));
     const chars = cells.reduce((sum, { text }) => sum + text.length, 0);
-    if (tableChars + chars > TABLE_TEXT_LIMIT) continue;
-    const line = escapeSlackText(cells.map(({ text }) => text).join(' · '));
-    if (fallbackChars + line.length + 1 > FALLBACK_TEXT_LIMIT) continue;
+    // Stop at the first row that does not fit, so the omitted members are the last ones.
+    if (tableChars + chars > TABLE_TEXT_LIMIT) break;
     tableChars += chars;
-    fallbackChars += line.length + 1;
     table.rows.push(
       cells.map(({ code, text }) =>
         code
@@ -265,7 +259,7 @@ function panelMessage(
           : rawCell(text),
       ),
     );
-    fallback.push(line);
+    fallback.push(escapeSlackText(cells.map(({ text }) => text).join(' · ')));
   }
   const omitted = members.length - (table.rows.length - 1);
   const summary = omitted > 0 ? `\n${panelOmission(omitted)}` : '';
@@ -280,7 +274,11 @@ function panelMessage(
     ],
   };
   return {
-    text: `${fallbackIntro}${summary}\n\n${fallback.join('\n')}`,
+    // Escaping can lengthen the text; Slack rejects more than this.
+    text: `${fallbackIntro}${summary}\n\n${fallback.join('\n')}`.slice(
+      0,
+      FALLBACK_TEXT_LIMIT,
+    ),
     mrkdwn: false,
     parse: 'none',
     blocks: [lead, table],
