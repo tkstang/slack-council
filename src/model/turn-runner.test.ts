@@ -85,19 +85,19 @@ describe('createTurnRunner', () => {
     const model = textModel('PASS');
     const toolsFor = vi.fn(() => ({}));
     const runner = createTurnRunner({ models: () => model, toolsFor });
-    const { member, prompt, signal } = input();
-    await expect(runner.runListen({ member, prompt, signal })).resolves.toEqual(
-      {
-        ok: true,
-        value: 'PASS',
-      },
-    );
+    const { councilId, member, prompt, signal } = input();
+    await expect(
+      runner.runListen({ councilId, member, prompt, signal }),
+    ).resolves.toEqual({
+      ok: true,
+      value: 'PASS',
+    });
     expect(toolsFor).not.toHaveBeenCalled();
     expect(model.doGenerateCalls).toHaveLength(1);
     const call = model.doGenerateCalls[0];
     expect(call?.tools ?? []).toEqual([]);
     expect(call?.maxOutputTokens).toBe(600);
-    expect(call?.providerOptions).toEqual({
+    expect(call?.providerOptions).toMatchObject({
       openaiCompatible: { reasoningEffort: 'low' },
     });
   });
@@ -164,8 +164,9 @@ describe('createTurnRunner', () => {
     expect(single.doGenerateCalls[0]?.tools ?? []).toEqual([]);
   });
 
-  it('sends effort in the request body for a dotted provider name, once', async () => {
+  it('sends effort and council caching options through a dotted provider name', async () => {
     const bodies: unknown[] = [];
+    const onCacheRead = vi.fn();
     let status = 200;
     const provider = createOpenAICompatible({
       name: 'proxy.prod',
@@ -182,32 +183,106 @@ describe('createTurnRunner', () => {
                 finish_reason: 'stop',
               },
             ],
+            usage: {
+              prompt_tokens: 1200,
+              completion_tokens: 1,
+              prompt_tokens_details: {
+                cached_tokens: bodies.length === 3 ? 1024 : 0,
+              },
+            },
           }),
           { status, headers: { 'content-type': 'application/json' } },
         );
       },
     });
-    const runner = createTurnRunner({ models: (_, id) => provider(id) });
+    const runner = createTurnRunner({
+      models: (_, id) => provider(id),
+      onCacheRead,
+    });
+    const {
+      member: baseMember,
+      prompt: { system, user: prefix },
+    } = input();
+    const transcript = '\n<transcript>Later turn</transcript>';
+    const turn = input({
+      member: {
+        ...baseMember,
+        provider: 'proxy.prod',
+        model: 'gpt-6-luna',
+      },
+      prompt: {
+        system,
+        user: prefix + transcript,
+        cachePrefixLength: prefix.length,
+      },
+    });
+    const key =
+      'd0f631ca1ddba8db3bcfcb9e057cdc98d0379f1bee00e75a545147a27dadd982'; // SHA-256 of c1.
 
-    await expect(runner.runTurn(input())).resolves.toEqual({
+    await expect(runner.runTurn(turn)).resolves.toEqual({
       ok: true,
       value: 'ok',
     });
     expect(bodies[0]).toMatchObject({
-      model: 'model-a',
+      model: 'gpt-6-luna',
       reasoning_effort: 'high',
+      prompt_cache_key: key,
+      messages: [
+        { role: 'system', content: turn.prompt.system },
+        { role: 'user', content: turn.prompt.user },
+      ],
     });
 
-    const { effort: _effort, ...member } = input().member;
-    await runner.runTurn(input({ member }));
+    const { effort: _effort, ...member } = turn.member;
+    await runner.runTurn({ ...turn, member, councilId: 'c2' });
     expect(bodies[1]).not.toHaveProperty('reasoning_effort');
+    expect(bodies[1]).toHaveProperty(
+      'prompt_cache_key',
+      '9c0abe51c6e6655d81de2d044d4fb194931f058c0426c67c7285d8f5657ed64a',
+    );
+    expect(onCacheRead).not.toHaveBeenCalled();
+
+    await expect(
+      runner.runListen({
+        councilId: turn.councilId,
+        member: { ...member, model: 'claude-haiku-5-5' },
+        prompt: turn.prompt,
+        signal: turn.signal,
+      }),
+    ).resolves.toEqual({ ok: true, value: 'ok' });
+    expect(bodies[2]).toMatchObject({
+      model: 'claude-haiku-5-5',
+      reasoning_effort: 'low',
+      prompt_cache_key: key,
+      messages: [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prefix,
+              cache_control: { type: 'ephemeral' },
+            },
+            { type: 'text', text: transcript },
+          ],
+        },
+      ],
+    });
+    expect(onCacheRead).toHaveBeenCalledExactlyOnceWith({
+      cacheKey: key,
+      memberId: member.id,
+      model: 'claude-haiku-5-5',
+      turnId: undefined,
+      cachedInputTokens: 1024,
+    });
 
     status = 400;
-    await expect(runner.runTurn(input())).resolves.toMatchObject({
+    await expect(runner.runTurn(turn)).resolves.toMatchObject({
       ok: false,
       code: 'E_TURN_FAILED',
     });
-    expect(bodies).toHaveLength(3);
+    expect(bodies).toHaveLength(4);
   });
 
   it('honours the abort signal with the timeout or cancel code', async () => {
