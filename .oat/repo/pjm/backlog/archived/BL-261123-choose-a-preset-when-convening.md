@@ -1,7 +1,7 @@
 ---
 id: BL-261123-choose-a-preset-when-convening
 title: Choose a preset when convening by mention
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: S
@@ -9,7 +9,7 @@ labels:
   - panel
 assignee: null
 created: 2026-11-23T22:20:42.581Z
-updated: 2026-11-23T22:20:42.581Z
+updated: '2026-11-24T13:40:01Z'
 associated_issues: []
 external_plans: []
 ---
