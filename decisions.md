@@ -105,6 +105,15 @@ Source: the user asked for preset by mention and left the convention open; the
 `key:value` form is the orchestrator's choice (it mirrors Slack's search
 modifiers, and Slack's composer rewrites a leading `--`).
 
+### dr11 · The app moves to a launchd agent on the user's server once it is stable
+
+2026-11-23. The long-term home is a launchd agent on the user's server Mac,
+set up through their machine configuration repository like their other
+services. Until the app is stable, the orchestrator starts it from its session
+when it is needed (dr09). The move is not part of this project. The user's own
+council channel is named `councils`, because Slack reserves the app's name.
+Source: the user.
+
 ## Superseded
 
 _None yet._
