@@ -11,13 +11,14 @@ const httpUrl = z.url({ protocol: /^https?$/ }).refine((value) => {
 export const MEMBER_HANDLE = /^[a-z][a-z0-9-]*$/;
 export const FILES_GRANT = 'files';
 export const SLACK_HISTORY_GRANT = 'slack_history';
+export const HANDOFF_GRANT = 'handoff';
 export const MCP_TOOL_SEPARATOR = '__';
 const mcpServerName = /^[a-zA-Z0-9-]+(?:_[a-zA-Z0-9-]+)*$/u;
 const mcpServerKey = z
   .string()
   .regex(mcpServerName)
   .refine(
-    (name) => name !== FILES_GRANT && name !== SLACK_HISTORY_GRANT,
+    (name) => ![FILES_GRANT, SLACK_HISTORY_GRANT, HANDOFF_GRANT].includes(name),
     'MCP server name is reserved',
   );
 
@@ -99,6 +100,11 @@ const DEFAULT_DENY = [
   '**/*.keychain*',
 ];
 
+const McpToolRefSchema = z.strictObject({
+  server: mcpServerKey,
+  tool: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/u),
+});
+
 const ToolsSchema = z.strictObject({
   files: z
     .strictObject({
@@ -114,6 +120,22 @@ const ToolsSchema = z.strictObject({
     })
     .prefault({}),
   mcpServers: z.record(mcpServerKey, McpServerSchema).default({}),
+  handoff: z
+    .strictObject({
+      write: McpToolRefSchema,
+      launch: McpToolRefSchema,
+      folder: nonempty
+        .transform((folder) => folder.replace(/\/$/u, ''))
+        .refine(
+          (folder) =>
+            !/[\\:\p{Cc}]/u.test(folder) &&
+            folder
+              .split('/')
+              .every((part) => part && part !== '.' && part !== '..'),
+          'Use a vault-relative folder with no leading slash, empty or dot segments',
+        ),
+    })
+    .optional(),
   policy: z
     .array(
       z.strictObject({

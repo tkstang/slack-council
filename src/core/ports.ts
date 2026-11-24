@@ -58,6 +58,11 @@ export interface ApprovalRequest {
 
 export type ApprovalOutcome =
   | { readonly kind: 'approved' | 'denied'; readonly userId: string }
+  | {
+      readonly kind: 'changes_requested';
+      readonly userId: string;
+      readonly text: string;
+    }
   | { readonly kind: 'expired' | 'cancelled' };
 
 export interface ApprovalPort {

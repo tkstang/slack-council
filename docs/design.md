@@ -13,18 +13,18 @@ model with tool grants, an optional effort level and an optional persona.
 
 ## Decisions carried from the brainstorm (operator)
 
-| Topic                 | Decision                                                                                                                                                                                                              |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Purpose               | Deliberation. Members respond to each other; an @-mention always works.                                                                                                                                               |
-| Turn-taking           | `@council` opens a round. After that an @-mention from anyone, human or member, gives the floor. A hop budget stops loops.                                                                                            |
-| Unvoiced disagreement | Members can circle back on their next turn. At settle, members with unseen posts from others can raise a hand and keep a private note. Listen cadence is configurable (`settle` by default, `every-post` later).      |
-| Context               | Slack is the memory: recent messages verbatim, the member's own private notes, and a history tool for going further back.                                                                                             |
-| Identity              | One Slack app posting under each member's name and avatar (`chat:write.customize`). Members are addressed by plain-text handles such as `@ada`.                                                                       |
-| Roster                | Members are defined in config. A picker modal chooses the roster for `/council` and the message shortcut. A convening mention can name a preset or use the default.                                                   |
-| Tools                 | Read-only file tools are built in, with a path denylist. Everything else is an MCP server granted per member. Each tool is `auto` or `ask`; `ask` posts Approve and Deny buttons that only permitted users can press. |
-| Packaging             | A generic core. Nothing in code names a personal service. The operator's setup is private config.                                                                                                                     |
-| Scopes                | Both council threads and council channels.                                                                                                                                                                            |
-| Model calls           | Vercel AI SDK tool loop against one OpenAI-compatible endpoint.                                                                                                                                                       |
+| Topic                 | Decision                                                                                                                                                                                                         |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Purpose               | Deliberation. Members respond to each other; an @-mention always works.                                                                                                                                          |
+| Turn-taking           | `@council` opens a round. After that an @-mention from anyone, human or member, gives the floor. A hop budget stops loops.                                                                                       |
+| Unvoiced disagreement | Members can circle back on their next turn. At settle, members with unseen posts from others can raise a hand and keep a private note. Listen cadence is configurable (`settle` by default, `every-post` later). |
+| Context               | Slack is the memory: recent messages verbatim, the member's own private notes, and a history tool for going further back.                                                                                        |
+| Identity              | One Slack app posting under each member's name and avatar (`chat:write.customize`). Members are addressed by plain-text handles such as `@ada`.                                                                  |
+| Roster                | Members are defined in config. A picker modal chooses the roster for `/council` and the message shortcut. A convening mention can name a preset or use the default.                                              |
+| Tools                 | Per-member grants cover built-in tools and MCP tools. An approval card binds the permitted user's decision to the exact arguments. Handoff adds Change to that flow.                                             |
+| Packaging             | A generic core. Nothing in code names a personal service. The operator's setup is private config.                                                                                                                |
+| Scopes                | Both council threads and council channels.                                                                                                                                                                       |
+| Model calls           | Vercel AI SDK tool loop against one OpenAI-compatible endpoint.                                                                                                                                                  |
 
 ## Verified facts the design depends on
 
@@ -298,7 +298,7 @@ member, council cache key and, for public turns, the turn ID.
   through the thread or to the channel council's convening post, inclusive.
 - MCP servers use stdio or HTTP. Failed startup disables the server's tools.
   The app closes its clients on shutdown. Grants in `members.<handle>.tools`
-  include `files`, `slack_history`, `<server>` or `<server>__<tool>`.
+  include `files`, `slack_history`, `handoff`, `<server>` or `<server>__<tool>`.
 - Approval uses the first matching exact name or prefix ending in `*`.
   Built-in read tools default to `auto` and MCP tools default to `ask`. An
   `ask` call posts the member, tool and the full arguments with Approve and
@@ -311,6 +311,32 @@ member, council cache key and, for public turns, the turn ID.
   Denial and expiry return tool errors to the model. After two denials or
   expiries, further `ask` calls in the turn return a denial without posting.
   Deny globs match dot segments, and tool results over 64 KiB are refused.
+
+### Handoff
+
+Handoff binds two MCP tools from the startup catalogs using the server and
+tool names in `tools.handoff`. This binding grants no ordinary tool access.
+Direct tool grants let a member call those tools outside the composite flow.
+The composite always requires approval.
+
+The app builds a vault-relative filename from the configured folder, UTC date,
+slug of the note title and a UUID. The approval gate pins the generated path,
+Markdown body, machine, project and launch prompt with its note pointer.
+The card displays the full escaped preview across plain-text sections up to
+8,000 UTF-16 code units. Each ordinary request retains its 2,500-unit limit.
+
+Approve calls the writer with `{ path, content }`. The app requires
+`structuredContent.ok: true` and checks for an MCP error flag. After a
+confirmed write it checks the turn's cancellation signal, then calls the
+launcher with `{ machine, project, prompt }`. Results carry the confirmed
+note path and reported launch status, plus the operation ID and session key
+when available. A failed or uncertain call is not replayed.
+
+Reject, expiry and cancellation end the pending card and run neither call.
+Change opens a modal with the approval ID. Submitting it rechecks the pending
+ticket, deadline and allow-list. A valid submission closes the card and
+returns `changes_requested` to the member for revision. A new proposal needs a
+new approval within the turn's existing limits.
 
 ## Slack layer
 

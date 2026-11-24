@@ -13,7 +13,7 @@
       },
       "provider": "default",
       "model": "claude-haiku-5-5",
-      "tools": ["files", "slack_history", "notes"]
+      "tools": ["files", "slack_history", "notes", "handoff"]
     },
     "critic": {
       "name": "Critic",
@@ -69,7 +69,26 @@
         "env": {
           "COUNCIL_NOTES_FILE": "COUNCIL_NOTES_FILE"
         }
+      },
+      "vault": {
+        "transport": "http",
+        "url": "https://vault.example.com/mcp",
+        "headersEnv": {
+          "Authorization": "COUNCIL_VAULT_AUTH"
+        }
+      },
+      "sessions": {
+        "transport": "http",
+        "url": "https://sessions.example.com/mcp",
+        "headersEnv": {
+          "Authorization": "COUNCIL_SESSIONS_AUTH"
+        }
       }
+    },
+    "handoff": {
+      "folder": "Handoffs",
+      "write": { "server": "vault", "tool": "vault_write" },
+      "launch": { "server": "sessions", "tool": "launch" }
     },
     "policy": [
       {

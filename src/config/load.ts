@@ -8,6 +8,7 @@ import { MAX_GUIDANCE_CHARS } from '@council/core/types.js';
 import {
   ConfigSchema,
   FILES_GRANT,
+  HANDOFF_GRANT,
   MCP_TOOL_SEPARATOR,
   MEMBER_HANDLE,
   SLACK_HISTORY_GRANT,
@@ -71,6 +72,14 @@ export function parseConfig(input: string): Result<Config> {
     }
     for (const grant of member.tools) {
       if (grant === FILES_GRANT || grant === SLACK_HISTORY_GRANT) continue;
+      if (grant === HANDOFF_GRANT) {
+        if (!config.tools.handoff)
+          return failure(
+            'E_UNKNOWN_TOOL_GRANT',
+            `Member ${id} grants handoff without tools.handoff configured`,
+          );
+        continue;
+      }
       const separator = grant.indexOf(MCP_TOOL_SEPARATOR);
       const server = separator === -1 ? grant : grant.slice(0, separator);
       const tool =
@@ -87,6 +96,15 @@ export function parseConfig(input: string): Result<Config> {
         );
       }
     }
+  }
+  for (const { server } of config.tools.handoff
+    ? [config.tools.handoff.write, config.tools.handoff.launch]
+    : []) {
+    if (!Object.hasOwn(config.tools.mcpServers, server))
+      return failure(
+        'E_UNKNOWN_TOOL_GRANT',
+        `tools.handoff names an unknown MCP server: ${server}`,
+      );
   }
   for (const [preset, roster] of Object.entries(config.presets)) {
     for (const id of roster) {

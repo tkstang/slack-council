@@ -1,5 +1,6 @@
 import {
   FILES_GRANT,
+  HANDOFF_GRANT,
   SLACK_HISTORY_GRANT,
   type ToolsConfig,
 } from '@council/config/schema.js';
@@ -10,6 +11,7 @@ import type { ToolSet } from 'ai';
 
 import type { createApprovalGate } from './approval.js';
 import { createFileTools } from './files.js';
+import type { createHandoff } from './handoff.js';
 import type { createMcpManager } from './mcp.js';
 import { resolveToolPolicy } from './policy.js';
 import { createSlackHistoryTool } from './slack-history.js';
@@ -22,12 +24,14 @@ export function createMemberTools({
   members,
   mcp,
   approvals,
+  handoff,
 }: {
   readonly config: ToolsConfig;
   readonly slack: Pick<SlackPort, 'fetchMessages'>;
   readonly members: readonly Member[];
   readonly mcp: Pick<ReturnType<typeof createMcpManager>, 'toolsFor'>;
   readonly approvals: Pick<ReturnType<typeof createApprovalGate>, 'forTurn'>;
+  readonly handoff?: ReturnType<typeof createHandoff>;
 }) {
   const files = createFileTools(config.files);
   return (input: TurnInput): ToolSet | undefined => {
@@ -47,6 +51,9 @@ export function createMemberTools({
     const delegated = mcp.toolsFor(grants);
     const ask = approvals.forTurn(input);
     const tools: ToolSet = Object.create(null);
+    // Handoff prepares its concrete MCP arguments before requesting approval.
+    if (grants.has(HANDOFF_GRANT) && handoff)
+      tools[HANDOFF_GRANT] = handoff(input.signal, ask);
     for (const [name, definition] of Object.entries({
       ...builtins,
       ...delegated,
@@ -67,6 +74,7 @@ export function createMemberTools({
             if (requiresApproval) {
               const decision = await ask(name, exactArgs);
               if (!decision.ok) return decision;
+              if (decision.value) return decision.value;
             }
             if (input.signal.aborted)
               return failure('E_TURN_ABORTED', 'Turn was cancelled');

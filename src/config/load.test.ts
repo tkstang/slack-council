@@ -207,6 +207,7 @@ describe('configuration', () => {
 
   it.each([
     [['files', 'slack_history', 'notes', 'notes__append_note'], true],
+    [['handoff'], false],
     [['unknown'], false],
     [['other__append_note'], false],
     [['notes__'], false],
@@ -226,6 +227,38 @@ describe('configuration', () => {
       ok ? { ok: true } : { ok: false, code: 'E_UNKNOWN_TOOL_GRANT' },
     );
   });
+
+  it.each([
+    ['Handoffs/Review', 'notes', undefined],
+    ['Agent Workspaces/Handoffs/', 'notes', undefined],
+    ['Handoffs/../Review', 'notes', 'E_INVALID_INPUT'],
+    ['/Handoffs', 'notes', 'E_INVALID_INPUT'],
+    ['Handoffs', 'sessions', 'E_UNKNOWN_TOOL_GRANT'],
+  ] as const)(
+    'validates a handoff using folder %s and launch server %s',
+    (folder, server, code) => {
+      const input = config();
+      const parsed = parseConfig(
+        JSON.stringify({
+          ...input,
+          members: {
+            reviewer: { ...input.members.reviewer, tools: ['handoff'] },
+          },
+          tools: {
+            mcpServers: { notes: { transport: 'stdio', command: 'mcp' } },
+            handoff: {
+              folder,
+              write: { server: 'notes', tool: 'vault_write' },
+              launch: { server, tool: 'launch' },
+            },
+          },
+        }),
+      );
+      expect(parsed).toMatchObject(
+        code === undefined ? { ok: true } : { ok: false, code },
+      );
+    },
+  );
 
   it('reports a coded read failure from the filesystem boundary', async () => {
     expect(
