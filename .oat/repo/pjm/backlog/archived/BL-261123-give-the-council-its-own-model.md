@@ -1,7 +1,7 @@
 ---
 id: BL-261123-give-the-council-its-own-model
 title: Give the council its own model proxy key
-status: open
+status: closed
 priority: medium
 scope: task
 scope_estimate: XS
@@ -9,7 +9,7 @@ labels:
   - operations
 assignee: null
 created: 2026-11-23T22:20:41.834Z
-updated: 2026-11-23T22:20:41.834Z
+updated: '2026-11-24T17:00:58Z'
 associated_issues: []
 external_plans: []
 ---
