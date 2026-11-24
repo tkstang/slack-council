@@ -21,7 +21,6 @@ const GUIDE: Member = {
   avatar: { emoji: ':compass:' },
   provider: 'sample',
   model: 'example',
-  persona: 'Guide the reader.',
   tools: [],
 };
 const CRITIC: Member = { ...GUIDE, id: 'critic', name: 'Critic' };
@@ -39,6 +38,7 @@ const COUNCIL: Council = {
     listen: 'off',
     memberMentions: 'none',
     contextChars: 2_000,
+    replyWords: { default: 120, detailed: 250, max: 1_000 },
     turnTimeoutMs: 500,
     approvalTimeoutMs: 300_000,
     maxSteps: 4,

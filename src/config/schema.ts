@@ -1,3 +1,4 @@
+import { DEFAULT_REPLY_WORDS } from '@council/core/types.js';
 import { z } from 'zod';
 
 const nonempty = z.string().trim().min(1);
@@ -35,7 +36,9 @@ const MemberSchema = z.strictObject({
   provider: nonempty,
   model: nonempty,
   effort: z.string().min(1).optional(),
-  persona: z.string().min(1),
+  persona: z
+    .strictObject({ title: nonempty, instructions: nonempty })
+    .optional(),
   tools: z.array(nonempty).default([]),
 });
 export type MemberConfig = z.infer<typeof MemberSchema>;
@@ -55,6 +58,13 @@ export const CouncilSettingsSchema = z.strictObject({
   /** `people` lets a member notify people the conversation has seen. */
   memberMentions: z.enum(['none', 'people']).default('none'),
   contextChars: positive.default(DEFAULT_CONTEXT_CHARS),
+  replyWords: z
+    .strictObject({ default: positive, detailed: positive, max: positive })
+    .refine(
+      (words) => words.default <= words.detailed && words.detailed <= words.max,
+      'Reply word limits must be ordered: default <= detailed <= max',
+    )
+    .default(DEFAULT_REPLY_WORDS),
   turnTimeoutMs: positive.max(2_147_483_647).default(60_000),
   approvalTimeoutMs: positive.max(2_147_483_647).default(300_000),
   maxSteps: positive.default(8),

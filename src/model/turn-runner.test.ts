@@ -42,7 +42,6 @@ function input(overrides: Partial<TurnInput> = {}): TurnInput {
       provider: 'proxy',
       model: 'model-a',
       effort: 'high',
-      persona: 'p',
       tools: [],
     },
     prompt: {

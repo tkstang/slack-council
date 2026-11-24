@@ -25,7 +25,15 @@ describe('prefilterSlackEvent', () => {
       { ...base, subtype: 'bot_message', bot_id: 'BAPP' },
       false,
     ],
-    ['own app post without subtype', { ...base, bot_id: 'BAPP' }, false],
+    [
+      'own panel notice without subtype',
+      {
+        ...base,
+        bot_id: 'BAPP',
+        text: 'Preset: review\n- `@guide` · Guide · example',
+      },
+      false,
+    ],
     ['another bot', { ...base, bot_id: 'BOTHER' }, false],
     ['edit', { ...base, subtype: 'message_changed' }, false],
     ['delete', { ...base, subtype: 'message_deleted' }, false],

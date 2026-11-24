@@ -92,22 +92,27 @@ describe('parsePickerSubmission', () => {
     [
       'the chosen preset fills an empty member list',
       submit(command, { preset: 'p1', question: ' Q ' }),
-      { roster: ['scout'], where: 'thread', question: 'Q' },
+      { preset: 'solo', roster: ['scout'], where: 'thread', question: 'Q' },
     ],
     [
       'the command can convene the whole channel',
       submit(command, { question: 'Q', where: 'channel' }),
-      { roster: ['guide', 'critic'], where: 'channel', question: 'Q' },
+      {
+        preset: 'review',
+        roster: ['guide', 'critic'],
+        where: 'channel',
+        question: 'Q',
+      },
     ],
     [
       'the default preset applies when none is chosen',
       submit(shortcut, {}),
-      { roster: ['guide', 'critic'], where: 'thread' },
+      { preset: 'review', roster: ['guide', 'critic'], where: 'thread' },
     ],
     [
       'a blank shortcut question means the message is the prompt',
       submit(shortcut, { question: '  \n ' }),
-      { roster: ['guide', 'critic'], where: 'thread' },
+      { preset: 'review', roster: ['guide', 'critic'], where: 'thread' },
     ],
   ])('%s', (_, result, expected) => {
     expect(result).toEqual({
@@ -242,8 +247,9 @@ describe('createPicker', () => {
           },
         ]),
       ),
-      postNotice: vi.fn(async (_scope: unknown, _text: string) =>
-        success({ ts: '9.000001' }),
+      postNotice: vi.fn(
+        async (_scope: unknown, _text: string, _panel: unknown) =>
+          success({ ts: '9.000001' }),
       ),
       deleteMessage: vi.fn(async () => deleted),
     };
@@ -302,17 +308,22 @@ describe('createPicker', () => {
       /^Council convened by U1 on this message:\n> Ship \\\*it\\\* to @⁠U9 @⁠here\n> \\> quotedx+\n> … \(truncated\)$/u,
     );
     expect(text.length).toBeLessThan(1_200);
+    expect(slack.postNotice.mock.calls[0]?.[2]).toEqual({
+      preset: 'review',
+      roster: ['guide', 'critic'],
+    });
   });
 
   it('convenes the whole channel from a top-level post', async () => {
     const { run, slack, service } = setup(async () => ({}), {
       source: command,
-      state: { question: 'Q', where: 'channel' },
+      state: { members: ['m1'], question: 'Q', where: 'channel' },
     });
     await run?.();
     expect(slack.postNotice).toHaveBeenCalledWith(
       { channel: 'C1' },
       'Council convened by U1: Q',
+      { roster: ['critic'] },
     );
     expect(service.convene).toHaveBeenCalledWith(
       expect.objectContaining({

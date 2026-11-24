@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createSlackClients } from './api.js';
-import { classifyAuthor, createSlackPort } from './port.js';
+import { classifyAuthor, createSlackPort, NOTICE_EVENT } from './port.js';
 
 const context = {
   botId: 'BAPP',
@@ -100,7 +100,7 @@ describe('fetchMessages', () => {
       writeApi: api,
       botId: 'BAPP',
       botUserId: 'UAPP',
-      members: [{ id: 'ada', name: 'Ada' }],
+      members: [{ id: 'ada', name: 'Ada', model: 'example' }],
     };
     const scope = { channel: 'C1', threadTs: '10.000001' };
 
@@ -225,6 +225,62 @@ describe('writes', () => {
     expect(second).toEqual({ ok: true, value: { ts: '2.0' } });
     expect(attempts).toBe(2);
   });
+});
+
+it.each([
+  [
+    { preset: 'review', roster: ['guide', 'critic'] },
+    [
+      'Preset: review',
+      '- `@guide` · Guide\\_1 · `claude_haiku-5.5`',
+      '- `@critic` · Critic · `gpt-6-luna` · medium effort · Sceptical reviewer',
+    ],
+  ],
+  [
+    { roster: ['critic'] },
+    [
+      'custom panel',
+      '- `@critic` · Critic · `gpt-6-luna` · medium effort · Sceptical reviewer',
+    ],
+  ],
+] as const)('posts a convening notice with panel %j', async (panel, lines) => {
+  const api = { apiCall: vi.fn(async () => ({ ok: true, ts: '2.0' })) };
+  const slack = createSlackPort({
+    api,
+    writeApi: api,
+    botId: 'BAPP',
+    botUserId: 'UAPP',
+    members: [
+      { id: 'guide', name: 'Guide_1', model: 'claude_haiku-5.5', effort: ' ' },
+      {
+        id: 'critic',
+        name: 'Critic',
+        model: 'gpt-6-luna',
+        effort: 'medium',
+        persona: {
+          title: 'Sceptical reviewer',
+          instructions: 'Check assumptions.',
+        },
+      },
+    ],
+    intervalMs: 0,
+  });
+  await slack.postNotice(
+    { channel: 'C1' },
+    'Council convened by Sam: What should we review?',
+    panel,
+  );
+  expect(api.apiCall).toHaveBeenCalledWith(
+    'chat.postMessage',
+    expect.objectContaining({
+      markdown_text: [
+        'Council convened by Sam: What should we review?',
+        '',
+        ...lines,
+      ].join('\n'),
+      metadata: { event_type: NOTICE_EVENT, event_payload: { kind: 'notice' } },
+    }),
+  );
 });
 
 // The arguments sit alone in their own section so they are shown in full.

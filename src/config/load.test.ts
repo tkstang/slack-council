@@ -19,7 +19,10 @@ function config() {
         avatar: { url: 'https://images.example.com/reviewer.png' },
         provider: 'sample',
         model: 'gpt-6-luna',
-        persona: 'Review the evidence.',
+        persona: {
+          title: 'Evidence reviewer',
+          instructions: 'Review the evidence.',
+        },
         effort: ' future-level ',
       },
     },
@@ -42,8 +45,15 @@ describe('configuration', () => {
           rounds: 2,
           hopBudget: 6,
           approvalTimeoutMs: 300_000,
+          replyWords: { default: 120, detailed: 250, max: 1_000 },
         },
-        members: { reviewer: { effort: ' future-level ', tools: [] } },
+        members: {
+          reviewer: {
+            effort: ' future-level ',
+            persona: config().members.reviewer.persona,
+            tools: [],
+          },
+        },
         tools: {
           files: { roots: [], deny: expect.arrayContaining(['**/.env']) },
         },
@@ -119,6 +129,22 @@ describe('configuration', () => {
       { council: { listen: 'every-post' } },
       { council: { approvalTimeoutMs: 0 } },
       { council: { contextChars: 999 } },
+      { council: { replyWords: { default: 0, detailed: 250, max: 1_000 } } },
+      {
+        council: { replyWords: { default: 120, detailed: 250.5, max: 1_000 } },
+      },
+      { council: { replyWords: { default: 251, detailed: 250, max: 1_000 } } },
+      {
+        council: { replyWords: { default: 120, detailed: 1_001, max: 1_000 } },
+      },
+      {
+        members: {
+          reviewer: {
+            ...input.members.reviewer,
+            persona: 'Review the evidence.',
+          },
+        },
+      },
       { tools: { files: { roots: [false] } } },
       { tools: { files: { deny: 'glob' } } },
       {

@@ -220,6 +220,7 @@ export async function openCouncilService(
             ...council.settings,
             listen: config.council.listen,
             seenReaction: config.council.seenReaction,
+            replyWords: config.council.replyWords,
           },
         },
         'E_INVALID_STATE',
@@ -422,7 +423,14 @@ export async function openCouncilService(
           if (opening) entries.set(key, opening);
 
           if (address.kind === 'end') retire(key, entry);
-          else if (event) entry.runner.dispatch(event);
+          else if (event) {
+            if (opening)
+              opening.runner.postConveningNotice(
+                config.defaultPreset,
+                event.chainId,
+              );
+            entry.runner.dispatch(event);
+          }
           // An addressed message gets the progress reaction from its chain.
           if (address.kind === 'end') acknowledge(scope, message.ts, 'wave');
           else if (address.kind === 'stop')

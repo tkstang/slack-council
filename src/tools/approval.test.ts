@@ -35,7 +35,6 @@ function fixture(allowedUsers = ['U1', 'U2']) {
       avatar: { emoji: ':owl:' },
       provider: 'test',
       model: 'test',
-      persona: 'Explain',
       tools: ['notes__write'],
     },
     maxSteps: 4,

@@ -29,20 +29,21 @@ const CONFIG = parseConfig(
         avatar: { emoji: ':compass:' },
         model: 'example',
         provider: 'sample',
-        persona: 'Guide the discussion.',
       },
       critic: {
         name: 'Critic',
         avatar: { emoji: ':mag:' },
         model: 'example',
         provider: 'sample',
-        persona: 'Find gaps.',
       },
     },
     presets: { default: ['guide'] },
     defaultPreset: 'default',
     slack: { allowedUsers: ['U1'] },
-    council: { rounds: 1 },
+    council: {
+      rounds: 1,
+      replyWords: { default: 100, detailed: 200, max: 500 },
+    },
   }),
 );
 if (!CONFIG.ok) throw new Error(CONFIG.message);
@@ -71,6 +72,9 @@ function fixtures(
   const calls: TurnInput[] = [];
   const listens: ListenInput[] = [];
   const notices: string[] = [];
+  const panels: NonNullable<
+    Parameters<CouncilServiceOptions['slack']['postNotice']>[2]
+  >[] = [];
   let postTs = 8;
   const history: Message[] = [];
   const reactions: [string, boolean][] = [];
@@ -88,6 +92,7 @@ function fixtures(
     calls,
     listens,
     notices,
+    panels,
     history,
     reactions,
     store,
@@ -133,8 +138,9 @@ function fixtures(
             });
             return success({ ts });
           },
-          async postNotice(_scope, text) {
+          async postNotice(_scope, text, panel) {
             notices.push(text);
+            if (panel) panels.push(panel);
             return success({ ts: `${notices.length}.000` });
           },
           async setReaction(_channel, ts, _reaction, present) {
@@ -219,6 +225,9 @@ it('uses the saved channel floor in public and listening prompts', async () => {
   await vi.waitFor(() => expect(f.listens).toHaveLength(1), { interval: 1 });
   expect(f.calls[0]?.historyFromTs).toBe('2.000');
   expect(f.calls[0]?.prompt.user).toContain('Council convened');
+  expect(f.calls[0]?.prompt.user).toContain(
+    '100 words by default, 200 words when the user asks for more detail, further explanation or examples, and 500 words',
+  );
   expect(f.calls[0]?.prompt.user).not.toContain('Discussion from before');
   expect(f.listens[0]?.prompt.user).toContain('Give your view');
   expect(f.listens[0]?.prompt.user).not.toContain('Discussion from before');
@@ -247,6 +256,8 @@ it('deduplicates in-flight deliveries across scopes and retains accepted keys af
     convenedAtTs: '1.000',
   });
   await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
+  expect(f.panels).toEqual([{ roster: ['guide'], preset: 'default' }]);
+  expect(f.reactions).toContainEqual(['1.000', true]);
   await service.shutdown();
 
   const reopened = await f.open();
@@ -254,6 +265,7 @@ it('deduplicates in-flight deliveries across scopes and retains accepted keys af
   expect(await reopened.handleHumanMessage(message)).toBe('duplicate');
   await reopened.shutdown();
   expect(f.calls).toHaveLength(1);
+  expect(f.panels).toHaveLength(1);
 });
 
 it('permits a retry after a failed acceptance write without launching the original attempt', async () => {
@@ -267,6 +279,7 @@ it('permits a retry after a failed acceptance write without launching the origin
   expect(f.record().acceptedMessageKeys).toEqual([]);
   expect(service.getCouncil(SCOPE)).toBeUndefined();
   expect(f.calls).toEqual([]);
+  expect(f.panels).toEqual([]);
   expect(await service.handleHumanMessage(input)).toBe('accepted');
   await vi.waitFor(() => expect(f.calls).toHaveLength(1), { interval: 1 });
   await service.shutdown();

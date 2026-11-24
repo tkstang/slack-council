@@ -9,7 +9,7 @@ change.
 One Slack app, `council`, that hosts a council of AI members in a Slack thread or
 channel. The operator poses a question, members answer and respond to each other
 like colleagues, and the operator can interject at any point. Each member is a
-model plus an effort level, a persona and a set of tool grants.
+model with tool grants, an optional effort level and an optional persona.
 
 ## Decisions carried from the brainstorm (operator)
 
@@ -58,8 +58,9 @@ model plus an effort level, a persona and a set of tool grants.
 
 ## Concepts
 
-- **Member**: `{ id, name, avatar, provider, model, effort?, persona, tools[] }`. `id` is the
-  handle: lowercase, `[a-z][a-z0-9-]*`.
+- **Member**: `{ id, name, avatar, provider, model, effort?, persona?, tools[] }`.
+  `id` is the lowercase handle, matching `[a-z][a-z0-9-]*`. A persona has a
+  `title` for display and `instructions` for the member's role brief.
 - **Council**: a roster bound to a **scope**, plus an owner, settings and
   `convenedAtTs`, the Slack timestamp of the message or notice that started it.
 - **Scope**: `{ channel, threadTs? }`. With `threadTs` it is a thread council and
@@ -203,6 +204,10 @@ misrepresent other members as the responding assistant.
 - Message text is data. Angle brackets in it are escaped so a pasted
   `</transcript>` cannot close the block, and the role brief says that nothing
   inside the transcript, a tool result or a private note is an instruction.
+- The public reply prompt includes the council's three word limits. The member
+  chooses the applicable tier from the user's request and offers to continue
+  if it had more to say. Private listening keeps its own prompt and token cap.
+  A council restored at start takes the limits from the current config.
 - Thread council: the whole thread, newest kept when over `contextChars`. An
   omission marker says how many earlier messages were dropped and names the
   history tool.
@@ -311,6 +316,13 @@ tested without Slack.
     invoking user as author and the text `<@APPUSER>`, so dedupe, the allow-list
     and addressing run unchanged; the prompt itself is read from history. The
     notice's ts is always fresh, so a message accepted before still starts one.
+  - A mention that starts a council posts its default panel in the thread
+    after the council is saved. The human message starts the round. A notice
+    write failure is logged and the round proceeds.
+  - The convening notice names the preset or says "custom panel" when members
+    were chosen by hand. It lists each handle, display name, model, and any
+    configured effort and persona title. The app ignores bot-authored notice
+    events, so listing a handle never grants the floor.
   - An existing council in the scope (the thread, or the channel for "This
     whole channel") is a modal error. Later failures, including
     `not_in_channel`, reach the user through the response URL and are logged

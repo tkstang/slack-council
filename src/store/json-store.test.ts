@@ -41,6 +41,7 @@ it('round-trips councils and dedupe order across store instances and replaces th
           listen: 'settle',
           memberMentions: 'none',
           contextChars: 400,
+          replyWords: { default: 100, detailed: 200, max: 300 },
           turnTimeoutMs: 200,
           approvalTimeoutMs: 300_000,
           maxSteps: 5,
@@ -119,7 +120,16 @@ it('loads pre-listen state with default settings and no private notes', async ()
   expect(await createJsonStore(root).load()).toMatchObject({
     ok: true,
     value: {
-      councils: [{ id: 'legacy', settings: { rounds: 3, listen: 'settle' } }],
+      councils: [
+        {
+          id: 'legacy',
+          settings: {
+            rounds: 3,
+            listen: 'settle',
+            replyWords: { default: 120, detailed: 250, max: 1_000 },
+          },
+        },
+      ],
       acceptedMessageKeys: ['C1:10.002'],
       privateNotes: [],
     },

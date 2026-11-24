@@ -78,6 +78,9 @@ Copy `council.config.example.json` to a private path, for example
 Slack user ids that may convene councils, and point each provider at an
 OpenAI-compatible endpoint.
 
+A member can have a `persona` with a `title` for display and `instructions`
+for the model. Leave `persona` out to give the member a neutral role.
+
 Create `.env` in the repo root (gitignored):
 
 ```sh
@@ -103,7 +106,7 @@ to start one:
 
 - **Mention.** Write `@council <question>`. On a top-level message the default
   preset convenes in that message's thread; inside a thread it convenes for
-  that thread.
+  that thread. The app posts "Council convened." with the panel in the thread.
 - **Slash command.** `/council [question]` in a channel opens the roster modal,
   with any typed text as the question. On submit the app posts
   "Council convened by <name>: <question>" in the channel and convenes in that
@@ -118,8 +121,10 @@ to start one:
   selected message and members answer that.
 
 The modal offers a preset (the default preset is preselected) and a member
-list. Choosing members overrides the preset. A thread or channel that already
-has a council is refused. A form left open while the configured presets or
+list. Choosing members overrides the preset. The convening notice names the
+preset or says "custom panel". It lists each member's handle, display name,
+model, and any configured effort and persona title. A thread or channel that
+already has a council is refused. A form left open while the configured presets or
 members changed is refused; reopen it. Failures after the modal closes, such
 as the app not being in the channel, are reported to you ephemerally.
 
@@ -163,6 +168,12 @@ for a ✋ reaction on the post and a notice naming the members. Mention one of
 them to hear their point. The council saves their private notes until their
 next turn posts or passes. Set `council.listen` to `"off"` to disable this
 behavior. The default is `"settle"`.
+
+Members aim to stay within 120 words by default, 250 when asked for more
+detail, explanation or examples, and 1,000 when asked to go in depth. If a
+member has more to say, it ends with a short sentence saying it stopped at
+the limit and can go further. To change these limits, set `council.replyWords`
+to positive integers that satisfy `default <= detailed <= max`.
 
 Members cannot notify people by default: every mention in a member's post is
 written so that Slack does not deliver it. Set `council.memberMentions` to

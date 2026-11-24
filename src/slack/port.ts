@@ -14,6 +14,7 @@ import {
   mentionedUserIds,
   linkPeopleMentions,
   neutraliseBroadcasts,
+  plainMarkdown,
   renderSlackText,
   truncateMarkdown,
 } from './text.js';
@@ -36,7 +37,10 @@ export interface SlackPortOptions extends WriteQueueOptions {
   /** The app's own bot id and bot user id, from `auth.test`. */
   readonly botId: string;
   readonly botUserId: string;
-  readonly members: readonly Pick<Member, 'id' | 'name'>[];
+  readonly members: readonly Pick<
+    Member,
+    'id' | 'name' | 'model' | 'effort' | 'persona'
+  >[];
   /** Upper bound on pages read for one thread; a longer thread fails to read. */
   readonly maxPages?: number;
 }
@@ -148,6 +152,29 @@ function target(scope: Scope): Record<string, string> {
     : { channel: scope.channel, thread_ts: scope.threadTs };
 }
 
+function panelLabel(text: string): string {
+  return plainMarkdown(text.trim().replace(/\s+/gu, ' '));
+}
+
+function panelLine({
+  id,
+  name,
+  model,
+  effort,
+  persona,
+}: SlackPortOptions['members'][number]): string {
+  return [
+    `- \`@${id}\``,
+    panelLabel(name),
+    // Inline code shows a model id as written; escaping would add backslashes.
+    `\`${model.trim().replace(/\s+/gu, ' ').replaceAll('`', '')}\``,
+    ...(effort === undefined || effort.trim() === ''
+      ? []
+      : [`${panelLabel(effort)} effort`]),
+    ...(persona === undefined ? [] : [panelLabel(persona.title)]),
+  ].join(' · ');
+}
+
 function approvalMessage(
   request: ApprovalRequest,
   outcome?: ApprovalOutcome,
@@ -214,13 +241,16 @@ export interface SlackAdapterPort extends SlackPort, ApprovalPort {
 export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
   const { api, writeApi, botId, botUserId, maxPages = 50 } = options;
   const queue = createChannelWriteQueue(options);
+  const membersById = new Map(
+    options.members.map((member) => [member.id, member]),
+  );
   const membersByName = new Map(
     options.members.map(({ id, name }) => [name, id]),
   );
   const names = new Map<string, string>();
   // People seen in each channel: the only ones a member may notify there.
   const seen = new Map<string, Set<string>>();
-  const handles = new Set(options.members.map(({ id }) => id));
+  const handles = new Set(membersById.keys());
 
   async function resolveName(userId: string): Promise<void> {
     if (names.has(userId)) return;
@@ -418,10 +448,26 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
         : failure('E_SLACK', 'Slack chat.postMessage returned no ts');
     },
 
-    async postNotice(scope, text) {
+    async postNotice(scope, text, panel) {
+      const lines = [text];
+      if (panel) {
+        const { preset, roster } = panel;
+        lines.push(
+          '',
+          preset === undefined
+            ? 'custom panel'
+            : `Preset: ${panelLabel(preset)}`,
+        );
+        for (const id of roster) {
+          const member = membersById.get(id);
+          if (!member)
+            return failure('E_UNKNOWN_MEMBER', `Unknown council member: ${id}`);
+          lines.push(panelLine(member));
+        }
+      }
       const call = await write(scope.channel, 'chat.postMessage', {
         ...target(scope),
-        markdown_text: truncateMarkdown(neutraliseBroadcasts(text)),
+        markdown_text: truncateMarkdown(neutraliseBroadcasts(lines.join('\n'))),
         unfurl_links: false,
         unfurl_media: false,
         metadata: {

@@ -40,6 +40,7 @@ export interface EffectFailure {
   readonly scope: Scope;
   readonly effect:
     | 'progress'
+    | 'convening-notice'
     | 'limit-notice'
     | 'turn-notice'
     | 'hand-notice'
@@ -197,6 +198,7 @@ export function createChainRunner(
       messages: messages.value,
       grant,
       contextChars: settings.contextChars,
+      replyWords: settings.replyWords,
       privateNotes: shownNotes,
       mentionPeople: settings.memberMentions === 'people',
     });
@@ -545,6 +547,22 @@ export function createChainRunner(
     listening = undefined;
   }
 
+  function postConveningNotice(preset: string, chainId: string): void {
+    schedule(
+      ancillary.run(async () => {
+        const result = await protect(
+          () =>
+            slack.postNotice(scope, 'Council convened.', {
+              preset,
+              roster: council.roster,
+            }),
+          'E_SLACK',
+        );
+        report('convening-notice', { chainId, turnId: null }, result);
+      }),
+    );
+  }
+
   function notice(
     effect: Extract<EngineEffect, { type: 'turn-notice' }>,
   ): string {
@@ -640,5 +658,5 @@ export function createChainRunner(
     while (pending.size > 0) await Promise.all(pending);
   }
 
-  return { dispatch, drain, cancelListening };
+  return { dispatch, drain, cancelListening, postConveningNotice };
 }
