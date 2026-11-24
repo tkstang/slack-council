@@ -274,11 +274,11 @@ function panelMessage(
     ],
   };
   return {
-    // Escaping can lengthen the text; Slack rejects more than this.
-    text: `${fallbackIntro}${summary}\n\n${fallback.join('\n')}`.slice(
-      0,
-      FALLBACK_TEXT_LIMIT,
-    ),
+    // Escaping can lengthen the text; Slack rejects more than this, and the
+    // client cannot encode half of a surrogate pair.
+    text: `${fallbackIntro}${summary}\n\n${fallback.join('\n')}`
+      .slice(0, FALLBACK_TEXT_LIMIT)
+      .toWellFormed(),
     mrkdwn: false,
     parse: 'none',
     blocks: [lead, table],
