@@ -10,19 +10,23 @@ update ID. Filed lane reports are in `lane-reports/`.
 
 ### l07
 
-- state: running
-- dispatch: d01 open
-- next: Wait for the l07-d01 report, file it, open the PR, Opus review, then the live pass for the notice and approval card
+- state: turn-finished
+- dispatch: d01 reported
+- next: push branch, open PR, review, live pass
 - owner: orchestrator
 - task: node:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b
 - thread: thread:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b
+- worktree: /Users/tstang/.t3/worktrees/slack-council/t3-85b9feeb-7dc474124be6c698
+- placement: own-worktree
 - branch: feat/readable-slack-formatting
 - base: 9afe973
+- head: b1ff4d2f36f53ef3bfe0910a343c60765e9d9830
+- report: lane-reports/l07-d01.md
 - wake: delegate completion
 - provider: codex
 - model: gpt-6.2-sol
 - effort: high
-- last_observed: 2026-11-24T16:00:12Z
+- last_observed: 2026-11-24T16:11:19Z
 
 ## Closed
 
@@ -73,3 +77,4 @@ update ID. Filed lane reports are in `lane-reports/`.
 - u036 · 2026-11-24T01:35:56Z · l05 d01 · next: When the token exists: configure handoff on the test config, live pass rows 22 to 24, merge PR 8; head: f975309e876f4c2082ed87e38e6af642c8d0d6a6; blocker: Live-check rows 22 to 24 need a Switchboard token minted by the owner; waiting_on: owner; state work-settled → blocked
 - u037 · 2026-11-24T03:17:44Z · l05 d01 · next: None; PR 8 squash-merged as 63ce8c8 after live-check rows 22 to 24 passed on f975309; state blocked → merged; waiting_on cleared; blocker cleared; closed
 - u038 · 2026-11-24T16:00:12Z · l07 d01 · created; d01 opened; next: Wait for the l07-d01 report, file it, open the PR, Opus review, then the live pass for the notice and approval card; owner: orchestrator; task: node:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b; thread: thread:delegated-task:command%3Amcp%3A905c1909-56c3-48c6-a798-fdd308d40b8d%3Adelegate-task%3A696edce4-026f-4f2e-80b7-fd522a68338b; branch: feat/readable-slack-formatting; base: 9afe973; wake: delegate completion; provider: codex; model: gpt-6.2-sol; effort: high; state running
+- u039 · 2026-11-24T16:11:19Z · l07 d01 · d01 reported (lane-reports/l07-d01.md); next: push branch, open PR, review, live pass; worktree: /Users/tstang/.t3/worktrees/slack-council/t3-85b9feeb-7dc474124be6c698; head: b1ff4d2f36f53ef3bfe0910a343c60765e9d9830; placement: own-worktree; state running → turn-finished
