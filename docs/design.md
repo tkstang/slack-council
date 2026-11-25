@@ -300,7 +300,8 @@ member, council cache key and, for public turns, the turn ID.
 - `show_chart` collects up to two pie, bar, line or area charts in the current
   public turn. A posted reply includes them as native Slack blocks and carries
   every chart value in its text fallback for transcript reads. If Slack rejects
-  the blocks, the adapter posts that same text by itself. A pass or failed turn
+  the blocks, the adapter posts the reply as Markdown with the values in code
+  blocks. A pass or failed turn
   discards its charts.
 - MCP servers use stdio or HTTP. Failed startup disables the server's tools.
   The app closes its clients on shutdown. Grants in `members.<handle>.tools`

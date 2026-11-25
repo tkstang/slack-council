@@ -596,21 +596,35 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
             escapeSlackText(neutraliseBroadcasts(chartFallback(chart))),
           ),
         ].join('\n\n');
-        const plain = { ...author, text: fallback, metadata };
         call = await write(scope.channel, 'chat.postMessage', {
-          ...plain,
+          ...author,
+          text: fallback,
+          metadata,
           blocks: [
             { type: 'markdown', text: posting },
             ...charts.map(toChartBlock),
           ],
         });
-        // Retry only when Slack confirms the blocks were rejected.
+        // Retry only when Slack confirms the blocks were rejected. The reply
+        // stays Markdown and the values follow as literal text.
         if (
           !call.ok &&
           (call.error === 'invalid_blocks' ||
             call.error === 'invalid_blocks_format')
         )
-          call = await write(scope.channel, 'chat.postMessage', plain);
+          call = await write(scope.channel, 'chat.postMessage', {
+            ...author,
+            markdown_text: truncateMarkdown(
+              [
+                posting,
+                ...charts.map(
+                  (chart) =>
+                    `\`\`\`\n${neutraliseBroadcasts(chartFallback(chart)).replaceAll('`', "'")}\n\`\`\``,
+                ),
+              ].join('\n\n'),
+            ),
+            metadata,
+          });
       } else {
         call = await write(scope.channel, 'chat.postMessage', {
           ...author,

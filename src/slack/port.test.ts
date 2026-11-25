@@ -181,7 +181,15 @@ describe('postMember', () => {
       });
       if (scenario === 'rejected blocks') {
         expect(apiCall).toHaveBeenCalledTimes(2);
-        expect(apiCall).toHaveBeenNthCalledWith(2, 'chat.postMessage', plain);
+        expect(apiCall).toHaveBeenNthCalledWith(2, 'chat.postMessage', {
+          ...identity,
+          markdown_text: [
+            posting,
+            '```\nActive & pending\nLabel | Value\n@\u2060U1 | 5\n```',
+            '```\nActivity (Users)\nMonth | Active | Pending\nJan | 3 | 2\nFeb | 5 | 1\n```',
+          ].join('\n\n'),
+          metadata,
+        });
       } else {
         expect(apiCall).toHaveBeenCalledTimes(1);
       }

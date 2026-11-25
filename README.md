@@ -263,7 +263,7 @@ The example allows automatic reads and asks for approval before appending.
 Rules in `tools.policy` match the exposed tool name, in order. Use an exact
 name or a prefix ending in `*`. The prefix is literal, so write `notes__*`
 for one server. The first match wins. Built-ins such as `show_chart` default to
-`auto`. MCP tools default to `ask`. Approval rules apply only to tools already
+`auto`, except `handoff`, which always asks. MCP tools default to `ask`. Approval rules apply only to tools already
 granted to the member.
 
 An `ask` call posts the member, tool and the full arguments in the council

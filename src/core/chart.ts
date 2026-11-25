@@ -24,8 +24,8 @@ const seriesChart = z
       )
       .min(1)
       .max(12),
-    xLabel: z.string().max(50).optional(),
-    yLabel: z.string().max(50).optional(),
+    xLabel: z.string().min(1).max(50).optional(),
+    yLabel: z.string().min(1).max(50).optional(),
   })
   .refine(({ categories }) => new Set(categories).size === categories.length, {
     path: ['categories'],

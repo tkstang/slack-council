@@ -18,11 +18,13 @@ export function createShowChartTool(
     execute(input) {
       const parsed = ChartInputSchema.safeParse(input);
       if (!parsed.success) {
-        const issue = parsed.error.issues[0];
-        const path = issue?.path.join('.') || 'input';
         return failure(
           'E_INVALID_INPUT',
-          `Invalid chart at ${path}: ${issue?.message ?? 'invalid value'}`,
+          `Invalid chart at ${parsed.error.issues
+            .map(
+              ({ path, message }) => `${path.join('.') || 'input'}: ${message}`,
+            )
+            .join('; ')}`,
         );
       }
       if (charts.length >= 2)
