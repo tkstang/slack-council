@@ -183,6 +183,8 @@ function advance(state: EngineState, effects: EngineEffect[]): EngineState {
     if (
       round !== undefined &&
       round <= state.settings.rounds &&
+      // A lone member has nobody to react to.
+      state.roster.length > 1 &&
       chain.reactPasses < state.roster.length
     ) {
       chain = admit(

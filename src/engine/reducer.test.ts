@@ -33,8 +33,11 @@ function post(text: string): TurnOutcome {
   return { kind: 'posted', text, ts: 'ts-post' };
 }
 
-function scenario(settings: Partial<EngineState['settings']> = {}) {
-  let state = createEngineState(ROSTER, { ...DEFAULTS, ...settings });
+function scenario(
+  settings: Partial<EngineState['settings']> = {},
+  roster: readonly string[] = ROSTER,
+) {
+  let state = createEngineState(roster, { ...DEFAULTS, ...settings });
   function send(event: EngineEvent) {
     const next = reduce(state, event);
     state = next.state;
@@ -117,6 +120,14 @@ describe('human grants and rounds', () => {
     const [second] = started(speaking.finish(first, post('A response')));
     const [last] = started(speaking.finish(second));
     expect(speaking.finish(last)).toMatchObject([
+      { type: 'progress', present: false },
+    ]);
+  });
+
+  it('runs no react round for a one-member roster', () => {
+    const s = scenario({}, ['a']);
+    const [a] = s.start();
+    expect(s.finish(a, post('An answer'))).toMatchObject([
       { type: 'progress', present: false },
     ]);
   });
