@@ -1,3 +1,4 @@
+import type { ChartInput } from './chart.js';
 import type { Result } from './result.js';
 import type {
   Council,
@@ -21,9 +22,9 @@ export interface SlackPort {
     fromTs?: string,
   ): Promise<Result<readonly Message[]>>;
   /**
-   * Post once, with turn metadata and broadcast mentions neutralised. `text` is
-   * what was actually posted when the adapter changed it (for example by
-   * truncating), so mentions are routed from what readers can see. With
+   * Post one message with turn metadata and broadcast mentions neutralised.
+   * The returned `text` is the rendered reply prose used to route mentions,
+   * excluding any chart data supplied for transcript reads. With
    * `mentionPeople`, `@Name` of a person seen in this channel becomes a real
    * mention; group and channel-wide mentions stay neutralised.
    */
@@ -33,6 +34,7 @@ export interface SlackPort {
       readonly member: Member;
       readonly text: string;
       readonly mentionPeople?: boolean;
+      readonly charts?: readonly ChartInput[];
     },
   ): Promise<Result<{ readonly ts: string; readonly text?: string }>>;
   /** Post Markdown, or literal text with a convening panel, and return its ts. */
@@ -97,6 +99,8 @@ export interface TurnInput extends TurnRef {
   readonly maxSteps: number;
   readonly signal: AbortSignal;
   readonly approval?: TurnApproval;
+  /** Attachments collected for this public turn. */
+  readonly charts?: ChartInput[];
   /** Private text that must stay out of tool arguments and approval previews. */
   readonly privateNoteText?: readonly string[];
   /** Exclusive default cutoff for retrieving messages before the prompt. */

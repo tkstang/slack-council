@@ -1,3 +1,4 @@
+import type { ChartInput } from '@council/core/chart.js';
 import type {
   Clock,
   ListenInput,
@@ -82,18 +83,20 @@ function harness(
         history.filter(({ ts }) => cutoff === undefined || ts <= cutoff),
       );
     },
-    async postMember(_scope, { text, member }) {
-      writes.push(text);
-      const result = await writeGate;
-      if (result && !result.ok) return result;
-      const ts = `${postNumber++}.000`;
-      history.push({
-        ts,
-        text,
-        author: { kind: 'member', memberId: member.id },
-      });
-      return success({ ts });
-    },
+    postMember: vi.fn<SlackPort['postMember']>(
+      async (_scope, { text, member }) => {
+        writes.push(text);
+        const result = await writeGate;
+        if (result && !result.ok) return result;
+        const ts = `${postNumber++}.000`;
+        history.push({
+          ts,
+          text,
+          author: { kind: 'member', memberId: member.id },
+        });
+        return success({ ts });
+      },
+    ),
     async postNotice(_scope, text) {
       notices.push(text);
       const ts = `${postNumber++}.000`;
@@ -169,6 +172,7 @@ function harness(
     notices,
     reactions,
     writes,
+    postMember: slack.postMember,
     timers,
     elapse(ms: number) {
       monotonicMs += ms;
@@ -317,6 +321,34 @@ it('reports a coded turn failure, keeps other turns running and never reruns the
   expect(h.writes).toEqual(['Useful answer']);
   expect(h.calls).toHaveLength(2);
 });
+
+it.each([success('PASS'), failure('E_TURN_FAILED', 'Model failed')])(
+  'keeps a chart with its own reply when another turn does not post (%j)',
+  async (outcome) => {
+    const guide = { ...GUIDE, tools: ['show_chart'] };
+    const critic = { ...CRITIC, tools: ['show_chart'] };
+    const h = harness({ rounds: 1 }, [guide, critic]);
+    h.open();
+    await h.waitForCalls(2);
+    const chart: ChartInput = {
+      title: 'Work split',
+      chart: { type: 'pie', segments: [{ label: 'Support', value: 12 }] },
+    };
+    h.call(0).input.charts?.push({ ...chart, title: 'Discarded' });
+    h.call(1).input.charts?.push(chart);
+    h.call(0).finish(outcome);
+    h.call(1).finish(success('Useful answer'));
+    await h.drain();
+    expect(h.postMember).toHaveBeenCalledExactlyOnceWith(
+      COUNCIL.scope,
+      expect.objectContaining({
+        member: critic,
+        text: 'Useful answer',
+        charts: [chart],
+      }),
+    );
+  },
+);
 
 it('times out an unresponsive turn even when the provider has not returned and drains cleanly', async () => {
   const h = harness({ rounds: 1 });

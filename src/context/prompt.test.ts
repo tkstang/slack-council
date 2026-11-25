@@ -86,6 +86,15 @@ it('omits the persona line for members without a persona', () => {
   expect(system).not.toContain('Persona:');
 });
 
+it('includes the chart guidance only for members with the grant', () => {
+  expect(prompt([]).system).not.toContain('show_chart');
+  expect(
+    prompt([], { member: { ...GUIDE, tools: ['show_chart'] } }).system,
+  ).toContain(
+    'Use show_chart only when a chart makes the point clearer than text',
+  );
+});
+
 it('uses normalised author identities and marks only posts since the member last spoke', () => {
   const { user } = prompt([
     {

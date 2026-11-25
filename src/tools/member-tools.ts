@@ -1,6 +1,7 @@
 import {
   FILES_GRANT,
   HANDOFF_GRANT,
+  SHOW_CHART_GRANT,
   SLACK_HISTORY_GRANT,
   type ToolsConfig,
 } from '@council/config/schema.js';
@@ -14,6 +15,7 @@ import { createFileTools } from './files.js';
 import type { createHandoff } from './handoff.js';
 import type { createMcpManager } from './mcp.js';
 import { resolveToolPolicy } from './policy.js';
+import { createShowChartTool } from './show-chart.js';
 import { createSlackHistoryTool } from './slack-history.js';
 
 const MAX_RESULT_BYTES = 65_536;
@@ -38,6 +40,9 @@ export function createMemberTools({
     const grants = new Set(input.member.tools);
     const builtins: ToolSet = {
       ...(grants.has(FILES_GRANT) ? files : {}),
+      ...(grants.has(SHOW_CHART_GRANT) && input.charts
+        ? { [SHOW_CHART_GRANT]: createShowChartTool(input.charts) }
+        : {}),
       ...(grants.has(SLACK_HISTORY_GRANT)
         ? {
             [SLACK_HISTORY_GRANT]: createSlackHistoryTool(

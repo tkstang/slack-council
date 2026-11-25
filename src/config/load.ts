@@ -11,6 +11,7 @@ import {
   HANDOFF_GRANT,
   MCP_TOOL_SEPARATOR,
   MEMBER_HANDLE,
+  SHOW_CHART_GRANT,
   SLACK_HISTORY_GRANT,
   type Config,
 } from './schema.js';
@@ -71,7 +72,12 @@ export function parseConfig(input: string): Result<Config> {
       );
     }
     for (const grant of member.tools) {
-      if (grant === FILES_GRANT || grant === SLACK_HISTORY_GRANT) continue;
+      if (
+        grant === FILES_GRANT ||
+        grant === SLACK_HISTORY_GRANT ||
+        grant === SHOW_CHART_GRANT
+      )
+        continue;
       if (grant === HANDOFF_GRANT) {
         if (!config.tools.handoff)
           return failure(

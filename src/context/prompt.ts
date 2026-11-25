@@ -1,4 +1,4 @@
-import { HANDOFF_GRANT } from '@council/config/schema.js';
+import { HANDOFF_GRANT, SHOW_CHART_GRANT } from '@council/config/schema.js';
 import {
   DEFAULT_REPLY_WORDS,
   type Author,
@@ -219,6 +219,11 @@ export function buildTurnContext(input: PromptInput) {
     ...(input.member.tools.includes(HANDOFF_GRANT)
       ? [
           'Treat the handoff tool’s changes_requested field as the user’s instruction to revise the handoff and ask again.',
+        ]
+      : []),
+    ...(input.member.tools.includes(SHOW_CHART_GRANT)
+      ? [
+          'Use show_chart only when a chart makes the point clearer than text, state the takeaway in your reply, and use a Markdown table for comparisons better read as rows and columns.',
         ]
       : []),
     `Keep your reply within ${normal} words by default, ${detailed} words when the user asks for more detail, further explanation or examples, and ${max} words when the user asks you to go in depth. If you have more to say than the chosen limit allows, end with one short sentence saying you stopped at the limit and can go further.`,

@@ -209,12 +209,16 @@ gives the member no tools.
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `files`            | `read_file`, `list_dir`, `search_files`                                                                                                                  |
 | `slack_history`    | Earlier messages from this council's thread or channel. It starts before the prompt transcript and accepts the returned `oldestTs` as a `before` cursor. |
+| `show_chart`       | Up to two native pie, bar, line or area charts in the member's reply. The chart values are also available in the conversation transcript.                |
 | `handoff`          | Proposes a Markdown note and a coding session for one approval.                                                                                          |
 | `<server>`         | Every compatible tool from the named MCP server.                                                                                                         |
 | `<server>__<tool>` | One tool from the named MCP server.                                                                                                                      |
 
 For channel councils, the convening post is the earliest message
 `slack_history` can return.
+
+Grant `show_chart` to members that should use charts. They still write the
+takeaway in the reply and can use Markdown tables for tabular comparisons.
 
 MCP tool names use ASCII letters, digits, underscores and hyphens. Server
 names use the same characters with single underscores between segments.
@@ -258,9 +262,9 @@ The example allows automatic reads and asks for approval before appending.
 
 Rules in `tools.policy` match the exposed tool name, in order. Use an exact
 name or a prefix ending in `*`. The prefix is literal, so write `notes__*`
-for one server. The first match wins. Built-in reads default
-to `auto` and MCP tools default to `ask`. Approval rules apply only to
-tools already granted to the member.
+for one server. The first match wins. Built-ins such as `show_chart` default to
+`auto`. MCP tools default to `ask`. Approval rules apply only to tools already
+granted to the member.
 
 An `ask` call posts the member, tool and the full arguments in the council
 conversation. The heading shows the tool name in inline code. Each argument

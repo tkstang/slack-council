@@ -41,6 +41,7 @@ the Slack client: messages injected below the adapter do not prove it.
 | 22  | Ask a member with `handoff` to write a test note and launch a session in a test project. Click **Approve**.              | The card shows `handoff` in inline code, plus the exact path, full note, target and prompt. A note is written at that path and a session starts with that prompt pointing to it.  |
 | 23  | Request another handoff. Click **Change**, submit a specific revision, then approve the revised card.                    | The first card says "Changes requested" and runs nothing. The new card shows the revision. Approval writes the revised note and launches one session.                             |
 | 24  | Request another handoff and click **Reject**.                                                                            | The card says "Request rejected" and loses its buttons. No note or session is created.                                                                                            |
+| 25  | Ask a member granted `show_chart` to chart January (10) and February (16) and explain the change.                        | One reply with the member's name, avatar, takeaway and native chart. No approval card with default policy. Slack API readback includes both values in `text`.                     |
 
 For row 19, use `gpt-6-luna` and `claude-haiku-5-5`. Use stable guidance long
 enough to reach each model's cache minimum and keep the tool definitions fixed.

@@ -3,6 +3,7 @@ import {
   buildListenContext,
   buildTurnContext,
 } from '@council/context/prompt.js';
+import type { ChartInput } from '@council/core/chart.js';
 import type {
   Clock,
   SlackPort,
@@ -191,6 +192,7 @@ export function createChainRunner(
   ): Promise<
     Result<{
       text: string;
+      charts: readonly ChartInput[];
       shownNotes: readonly PrivateNote[];
       latestSeenTs: string | undefined;
     }>
@@ -221,6 +223,7 @@ export function createChainRunner(
     // from the picker has only a notice before the first member posts.
     const latestSeenTs =
       firstVisible < 0 ? undefined : messages.value.at(-1)?.ts;
+    const charts: ChartInput[] = [];
     const result = await protect(
       () =>
         turns.runTurn({
@@ -234,6 +237,7 @@ export function createChainRunner(
           turnId: grant.turnId,
           historyBeforeTs: oldestTs,
           historyFromTs,
+          charts,
           ...(shownNotes.length
             ? { privateNoteText: shownNotes.map(({ note }) => note) }
             : {}),
@@ -246,7 +250,7 @@ export function createChainRunner(
       'E_TURN_FAILED',
     );
     return result.ok
-      ? success({ text: result.value, shownNotes, latestSeenTs })
+      ? success({ text: result.value, charts, shownNotes, latestSeenTs })
       : result;
   }
 
@@ -331,7 +335,7 @@ export function createChainRunner(
     );
     if (signal.aborted) return failed(abortFailure(signal).code);
     if (!result.ok) return failed(result.code);
-    const { text, shownNotes, latestSeenTs } = result.value;
+    const { text, charts, shownNotes, latestSeenTs } = result.value;
     if (!text.trim()) return failed('E_TURN_FAILED');
     const output = parseTurnOutput(text);
     if (output.kind === 'pass') {
@@ -357,6 +361,7 @@ export function createChainRunner(
           chainId: grant.chainId,
           turnId: grant.turnId,
           mentionPeople: settings.memberMentions === 'people',
+          ...(charts.length > 0 ? { charts } : {}),
         }),
       'E_SLACK',
     ).finally(() => {

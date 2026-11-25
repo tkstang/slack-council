@@ -1,6 +1,7 @@
+import type { ChartInput } from '@council/core/chart.js';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createSlackClients } from './api.js';
+import { createSlackClients, type SlackApi } from './api.js';
 import { classifyAuthor, createSlackPort, NOTICE_EVENT } from './port.js';
 
 const context = {
@@ -47,6 +48,149 @@ describe('classifyAuthor', () => {
     ['nobody', {}, undefined],
   ])('%s', (_, fields, author) => {
     expect(classifyAuthor({ ts: '1.0', ...fields }, context)).toEqual(author);
+  });
+});
+
+describe('postMember', () => {
+  it.each([
+    'no charts',
+    'charts',
+    'rejected blocks',
+    'unknown outcome',
+  ] as const)('posts a reply with %s', async (scenario) => {
+    const apiCall = vi.fn<SlackApi['apiCall']>(async () => ({
+      ok: true,
+      ts: '2.0',
+    }));
+    if (scenario === 'rejected blocks')
+      apiCall.mockRejectedValueOnce({ data: { error: 'invalid_blocks' } });
+    if (scenario === 'unknown outcome')
+      apiCall.mockRejectedValueOnce({ code: 'slack_webapi_request_error' });
+    const api = { apiCall };
+    const member = {
+      id: 'ada',
+      name: 'Ada',
+      avatar: { emoji: ':owl:' },
+      provider: 'test',
+      model: 'test',
+      tools: ['show_chart'],
+    };
+    const slack = createSlackPort({
+      api,
+      writeApi: api,
+      botId: 'BAPP',
+      botUserId: 'UAPP',
+      members: [member],
+      intervalMs: 0,
+    });
+    const charts: ChartInput[] = [
+      {
+        title: 'Active & pending',
+        chart: { type: 'pie', segments: [{ label: '<@U1>', value: 5 }] },
+      },
+      {
+        title: 'Activity',
+        chart: {
+          type: 'line',
+          categories: ['Jan', 'Feb'],
+          series: [
+            { name: 'Active', values: [3, 5] },
+            { name: 'Pending', values: [2, 1] },
+          ],
+          xLabel: 'Month',
+          yLabel: 'Users',
+        },
+      },
+    ];
+    const text = 'Activity rose, @here.';
+    const posting = 'Activity rose, @\u2060here.';
+    const result = await slack.postMember(
+      { channel: 'C1', threadTs: '1.0' },
+      {
+        member,
+        text,
+        chainId: 'chain',
+        turnId: 'turn',
+        ...(scenario === 'no charts' ? {} : { charts }),
+      },
+    );
+    const identity = {
+      channel: 'C1',
+      thread_ts: '1.0',
+      username: 'Ada',
+      icon_emoji: ':owl:',
+    };
+    const metadata = {
+      event_type: 'council_member_post',
+      event_payload: { member: 'ada', chain: 'chain', turn: 'turn' },
+    };
+    if (scenario === 'no charts') {
+      expect(apiCall).toHaveBeenCalledExactlyOnceWith('chat.postMessage', {
+        ...identity,
+        markdown_text: posting,
+        metadata,
+      });
+    } else {
+      const plain = {
+        ...identity,
+        text: [
+          posting,
+          'Active &amp; pending\nLabel | Value\n@\u2060U1 | 5',
+          'Activity (Users)\nMonth | Active | Pending\nJan | 3 | 2\nFeb | 5 | 1',
+        ].join('\n\n'),
+        metadata,
+      };
+      expect(apiCall).toHaveBeenNthCalledWith(1, 'chat.postMessage', {
+        ...plain,
+        blocks: [
+          { type: 'markdown', text: posting },
+          {
+            type: 'data_visualization',
+            title: 'Active & pending',
+            chart: { type: 'pie', segments: [{ label: '<@U1>', value: 5 }] },
+          },
+          {
+            type: 'data_visualization',
+            title: 'Activity',
+            chart: {
+              type: 'line',
+              axis_config: {
+                categories: ['Jan', 'Feb'],
+                x_label: 'Month',
+                y_label: 'Users',
+              },
+              series: [
+                {
+                  name: 'Active',
+                  data: [
+                    { label: 'Jan', value: 3 },
+                    { label: 'Feb', value: 5 },
+                  ],
+                },
+                {
+                  name: 'Pending',
+                  data: [
+                    { label: 'Jan', value: 2 },
+                    { label: 'Feb', value: 1 },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      });
+      if (scenario === 'rejected blocks') {
+        expect(apiCall).toHaveBeenCalledTimes(2);
+        expect(apiCall).toHaveBeenNthCalledWith(2, 'chat.postMessage', plain);
+      } else {
+        expect(apiCall).toHaveBeenCalledTimes(1);
+      }
+    }
+    expect(result).toMatchObject(
+      scenario === 'unknown outcome'
+        ? { ok: false, code: 'E_SLACK' }
+        : { ok: true, value: { ts: '2.0', text: posting } },
+    );
   });
 });
 
