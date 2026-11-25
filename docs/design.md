@@ -116,7 +116,8 @@ These reactions are best effort and never fail the message.
   starts.
 - Rounds 2..`rounds` (default 2): members take `react` turns one at a time in
   roster order. Each sees everything so far and either responds or passes. The
-  sequence ends early when every member passes in a round.
+  sequence ends early when every member passes in a round. A council with one
+  member runs no react rounds.
 
 ### Mentions from members
 
