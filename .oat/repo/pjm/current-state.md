@@ -13,7 +13,8 @@ copying their content here. -->
 
 - `docs/design.md`: how the app behaves and why.
 - `docs/live-checks.md`: the live checklist and the log of each run.
-- `README.md`: setup, configuration and the verification policy.
+- [Documentation index](../../../docs/index.md) for setup, configuration and deployment.
+- [Verification policy](../../../docs/toolchain.md#verification-policy) for maintainer checks.
 
 ## What's Implemented
 

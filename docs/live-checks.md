@@ -1,3 +1,8 @@
+---
+title: Live checks
+description: The live Slack verification checklist and run log.
+---
+
 # Live checks
 
 The automated checks use fakes for Slack and handoff calls. Run this checklist

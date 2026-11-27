@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Cheap feedback before pushing: agent-file guard + typecheck.
 # No test suite runs here.
-# Run the repo's required final checks explicitly; see README verification policy.
+# Run the repo's required final checks. See the verification policy in docs/toolchain.md.
 # Escape hatch: GIT_HOOKS=0 git push ...
 [ "$GIT_HOOKS" = "0" ] && exit 0
 

@@ -33,13 +33,13 @@ husky/lefthook) - `private: true` + MIT LICENSE.
 
 Use focused checks while editing and run `pnpm run worktree:validate` on a
 clean checkout with Node 26 before handoff. It runs the agent-file guard, types,
-lint, format, full tests and build. CI runs the same gate on every pull request
-and push to `main`. Reuse
+lint, format, full tests and build. CI runs the same gate on every non-draft pull request
+to `main` and every push to `main`. Reuse
 evidence while its source, dependencies, config, environment and relevant base
 are unchanged. Re-run affected checks after an input changes.
 
 The pre-push hook runs `check:agents` and `typecheck` for early feedback. See the
-README verification policy for the full local checks.
+[verification policy](docs/toolchain.md#verification-policy) for the full local checks.
 
 ## Complexity
 
@@ -110,3 +110,15 @@ Choose a proportional OAT lane rather than a full lifecycle for every fix.
 - Run `oat pjm doctor --json` and inspect `adoption.state` before any decision write.
 - If the decision surface is missing, repository adoption is absent or partial; stop and initialize it with `oat pjm init`.
 <!-- END OAT decisions -->
+
+<!-- OAT docs -->
+## Documentation
+
+- **Docs root:** `docs`
+- **Tooling:** Markdown
+- **Authored index:** `docs/index.md`
+- **Contributing:** `docs/contributing.md`
+
+Keep authored context, title/description metadata, and Contents maps with relative Markdown links current. Preserve local instructions; asset-only directories are exempt from indexes.
+Use `oat-docs-analyze` to audit gaps and `oat-docs-apply` for approved repairs. Optional generated inventories belong outside the content tree and do not replace the authored index.
+<!-- END OAT docs -->
