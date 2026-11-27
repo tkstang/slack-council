@@ -206,7 +206,10 @@ describe('configuration', () => {
   });
 
   it.each([
-    [['files', 'slack_history', 'notes', 'notes__append_note'], true],
+    [
+      ['files', 'slack_history', 'show_chart', 'notes', 'notes__append_note'],
+      true,
+    ],
     [['handoff'], false],
     [['unknown'], false],
     [['other__append_note'], false],

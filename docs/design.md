@@ -246,15 +246,16 @@ misrepresent other members as the responding assistant.
   when the post is still visible. The app strips verbatim echoes from member
   replies and blocks tool arguments that quote a private note.
 
-Output protocol: a turn that is only `PASS`, ignoring case, surrounding
-whitespace, markdown emphasis and trailing punctuation, posts nothing.
+A turn consisting of `PASS` posts nothing. The parser ignores case, surrounding
+whitespace, Markdown emphasis and trailing punctuation. For react turns it
+also accepts `PASS` at the start followed by sentence punctuation, a dash or a
+line break, or at the end after a completed sentence.
 
 ## Member runner
 
 `generateText` with the member's tools, `stopWhen: isStepCount(maxSteps)`,
-`reasoningEffort` from the member's `effort`, and an abort signal. A `react` turn
-that returns exactly `PASS` posts nothing. Output is scanned for handles to
-produce mention grants.
+`reasoningEffort` from the member's `effort`, and an abort signal. The runner
+scans posted replies for handles to produce mention grants.
 
 ### Prompt caching
 
@@ -297,12 +298,19 @@ member, council cache key and, for public turns, the turn ID.
 - `slack_history` retrieves older messages in the council's own scope, rendered
   like the transcript. It starts before the prompt transcript and pages back
   through the thread or to the channel council's convening post, inclusive.
+- `show_chart` collects up to two pie, bar, line or area charts in an opening
+  or mention turn. In react turns the tool stays in the cached tool list,
+  asks for no approval and returns `E_INVALID_STATE` if called. A posted reply includes its charts as native
+  Slack blocks and carries every chart value in its text fallback for transcript
+  reads. If Slack rejects the blocks, the adapter posts the reply as Markdown
+  with the values in code blocks. A pass or failed turn discards its charts.
 - MCP servers use stdio or HTTP. Failed startup disables the server's tools.
   The app closes its clients on shutdown. Grants in `members.<handle>.tools`
-  include `files`, `slack_history`, `handoff`, `<server>` or `<server>__<tool>`.
+  include `files`, `slack_history`, `show_chart`, `handoff`, `<server>` or
+  `<server>__<tool>`.
 - Approval uses the first matching exact name or prefix ending in `*`.
-  Built-in read tools default to `auto` and MCP tools default to `ask`. An
-  `ask` call posts the member, tool and the full arguments with Approve and
+  Built-ins such as `show_chart` default to `auto`. MCP tools default to `ask`.
+  An `ask` call posts the member, tool and the full arguments with Approve and
   Deny buttons. Each argument is a `name: value` line; a string is shown without quotes only when it is one plain line that is not itself JSON, and invisible characters are escaped. Arguments too long to show in full are refused, never cut. The opaque request id binds the decision to the arguments,
   council, chain, turn and expiry. Any user in `slack.allowedUsers`
   can decide once. The app acknowledges clicks immediately and updates the

@@ -12,6 +12,7 @@ import type { types } from '@slack/bolt';
 import { z } from 'zod';
 
 import { callSlack, type SlackApi, type SlackCall } from './api.js';
+import { chartFallback, toChartBlock } from './chart.js';
 import {
   mentionedUserIds,
   linkPeopleMentions,
@@ -558,7 +559,10 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
       return success(messages);
     },
 
-    async postMember(scope, { member, text, chainId, turnId, mentionPeople }) {
+    async postMember(
+      scope,
+      { member, text, chainId, turnId, mentionPeople, charts },
+    ) {
       const people = new Map<string, string>();
       if (mentionPeople) {
         for (const id of seen.get(scope.channel) ?? []) {
@@ -572,18 +576,62 @@ export function createSlackPort(options: SlackPortOptions): SlackAdapterPort {
       const posting = truncateMarkdown(
         linkPeopleMentions(text, people, handles),
       );
-      const call = await write(scope.channel, 'chat.postMessage', {
+      const author = {
         ...target(scope),
         username: member.name,
         ...('emoji' in member.avatar
           ? { icon_emoji: member.avatar.emoji }
           : { icon_url: member.avatar.url }),
-        markdown_text: posting,
-        metadata: {
-          event_type: MEMBER_POST_EVENT,
-          event_payload: { member: member.id, chain: chainId, turn: turnId },
-        },
-      });
+      };
+      const metadata = {
+        event_type: MEMBER_POST_EVENT,
+        event_payload: { member: member.id, chain: chainId, turn: turnId },
+      };
+      let call: SlackCall;
+      if (charts?.length) {
+        // The markdown block uses the same 12,000-character cap as markdown_text.
+        const fallback = [
+          posting,
+          ...charts.map((chart) =>
+            escapeSlackText(neutraliseBroadcasts(chartFallback(chart))),
+          ),
+        ].join('\n\n');
+        call = await write(scope.channel, 'chat.postMessage', {
+          ...author,
+          text: fallback,
+          metadata,
+          blocks: [
+            { type: 'markdown', text: posting },
+            ...charts.map(toChartBlock),
+          ],
+        });
+        // Retry only when Slack confirms the blocks were rejected. The reply
+        // stays Markdown and the values follow as literal text.
+        if (
+          !call.ok &&
+          (call.error === 'invalid_blocks' ||
+            call.error === 'invalid_blocks_format')
+        )
+          call = await write(scope.channel, 'chat.postMessage', {
+            ...author,
+            markdown_text: truncateMarkdown(
+              [
+                posting,
+                ...charts.map(
+                  (chart) =>
+                    `\`\`\`\n${neutraliseBroadcasts(chartFallback(chart)).replaceAll('`', "'")}\n\`\`\``,
+                ),
+              ].join('\n\n'),
+            ),
+            metadata,
+          });
+      } else {
+        call = await write(scope.channel, 'chat.postMessage', {
+          ...author,
+          markdown_text: posting,
+          metadata,
+        });
+      }
       if (!call.ok) return slackFailure('chat.postMessage', call);
       const posted = Posted.safeParse(call.value);
       return posted.success

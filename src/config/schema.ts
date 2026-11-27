@@ -12,13 +12,20 @@ export const MEMBER_HANDLE = /^[a-z][a-z0-9-]*$/;
 export const FILES_GRANT = 'files';
 export const SLACK_HISTORY_GRANT = 'slack_history';
 export const HANDOFF_GRANT = 'handoff';
+export const SHOW_CHART_GRANT = 'show_chart';
 export const MCP_TOOL_SEPARATOR = '__';
 const mcpServerName = /^[a-zA-Z0-9-]+(?:_[a-zA-Z0-9-]+)*$/u;
 const mcpServerKey = z
   .string()
   .regex(mcpServerName)
   .refine(
-    (name) => ![FILES_GRANT, SLACK_HISTORY_GRANT, HANDOFF_GRANT].includes(name),
+    (name) =>
+      ![
+        FILES_GRANT,
+        SLACK_HISTORY_GRANT,
+        HANDOFF_GRANT,
+        SHOW_CHART_GRANT,
+      ].includes(name),
     'MCP server name is reserved',
   );
 

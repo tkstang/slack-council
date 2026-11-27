@@ -86,6 +86,38 @@ it('omits the persona line for members without a persona', () => {
   expect(system).not.toContain('Persona:');
 });
 
+it.each([{ tools: [] }, { tools: ['show_chart'] }])(
+  'keeps the role brief stable across turns with chart grants $tools',
+  ({ tools }) => {
+    const member = { ...GUIDE, tools };
+    const opening = prompt([], {
+      member,
+      grant: { kind: 'round', sourceTs: '4' },
+    });
+    const react = prompt([], {
+      member,
+      grant: { kind: 'react', round: 2, sourceTs: '4' },
+    });
+    expect(react.system).toBe(opening.system);
+    expect(react.user.slice(0, react.cachePrefixLength)).toBe(
+      opening.user.slice(0, opening.cachePrefixLength),
+    );
+    const guidance = 'Use show_chart only when a chart makes the point clearer';
+    const restriction = 'Refer to any chart already posted';
+    if (tools.length) {
+      expect(react.system).toContain(guidance);
+      expect(react.user.slice(react.cachePrefixLength)).toContain(restriction);
+    } else {
+      expect(react.system).not.toContain(guidance);
+      expect(react.user).not.toContain(restriction);
+    }
+    expect(opening.user).not.toContain(restriction);
+    expect(react.user.slice(react.cachePrefixLength)).toContain(
+      'If you have nothing to add, reply with only the word PASS.',
+    );
+  },
+);
+
 it('uses normalised author identities and marks only posts since the member last spoke', () => {
   const { user } = prompt([
     {

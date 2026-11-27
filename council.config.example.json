@@ -13,7 +13,7 @@
       },
       "provider": "default",
       "model": "claude-haiku-5-5",
-      "tools": ["files", "slack_history", "notes", "handoff"]
+      "tools": ["files", "slack_history", "show_chart", "notes", "handoff"]
     },
     "critic": {
       "name": "Critic",

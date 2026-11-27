@@ -1,6 +1,7 @@
 import {
   FILES_GRANT,
   HANDOFF_GRANT,
+  SHOW_CHART_GRANT,
   SLACK_HISTORY_GRANT,
   type ToolsConfig,
 } from '@council/config/schema.js';
@@ -14,6 +15,7 @@ import { createFileTools } from './files.js';
 import type { createHandoff } from './handoff.js';
 import type { createMcpManager } from './mcp.js';
 import { resolveToolPolicy } from './policy.js';
+import { createShowChartTool } from './show-chart.js';
 import { createSlackHistoryTool } from './slack-history.js';
 
 const MAX_RESULT_BYTES = 65_536;
@@ -36,8 +38,17 @@ export function createMemberTools({
   const files = createFileTools(config.files);
   return (input: TurnInput): ToolSet | undefined => {
     const grants = new Set(input.member.tools);
+    const isReact = input.floorKind === 'react';
     const builtins: ToolSet = {
       ...(grants.has(FILES_GRANT) ? files : {}),
+      // Keep the chart tool in the cached tool list for react turns.
+      ...(grants.has(SHOW_CHART_GRANT) && (isReact || input.charts)
+        ? {
+            [SHOW_CHART_GRANT]: createShowChartTool(
+              isReact ? undefined : input.charts,
+            ),
+          }
+        : {}),
       ...(grants.has(SLACK_HISTORY_GRANT)
         ? {
             [SLACK_HISTORY_GRANT]: createSlackHistoryTool(
@@ -61,6 +72,7 @@ export function createMemberTools({
       const execute = definition.execute;
       if (!execute) continue;
       const requiresApproval =
+        !(isReact && name === SHOW_CHART_GRANT) &&
         resolveToolPolicy(
           config.policy,
           name,

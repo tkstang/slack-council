@@ -1,3 +1,4 @@
+import type { ChartInput } from '@council/core/chart.js';
 import type {
   Clock,
   ListenInput,
@@ -82,18 +83,20 @@ function harness(
         history.filter(({ ts }) => cutoff === undefined || ts <= cutoff),
       );
     },
-    async postMember(_scope, { text, member }) {
-      writes.push(text);
-      const result = await writeGate;
-      if (result && !result.ok) return result;
-      const ts = `${postNumber++}.000`;
-      history.push({
-        ts,
-        text,
-        author: { kind: 'member', memberId: member.id },
-      });
-      return success({ ts });
-    },
+    postMember: vi.fn<SlackPort['postMember']>(
+      async (_scope, { text, member }) => {
+        writes.push(text);
+        const result = await writeGate;
+        if (result && !result.ok) return result;
+        const ts = `${postNumber++}.000`;
+        history.push({
+          ts,
+          text,
+          author: { kind: 'member', memberId: member.id },
+        });
+        return success({ ts });
+      },
+    ),
     async postNotice(_scope, text) {
       notices.push(text);
       const ts = `${postNumber++}.000`;
@@ -169,6 +172,7 @@ function harness(
     notices,
     reactions,
     writes,
+    postMember: slack.postMember,
     timers,
     elapse(ms: number) {
       monotonicMs += ms;
@@ -194,8 +198,8 @@ function harness(
   };
 }
 
-it('uses one frozen round-one snapshot and waits for writes before reading fresh react context', async () => {
-  const h = harness();
+it('uses one frozen opening snapshot, then runs fresh react turns until all pass', async () => {
+  const h = harness({ rounds: 3 });
   h.history.push({
     ts: '2.000',
     author: { kind: 'notice' },
@@ -225,13 +229,19 @@ it('uses one frozen round-one snapshot and waits for writes before reading fresh
 
   release(success(undefined));
   await h.waitForCalls(3);
-  expect(h.call(2).input.member.id).toBe('guide');
+  expect(h.call(2).input).toMatchObject({
+    member: { id: 'guide' },
+    floorKind: 'react',
+  });
+  expect(h.call(2).input.charts).toBeUndefined();
   expect(h.call(2).input.prompt.user).toContain('Opening from Critic');
   expect(h.call(2).input.prompt.user).toContain('Later context');
-  h.call(2).finish(success('**PASS**'));
+  h.call(2).finish(success('**PASS** — nothing to add'));
   await h.waitForCalls(4);
-  h.call(3).finish(success('Pass.'));
+  h.call(3).finish(success('I agree with Guide. PASS.'));
+  await vi.waitFor(() => expect(h.reactions).toHaveLength(2), { interval: 1 });
   await h.drain();
+  expect(h.calls).toHaveLength(4);
   expect(h.cutoffs).toEqual(['1.000', undefined, undefined]);
   expect(h.writes).toEqual(['Opening from Guide', 'Opening from Critic']);
   expect(h.reactions).toEqual([
@@ -317,6 +327,34 @@ it('reports a coded turn failure, keeps other turns running and never reruns the
   expect(h.writes).toEqual(['Useful answer']);
   expect(h.calls).toHaveLength(2);
 });
+
+it.each([success('PASS'), failure('E_TURN_FAILED', 'Model failed')])(
+  'keeps a chart with its own reply when another turn does not post (%j)',
+  async (outcome) => {
+    const guide = { ...GUIDE, tools: ['show_chart'] };
+    const critic = { ...CRITIC, tools: ['show_chart'] };
+    const h = harness({ rounds: 1 }, [guide, critic]);
+    h.open();
+    await h.waitForCalls(2);
+    const chart: ChartInput = {
+      title: 'Work split',
+      chart: { type: 'pie', segments: [{ label: 'Support', value: 12 }] },
+    };
+    h.call(0).input.charts?.push({ ...chart, title: 'Discarded' });
+    h.call(1).input.charts?.push(chart);
+    h.call(0).finish(outcome);
+    h.call(1).finish(success('Useful answer'));
+    await h.drain();
+    expect(h.postMember).toHaveBeenCalledExactlyOnceWith(
+      COUNCIL.scope,
+      expect.objectContaining({
+        member: critic,
+        text: 'Useful answer',
+        charts: [chart],
+      }),
+    );
+  },
+);
 
 it('times out an unresponsive turn even when the provider has not returned and drains cleanly', async () => {
   const h = harness({ rounds: 1 });
