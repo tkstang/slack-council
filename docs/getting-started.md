@@ -80,8 +80,9 @@ Fill in the bot token (`xoxb-` prefix) and app token (`xapp-` prefix).
 `COUNCIL_MODEL_API_KEY` is the name used by the example provider. See the
 [deployment environment variables](deployment.md#environment-variables)
 for the full list. The example's MCP servers (`notes`, `vault`, `sessions`)
-and its `files` root are placeholders: fill them in or remove them, or
-`start` logs them as unavailable.
+and its `files` root are placeholders: fill them in or remove them. `start`
+logs unconfigured MCP servers as unavailable, and a missing `files` root
+silently grants nothing.
 
 ## 3. Run locally
 
@@ -95,8 +96,8 @@ node --env-file=.env dist/cli.js start --config .council/council.config.json
 
 The CLI emits one JSON envelope on stdout. A validation error exits nonzero.
 `validate` checks the file and its references without contacting Slack,
-model providers or MCP servers. After `pnpm link --global`, the equivalent commands are
-`slack-council validate --config <path>` and
+model providers or MCP servers. The package's `slack-council` bin runs the
+same commands: `slack-council validate --config <path>` and
 `slack-council start --config <path>`.
 
 When `start` reports `ready: true`, mention the app in a channel it joined.
