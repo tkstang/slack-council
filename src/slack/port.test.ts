@@ -135,8 +135,8 @@ describe('postMember', () => {
         ...identity,
         text: [
           posting,
-          'Active &amp; pending\nLabel | Value\n@\u2060U1 | 5',
-          'Activity (Users)\nMonth | Active | Pending\nJan | 3 | 2\nFeb | 5 | 1',
+          'Chart: Active &amp; pending\nLabel | Value\n@\u2060U1 | 5',
+          'Chart: Activity (Users)\nMonth | Active | Pending\nJan | 3 | 2\nFeb | 5 | 1',
         ].join('\n\n'),
         metadata,
       };
@@ -185,8 +185,8 @@ describe('postMember', () => {
           ...identity,
           markdown_text: [
             posting,
-            '```\nActive & pending\nLabel | Value\n@\u2060U1 | 5\n```',
-            '```\nActivity (Users)\nMonth | Active | Pending\nJan | 3 | 2\nFeb | 5 | 1\n```',
+            '```\nChart: Active & pending\nLabel | Value\n@\u2060U1 | 5\n```',
+            '```\nChart: Activity (Users)\nMonth | Active | Pending\nJan | 3 | 2\nFeb | 5 | 1\n```',
           ].join('\n\n'),
           metadata,
         });

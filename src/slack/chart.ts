@@ -29,10 +29,11 @@ export function toChartBlock({ title, chart }: ChartInput) {
   };
 }
 
+// The "Chart:" label tells members reading the transcript that a chart was posted.
 export function chartFallback({ title, chart }: ChartInput): string {
   if (chart.type === 'pie') {
     return [
-      title,
+      `Chart: ${title}`,
       'Label | Value',
       ...chart.segments.map(({ label, value }) => `${label} | ${value}`),
     ].join('\n');
@@ -40,7 +41,7 @@ export function chartFallback({ title, chart }: ChartInput): string {
 
   const { categories, series, xLabel, yLabel } = chart;
   return [
-    yLabel ? `${title} (${yLabel})` : title,
+    `Chart: ${yLabel ? `${title} (${yLabel})` : title}`,
     [xLabel || 'Category', ...series.map(({ name }) => name)].join(' | '),
     ...categories.map((category, index) =>
       [category, ...series.map(({ values }) => values[index])].join(' | '),
