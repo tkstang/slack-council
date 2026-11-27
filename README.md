@@ -20,7 +20,7 @@ and decide which tools it may use.
   over the thread.
 - **You stay in control of the floor.** `@council` asks everyone. `@<handle>`
   asks only the members you name. Anything else you write becomes context for
-  their next turn. `@council stop` and `@council end` stop the discussion.
+  their next turn by default. `@council stop` and `@council end` stop the discussion.
 - **It works where your team already talks.** A council runs in a Slack thread
   or a whole channel. The thread is the record, so there is nothing new to
   open, search or share.
@@ -54,7 +54,7 @@ Grace:   Not yet. The batch finishes in 20 minutes; a queue adds a broker
          to operate. Fix the two flaky jobs first.
 Ada:     Fair on the broker cost. If the flaky jobs are the real pain,
          per-job retries inside the batch get most of the benefit.
-         ✋ Grace has a follow-up
+         (✋ on Ada's reply: Grace has more to say)
 You:     @grace go ahead
 ```
 
