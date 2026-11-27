@@ -52,7 +52,7 @@ The app uses `@ai-sdk/openai-compatible` and sends requests to
 `POST {baseURL}/chat/completions`. Configure each provider with its
 `baseURL` and `apiKeyEnv`. A member's optional `effort` goes to the SDK as
 `reasoningEffort`, which the adapter sends as `reasoning_effort`. Private
-listening uses `low`.
+listening always sends `low`, even for members with no `effort` set.
 
 Public replies and private listening send `prompt_cache_key` with the SHA-256
 digest of the council ID. When a model ID starts with `claude-` and the prompt
@@ -60,7 +60,9 @@ has a cache boundary, the app splits the user message into two text blocks.
 It marks the first block, the stable role brief, with
 `cache_control: { "type": "ephemeral" }`. The transcript and task go in the
 second block. Other model IDs receive the user prompt as a single string.
-Cache support depends on the provider. When a provider reports a positive
+These fields are always sent and cannot be turned off. A provider that
+rejects unknown fields, or text-block content for a `claude-` model, fails
+every turn with `E_TURN_FAILED`; listening failures are silent. When a provider reports a positive
 cached input token count, the app logs `model_cache_read` to stderr. See
 [prompt caching in the design](design.md#prompt-caching) for the measurement
 and compatibility limits.
@@ -107,6 +109,8 @@ uses `/usr/bin/env -i` to start with a clean environment and Node's
 command paths or set `PATH` in the service's environment file.
 
 ```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>Label</key>
@@ -126,6 +130,8 @@ command paths or set `PATH` in the service's environment file.
     <string>/path/to/app</string>
     <key>RunAtLoad</key>
     <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
     <key>KeepAlive</key>
     <dict>
       <key>SuccessfulExit</key>
@@ -143,7 +149,13 @@ command paths or set `PATH` in the service's environment file.
 
 Build the app into the image and include its production dependencies. Mount
 the config and its optional instructions file, plus a writable volume at
-`stateDir`. Inject secrets through the platform. Validate the mounted config
-before starting the app. Run one replica and use a replacement strategy that
-stops the old replica before the new one starts. Give the app time to handle
-SIGTERM, and collect stdout and stderr through the platform.
+`stateDir`. Also mount any stdio MCP server scripts and `files` roots the
+config names; relative paths resolve from the working directory. Inject
+secrets through the platform. Validate the mounted config before starting the
+app. Run one replica and use a replacement strategy that stops the old replica
+before the new one starts.
+
+Run `node` directly as the exec-form entrypoint so SIGTERM reaches the app.
+The app allows itself 10 seconds to close its connections and then exits with
+code 2, so set the stop grace period above 10 seconds. Collect stdout and
+stderr through the platform.

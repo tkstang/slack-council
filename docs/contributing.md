@@ -23,13 +23,11 @@ code.
 
 ## Review and verification
 
-Use `oat-docs-analyze` to identify content, metadata, and navigation gaps, then
-`oat-docs-apply` for approved repairs. Adoption establishes entrypoints and
-configuration; review the existing tree before treating it as complete.
-
-Check relative links, Contents maps, metadata, and context after edits. Selected
-existing tools: lint `none`, format `none`. Use repository
-checks when available; this setup does not install tools or require a site build.
+Check relative links, Contents maps, metadata, and context after edits.
+`oat docs check --target-dir docs` checks links, Contents maps and metadata.
+oxfmt formats Markdown at an 80-column print width: the pre-commit hook
+rewrites staged pages, and `pnpm run format:check` and
+`pnpm run worktree:validate` check them. There is no docs linter or site build.
 
 The authored index is not a generated manifest. If an optional inventory is
 needed, run `oat docs generate-index` with an explicit output outside the

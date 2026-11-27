@@ -89,7 +89,7 @@ handoff. Reuse that evidence while the tested inputs remain unchanged.
 - **TypeScript 7 is primary.** `typescript-7@npm:typescript` supplies the stable
   `tsc` binary for typecheck and emit. `typescript@npm:@typescript/typescript6`
   remains beside it for compiler-API ecosystem compatibility and exposes `tsc6`.
-  Use that binary for differential diagnosis or a demonstrated TS7 blocker.
+  Use that binary only for differential diagnosis or a demonstrated TS7 blocker.
   A truly minimal repo with no compiler-API consumers may simplify to pure
   `typescript@^7`.
 - **Module resolution is `NodeNext`** for native Node ESM execution. Bundler

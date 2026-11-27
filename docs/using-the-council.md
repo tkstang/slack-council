@@ -84,7 +84,8 @@ order of replies and how members pass.
 
 After the hourglass clears, members with unseen posts can raise a hand.
 Look for a ✋ reaction on the post and a notice naming the members.
-Mention one of them to hear their point. See [how raised hands
+Mention one of them to hear their point. The council saves their private
+notes until their next turn posts or passes. See [how raised hands
 work](design.md#raised-hand) and [how to turn them off](configuration.md#council).
 
 Ask for more detail or an in-depth answer to move to a longer

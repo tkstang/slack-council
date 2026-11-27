@@ -117,7 +117,8 @@ a whole-server grant, bypasses the single-approval flow for direct calls.
 Ask a member to hand off work and specify the target machine and project.
 The card shows the target and the final prompt, then the resolved note path
 and the whole note. The note appears as one JSON-quoted line, with line breaks
-shown as `\n`, so nothing in it can pass for another field.
+shown as `\n`, so nothing in it can pass for another field. Handoff always
+asks, even under an `auto` rule.
 **Approve** writes the note and then launches the session with a pointer
 to the note. **Reject** ends the request. **Change** opens a form for your
 instructions and returns them to the member, who can propose a revised

@@ -57,8 +57,9 @@ channel it should serve.
 
 Copy [the example config](../council.config.example.json) to a private path such
 as `.council/council.config.json`, which Git ignores. Set `slack.allowedUsers`
-to the Slack user IDs that may start councils. Point each provider at your
-model endpoint and set each member's model and tool grants. See the
+to the Slack user IDs that may start councils. Point each provider at an
+OpenAI-compatible Chat Completions endpoint (see
+[model providers](deployment.md#model-providers)) and set each member's model and tool grants. See the
 [configuration reference](configuration.md) for the available settings.
 
 The example includes optional instructions and handoff settings. If you copy
@@ -78,7 +79,9 @@ COUNCIL_MODEL_API_KEY=
 Fill in the bot token (`xoxb-` prefix) and app token (`xapp-` prefix).
 `COUNCIL_MODEL_API_KEY` is the name used by the example provider. See the
 [deployment environment variables](deployment.md#environment-variables)
-for the full list.
+for the full list. The example's MCP servers (`notes`, `vault`, `sessions`)
+and its `files` root are placeholders: fill them in or remove them, or
+`start` logs them as unavailable.
 
 ## 3. Run locally
 
@@ -92,7 +95,7 @@ node --env-file=.env dist/cli.js start --config .council/council.config.json
 
 The CLI emits one JSON envelope on stdout. A validation error exits nonzero.
 `validate` checks the file and its references without contacting Slack,
-model providers or MCP servers. The equivalent installed CLI commands are
+model providers or MCP servers. After `pnpm link --global`, the equivalent commands are
 `slack-council validate --config <path>` and
 `slack-council start --config <path>`.
 

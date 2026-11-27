@@ -33,8 +33,8 @@ husky/lefthook) - `private: true` + MIT LICENSE.
 
 Use focused checks while editing and run `pnpm run worktree:validate` on a
 clean checkout with Node 26 before handoff. It runs the agent-file guard, types,
-lint, format, full tests and build. CI runs the same gate on every pull request
-and push to `main`. Reuse
+lint, format, full tests and build. CI runs the same gate on every non-draft pull request
+to `main` and every push to `main`. Reuse
 evidence while its source, dependencies, config, environment and relevant base
 are unchanged. Re-run affected checks after an input changes.
 
