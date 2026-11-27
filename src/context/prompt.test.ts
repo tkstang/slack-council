@@ -103,7 +103,7 @@ it.each([{ tools: [] }, { tools: ['show_chart'] }])(
       opening.user.slice(0, opening.cachePrefixLength),
     );
     const guidance = 'Use show_chart only when a chart makes the point clearer';
-    const restriction = 'Refer to the chart already posted';
+    const restriction = 'Refer to any chart already posted';
     if (tools.length) {
       expect(react.system).toContain(guidance);
       expect(react.user.slice(react.cachePrefixLength)).toContain(restriction);

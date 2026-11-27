@@ -16,9 +16,23 @@ function isStandalonePass(text: string): boolean {
   return /^pass$/iu.test(candidate);
 }
 
+function unwrapEmphasis(text: string): string {
+  let candidate = text.trim();
+  for (;;) {
+    const inner = /^([*_]{1,3})(.+)\1$/su.exec(candidate)?.[2];
+    if (inner === undefined) return candidate;
+    candidate = inner.trim();
+  }
+}
+
 function isReactPass(text: string): boolean {
-  const reply = text.trim();
-  const [first] = reply.split(/(?<=[.!?…:;][*_]*)\s+|[\r\n\u2028\u2029–—]/u, 1);
+  const reply = unwrapEmphasis(text);
+  // A leading PASS ends at a sentence stop, a line break, an em dash, or a
+  // spaced hyphen or en dash, so compounds such as "pass–fail" still post.
+  const [first] = reply.split(
+    /(?<=[.!…][*_]*)\s+|[\r\n\u2028\u2029]|\s*—|\s+[-–]{1,2}\s+/u,
+    1,
+  );
   const last = /[.!?…][*_]*\s+(\S+)$/u.exec(reply)?.[1];
   return [first, last].some(
     (part) => part !== undefined && isStandalonePass(part),

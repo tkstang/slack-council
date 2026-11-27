@@ -299,8 +299,8 @@ member, council cache key and, for public turns, the turn ID.
   like the transcript. It starts before the prompt transcript and pages back
   through the thread or to the channel council's convening post, inclusive.
 - `show_chart` collects up to two pie, bar, line or area charts in an opening
-  or mention turn. In react turns the tool stays in the cached tool list and
-  returns `E_FORBIDDEN` if called. A posted reply includes its charts as native
+  or mention turn. In react turns the tool stays in the cached tool list,
+  asks for no approval and returns `E_INVALID_STATE` if called. A posted reply includes its charts as native
   Slack blocks and carries every chart value in its text fallback for transcript
   reads. If Slack rejects the blocks, the adapter posts the reply as Markdown
   with the values in code blocks. A pass or failed turn discards its charts.

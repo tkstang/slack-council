@@ -18,8 +18,8 @@ export function createShowChartTool(
     execute(input) {
       if (!charts)
         return failure(
-          'E_FORBIDDEN',
-          'Charts are unavailable in react turns. Refer to the chart already posted.',
+          'E_INVALID_STATE',
+          'Charts are unavailable in react turns. Refer to any chart already posted.',
         );
       const parsed = ChartInputSchema.safeParse(input);
       if (!parsed.success) {
