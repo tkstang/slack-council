@@ -246,15 +246,16 @@ misrepresent other members as the responding assistant.
   when the post is still visible. The app strips verbatim echoes from member
   replies and blocks tool arguments that quote a private note.
 
-Output protocol: a turn that is only `PASS`, ignoring case, surrounding
-whitespace, markdown emphasis and trailing punctuation, posts nothing.
+A turn consisting of `PASS` posts nothing. The parser ignores case, surrounding
+whitespace, Markdown emphasis and trailing punctuation. For react turns it
+also accepts `PASS` at the start followed by sentence punctuation, a dash or a
+line break, or at the end after a completed sentence.
 
 ## Member runner
 
 `generateText` with the member's tools, `stopWhen: isStepCount(maxSteps)`,
-`reasoningEffort` from the member's `effort`, and an abort signal. A `react` turn
-that returns exactly `PASS` posts nothing. Output is scanned for handles to
-produce mention grants.
+`reasoningEffort` from the member's `effort`, and an abort signal. The runner
+scans posted replies for handles to produce mention grants.
 
 ### Prompt caching
 

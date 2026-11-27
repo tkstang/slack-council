@@ -112,6 +112,9 @@ it.each([{ tools: [] }, { tools: ['show_chart'] }])(
       expect(react.user).not.toContain(restriction);
     }
     expect(opening.user).not.toContain(restriction);
+    expect(react.user.slice(react.cachePrefixLength)).toContain(
+      'If you have nothing to add, reply with only the word PASS.',
+    );
   },
 );
 

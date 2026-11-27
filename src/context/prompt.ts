@@ -145,7 +145,7 @@ function renderFloor(input: PromptInput): string {
       const chartGuidance = input.member.tools.includes(SHOW_CHART_GRANT)
         ? ' Refer to the chart already posted if needed. Do not call show_chart in this turn.'
         : '';
-      return `React to the discussion in round ${grant.round}. Reply if you have something to add, or say PASS.${chartGuidance}`;
+      return `React to the discussion in round ${grant.round}. If you have nothing to add, reply with only the word PASS.${chartGuidance}`;
     }
     case 'mention':
       return source

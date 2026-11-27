@@ -198,8 +198,8 @@ function harness(
   };
 }
 
-it('uses one frozen round-one snapshot and waits for writes before reading fresh react context', async () => {
-  const h = harness();
+it('uses one frozen opening snapshot, then runs fresh react turns until all pass', async () => {
+  const h = harness({ rounds: 3 });
   h.history.push({
     ts: '2.000',
     author: { kind: 'notice' },
@@ -236,10 +236,12 @@ it('uses one frozen round-one snapshot and waits for writes before reading fresh
   expect(h.call(2).input.charts).toBeUndefined();
   expect(h.call(2).input.prompt.user).toContain('Opening from Critic');
   expect(h.call(2).input.prompt.user).toContain('Later context');
-  h.call(2).finish(success('**PASS**'));
+  h.call(2).finish(success('**PASS** — nothing to add'));
   await h.waitForCalls(4);
-  h.call(3).finish(success('Pass.'));
+  h.call(3).finish(success('I agree with Guide. PASS.'));
+  await vi.waitFor(() => expect(h.reactions).toHaveLength(2), { interval: 1 });
   await h.drain();
+  expect(h.calls).toHaveLength(4);
   expect(h.cutoffs).toEqual(['1.000', undefined, undefined]);
   expect(h.writes).toEqual(['Opening from Guide', 'Opening from Critic']);
   expect(h.reactions).toEqual([

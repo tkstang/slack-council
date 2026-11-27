@@ -339,7 +339,7 @@ export function createChainRunner(
     if (!result.ok) return failed(result.code);
     const { text, charts, shownNotes, latestSeenTs } = result.value;
     if (!text.trim()) return failed('E_TURN_FAILED');
-    const output = parseTurnOutput(text);
+    const output = parseTurnOutput(text, grant.kind);
     if (output.kind === 'pass') {
       await completeTurn(grant, shownNotes, latestSeenTs);
       return output;
