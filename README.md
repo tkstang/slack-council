@@ -209,7 +209,7 @@ gives the member no tools.
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `files`            | `read_file`, `list_dir`, `search_files`                                                                                                                  |
 | `slack_history`    | Earlier messages from this council's thread or channel. It starts before the prompt transcript and accepts the returned `oldestTs` as a `before` cursor. |
-| `show_chart`       | Up to two native pie, bar, line or area charts in the member's reply. The chart values are also available in the conversation transcript.                |
+| `show_chart`       | Up to two native pie, bar, line or area charts in an opening or mention reply. Chart values are available in the conversation transcript.                |
 | `handoff`          | Proposes a Markdown note and a coding session for one approval.                                                                                          |
 | `<server>`         | Every compatible tool from the named MCP server.                                                                                                         |
 | `<server>__<tool>` | One tool from the named MCP server.                                                                                                                      |
@@ -219,6 +219,7 @@ For channel councils, the convening post is the earliest message
 
 Grant `show_chart` to members that should use charts. They still write the
 takeaway in the reply and can use Markdown tables for tabular comparisons.
+In react rounds, members can refer to charts already posted.
 
 MCP tool names use ASCII letters, digits, underscores and hyphens. Server
 names use the same characters with single underscores between segments.

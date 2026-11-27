@@ -229,7 +229,11 @@ it('uses one frozen round-one snapshot and waits for writes before reading fresh
 
   release(success(undefined));
   await h.waitForCalls(3);
-  expect(h.call(2).input.member.id).toBe('guide');
+  expect(h.call(2).input).toMatchObject({
+    member: { id: 'guide' },
+    floorKind: 'react',
+  });
+  expect(h.call(2).input.charts).toBeUndefined();
   expect(h.call(2).input.prompt.user).toContain('Opening from Critic');
   expect(h.call(2).input.prompt.user).toContain('Later context');
   h.call(2).finish(success('**PASS**'));

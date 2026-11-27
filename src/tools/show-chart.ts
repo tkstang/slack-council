@@ -9,13 +9,18 @@ const inputSchema = jsonSchema(
 );
 
 export function createShowChartTool(
-  charts: ChartInput[],
+  charts: ChartInput[] | undefined,
 ): Tool<unknown, Result<string>> {
   return tool({
     description:
       'Attach a native Slack chart to your reply. Use up to two charts per turn. For bar, line and area charts, give each series one value per category, in category order.',
     inputSchema,
     execute(input) {
+      if (!charts)
+        return failure(
+          'E_FORBIDDEN',
+          'Charts are unavailable in react turns. Refer to the chart already posted.',
+        );
       const parsed = ChartInputSchema.safeParse(input);
       if (!parsed.success) {
         return failure(

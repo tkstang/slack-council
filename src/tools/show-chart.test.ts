@@ -53,48 +53,72 @@ it.each([
   expect(charts).toEqual([]);
 });
 
-it('grants the tool without default approval and collects at most two charts', async () => {
-  const charts: ChartInput[] = [];
-  const input: TurnInput = {
-    councilId: 'council',
-    chainId: 'chain',
-    turnId: 'turn',
-    scope: { channel: 'C1' },
-    member: {
-      id: 'ada',
-      name: 'Ada',
-      avatar: { emoji: ':owl:' },
-      provider: 'test',
-      model: 'test',
-      tools: ['show_chart'],
-    },
-    charts,
-    maxSteps: 3,
-    signal: new AbortController().signal,
-    prompt: { system: '', user: '' },
-  };
-  const ask = vi.fn(async () => success(undefined));
-  const toolsFor = createMemberTools({
-    config: ConfigSchema.shape.tools.parse({}),
-    slack: { fetchMessages: async () => success([]) },
-    members: [input.member],
-    mcp: { toolsFor: () => ({}) },
-    approvals: { forTurn: () => ask },
-  });
-  expect(
-    toolsFor({ ...input, member: { ...input.member, tools: [] } }),
-  ).toBeUndefined();
+it.each([
+  { floorKind: 'round', policy: [] },
+  { floorKind: 'react', policy: [{ tool: 'show_chart', action: 'ask' }] },
+] as const)(
+  'keeps the chart tool available during $floorKind',
+  async ({ floorKind, policy }) => {
+    const charts: ChartInput[] = [];
+    const input: TurnInput = {
+      councilId: 'council',
+      chainId: 'chain',
+      turnId: 'turn',
+      scope: { channel: 'C1' },
+      member: {
+        id: 'ada',
+        name: 'Ada',
+        avatar: { emoji: ':owl:' },
+        provider: 'test',
+        model: 'test',
+        tools: ['show_chart'],
+      },
+      floorKind,
+      ...(floorKind === 'round' ? { charts } : {}),
+      maxSteps: 3,
+      signal: new AbortController().signal,
+      prompt: { system: '', user: '' },
+    };
+    const ask = vi.fn(async () => success(undefined));
+    const toolsFor = createMemberTools({
+      config: ConfigSchema.shape.tools.parse({ policy }),
+      slack: { fetchMessages: async () => success([]) },
+      members: [input.member],
+      mcp: { toolsFor: () => ({}) },
+      approvals: { forTurn: () => ask },
+    });
+    expect(
+      toolsFor({ ...input, member: { ...input.member, tools: [] } }),
+    ).toBeUndefined();
 
-  const execute = toolsFor(input)?.show_chart?.execute;
-  if (!execute) throw new Error('Missing chart tool');
-  const sales = { title: 'Sales', chart: line };
-  expect(await execute(pie as never, options)).toMatchObject({ ok: true });
-  expect(await execute(sales as never, options)).toMatchObject({ ok: true });
-  expect(await execute(pie as never, options)).toMatchObject({
-    ok: false,
-    code: 'E_TOOL_FAILED',
-    message: expect.stringContaining('Only two charts'),
-  });
-  expect(charts).toEqual([pie, sales]);
-  expect(ask).not.toHaveBeenCalled();
-});
+    const definition = toolsFor(input)?.show_chart;
+    const execute = definition?.execute;
+    if (!execute) throw new Error('Missing chart tool');
+    if (floorKind === 'react') {
+      const opening = toolsFor({
+        ...input,
+        floorKind: 'round',
+        charts,
+      })?.show_chart;
+      expect(definition.description).toBe(opening?.description);
+      expect(definition.inputSchema).toBe(opening?.inputSchema);
+      expect(await execute(pie as never, options)).toMatchObject({
+        ok: false,
+        code: 'E_FORBIDDEN',
+        message: expect.stringContaining('Refer to the chart already posted'),
+      });
+      expect(ask).not.toHaveBeenCalled();
+      return;
+    }
+    const sales = { title: 'Sales', chart: line };
+    expect(await execute(pie as never, options)).toMatchObject({ ok: true });
+    expect(await execute(sales as never, options)).toMatchObject({ ok: true });
+    expect(await execute(pie as never, options)).toMatchObject({
+      ok: false,
+      code: 'E_TOOL_FAILED',
+      message: expect.stringContaining('Only two charts'),
+    });
+    expect(charts).toEqual([pie, sales]);
+    expect(ask).not.toHaveBeenCalled();
+  },
+);

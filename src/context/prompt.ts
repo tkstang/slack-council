@@ -141,8 +141,12 @@ function renderFloor(input: PromptInput): string {
   switch (grant.kind) {
     case 'round':
       return `Give an independent opening answer to the council prompt${reference}.`;
-    case 'react':
-      return `React to the discussion in round ${grant.round}. Reply if you have something to add, or say PASS.`;
+    case 'react': {
+      const chartGuidance = input.member.tools.includes(SHOW_CHART_GRANT)
+        ? ' Refer to the chart already posted if needed. Do not call show_chart in this turn.'
+        : '';
+      return `React to the discussion in round ${grant.round}. Reply if you have something to add, or say PASS.${chartGuidance}`;
+    }
     case 'mention':
       return source
         ? `${authorLabel(input, source.author)} addressed you${reference}. Answer the mention.`

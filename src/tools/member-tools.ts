@@ -38,10 +38,16 @@ export function createMemberTools({
   const files = createFileTools(config.files);
   return (input: TurnInput): ToolSet | undefined => {
     const grants = new Set(input.member.tools);
+    const isReact = input.floorKind === 'react';
     const builtins: ToolSet = {
       ...(grants.has(FILES_GRANT) ? files : {}),
-      ...(grants.has(SHOW_CHART_GRANT) && input.charts
-        ? { [SHOW_CHART_GRANT]: createShowChartTool(input.charts) }
+      // Keep the chart tool in the cached tool list for react turns.
+      ...(grants.has(SHOW_CHART_GRANT) && (isReact || input.charts)
+        ? {
+            [SHOW_CHART_GRANT]: createShowChartTool(
+              isReact ? undefined : input.charts,
+            ),
+          }
         : {}),
       ...(grants.has(SLACK_HISTORY_GRANT)
         ? {
@@ -66,6 +72,7 @@ export function createMemberTools({
       const execute = definition.execute;
       if (!execute) continue;
       const requiresApproval =
+        !(isReact && name === SHOW_CHART_GRANT) &&
         resolveToolPolicy(
           config.policy,
           name,

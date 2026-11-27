@@ -192,7 +192,7 @@ export function createChainRunner(
   ): Promise<
     Result<{
       text: string;
-      charts: readonly ChartInput[];
+      charts: readonly ChartInput[] | undefined;
       shownNotes: readonly PrivateNote[];
       latestSeenTs: string | undefined;
     }>
@@ -223,7 +223,8 @@ export function createChainRunner(
     // from the picker has only a notice before the first member posts.
     const latestSeenTs =
       firstVisible < 0 ? undefined : messages.value.at(-1)?.ts;
-    const charts: ChartInput[] = [];
+    const charts: ChartInput[] | undefined =
+      grant.kind === 'react' ? undefined : [];
     const result = await protect(
       () =>
         turns.runTurn({
@@ -237,7 +238,8 @@ export function createChainRunner(
           turnId: grant.turnId,
           historyBeforeTs: oldestTs,
           historyFromTs,
-          charts,
+          floorKind: grant.kind,
+          ...(charts ? { charts } : {}),
           ...(shownNotes.length
             ? { privateNoteText: shownNotes.map(({ note }) => note) }
             : {}),
@@ -361,7 +363,7 @@ export function createChainRunner(
           chainId: grant.chainId,
           turnId: grant.turnId,
           mentionPeople: settings.memberMentions === 'people',
-          ...(charts.length > 0 ? { charts } : {}),
+          ...(charts?.length ? { charts } : {}),
         }),
       'E_SLACK',
     ).finally(() => {

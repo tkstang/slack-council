@@ -2,6 +2,7 @@ import type { ChartInput } from './chart.js';
 import type { Result } from './result.js';
 import type {
   Council,
+  FloorKind,
   Member,
   Message,
   PrivateNote,
@@ -99,7 +100,8 @@ export interface TurnInput extends TurnRef {
   readonly maxSteps: number;
   readonly signal: AbortSignal;
   readonly approval?: TurnApproval;
-  /** Attachments collected for this public turn. */
+  readonly floorKind?: FloorKind;
+  /** Attachments collected for an opening or mention turn. */
   readonly charts?: ChartInput[];
   /** Private text that must stay out of tool arguments and approval previews. */
   readonly privateNoteText?: readonly string[];
