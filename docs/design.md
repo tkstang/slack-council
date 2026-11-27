@@ -1,3 +1,8 @@
+---
+title: Slack Council design
+description: The Slack Council turn engine, adapters and state model.
+---
+
 # slack-council design
 
 Status: prototype design, 2026-11-23. Decisions marked **(operator)** were made by
